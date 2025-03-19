@@ -23,12 +23,15 @@ class SpotifyInfoService @Autowired constructor(
                 id = idGeneratorService.uuid,
                 spotifyId = spotifyId,
                 email = email,
-                user = user
+                user = user,
+                accessToken = null,
+                refreshToken = null,
+                expiresAt = null
             )
         )
     }
 
     @Transactional
-    fun setUser(spotifyInfo: SpotifyInfo, user: User?): SpotifyInfo = spotifyInfoRepository.save(spotifyInfo.copy(user = user))
+    fun update(spotifyInfo: SpotifyInfo): SpotifyInfo = spotifyInfoRepository.save(spotifyInfo)
 
 }

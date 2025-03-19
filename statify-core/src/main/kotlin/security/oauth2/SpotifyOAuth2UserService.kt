@@ -14,12 +14,12 @@ class SpotifyOAuth2UserService(private val spotifyInfoService: SpotifyInfoServic
     override fun loadUser(oauth2UserRequest: OAuth2UserRequest?): OAuth2User? {
         val oAuth2User = super.loadUser(oauth2UserRequest)
 
-        return processOAuth2User(oAuth2User = oAuth2User!!)
+        return processOAuth2User(oAuth2User = oAuth2User)
     }
 
     private fun processOAuth2User(oAuth2User: OAuth2User): SpotifyOAuth2User {
         val attributes = oAuth2User.attributes
-        val spotifyId = attributes["id"] as String
+        val spotifyId = attributes["id"] as? String ?: throw IllegalArgumentException("SpotifyId not found")
         val email = attributes["email"] as? String ?: throw IllegalStateException("Email not found")
 
         val spotifyInfo = spotifyInfoService.findBySpotifyIdOrNull(spotifyId)
