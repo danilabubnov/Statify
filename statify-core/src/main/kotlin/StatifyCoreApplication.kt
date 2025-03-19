@@ -2,10 +2,10 @@ package org.danila
 
 import io.github.cdimascio.dotenv.DotenvBuilder
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.runApplication
+import org.springframework.context.annotation.ComponentScan
 
-@EntityScan(basePackages = ["org.danila.model"])
+@ComponentScan("config", "org.danila")
 @SpringBootApplication
 class StatifyCoreApplication
 
