@@ -82,7 +82,7 @@ class AuthController @Autowired constructor(
     fun initiateLinkSpotify(@AuthenticationPrincipal userDetails: UserDetailsImpl): ResponseEntity<Void> {
         val state = idGeneratorService.uuid
         val authorizationRequest = OAuth2AuthorizationRequest.authorizationCode()
-            .authorizationUri(spotifyAuthorizeUri)
+            .authorizationUri("$spotifyAuthorizeUri?show_dialog=true")
             .clientId(spotifyClientId)
             .redirectUri(spotifyRedirectUri)
             .scopes(spotifyScope.split(",").toSet())
