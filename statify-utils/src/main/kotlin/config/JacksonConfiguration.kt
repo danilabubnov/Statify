@@ -1,25 +1,29 @@
 package config
 
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.hibernate5.jakarta.Hibernate5JakartaModule
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-open class JacksonConfiguration {
+class JacksonConfiguration {
 
     @Bean
-    open fun objectMapper(): ObjectMapper = ObjectMapper()
-        .registerModule(KotlinModule.Builder().build())
+    fun objectMapper(): ObjectMapper = ObjectMapper()
         .registerModule(
-            Hibernate5JakartaModule().configure(
-                Hibernate5JakartaModule.Feature.FORCE_LAZY_LOADING, false
-            )
+            KotlinModule.Builder()
+                .withReflectionCacheSize(512)
+                .configure(KotlinFeature.NullToEmptyCollection, true)
+                .configure(KotlinFeature.NullToEmptyMap, true)
+                .build()
         )
-        .registerModule(JavaTimeModule())
-        .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+        .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+        .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
 
 }
