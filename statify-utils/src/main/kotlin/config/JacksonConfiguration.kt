@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 class JacksonConfiguration {
 
-    @Bean
+    @Bean("kafkaObjectMapper")
     fun objectMapper(): ObjectMapper = ObjectMapper()
         .registerModule(
             KotlinModule.Builder()

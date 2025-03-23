@@ -27,6 +27,7 @@ repositories {
     mavenCentral()
 }
 
+val kafkaVersion = providers.gradleProperty("kafkaVersion").get()
 val postgresqlVersion = providers.gradleProperty("postgresqlVersion").get()
 val dotenvKotlinVersion = providers.gradleProperty("dotenvKotlinVersion").get()
 
@@ -36,6 +37,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+    implementation("org.springframework.integration:spring-integration-kafka:$kafkaVersion")
 
     implementation("org.postgresql:postgresql:$postgresqlVersion")
 
