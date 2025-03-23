@@ -31,3 +31,4 @@ rootProject.name = "statify"
 
 include("statify-core")
 include("statify-utils")
+include("statify-synchronizer")

@@ -18,6 +18,24 @@ services:
     networks:
       - app-network
 
+  postgres-synchronizer:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_SYNCHRONIZER_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_SYNCHRONIZER_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_SYNCHRONIZER_DB}
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_SYNCHRONIZER_USER} -d $${POSTGRES_SYNCHRONIZER_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_synchronizer_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
   statify-core:
     build: ./statify-core
     environment:
@@ -44,9 +62,28 @@ services:
     networks:
       - app-network
 
+  statify-synchronizer:
+    build: ./statify-synchronizer
+    environment:
+      SPRING_DATASOURCE_URL: ${POSTGRES_SYNCHRONIZER_DOCKER_URL}
+      POSTGRES_USER: ${POSTGRES_SYNCHRONIZER_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_SYNCHRONIZER_PASSWORD}
+      SERVER_PORT: ${STATIFY_SYNCHRONIZER_PORT}
+    depends_on:
+      postgres-synchronizer:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:$${STATIFY_SYNCHRONIZER_PORT}/actuator/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
 
 volumes:
   postgres_core_data:
+  postgres_synchronizer_data:
