@@ -2,6 +2,16 @@ pluginManagement {
     val springBootVersion: String by settings
     val kotlinVersion: String by settings
     val springDepMgmtVersion: String by settings
+    val assertkVersion: String by settings
+    val mockitoKotlinVersion: String by settings
+    val kafkaVersion: String by settings
+    val postgresqlVersion: String by settings
+    val dotenvKotlinVersion: String by settings
+    val springDocOpenApiVersion: String by settings
+    val jjwtVersion: String by settings
+    val dataFakerVersion: String by settings
+    val h2Version: String by settings
+    val springSecurityCryptoVersion: String by settings
 
     plugins {
         kotlin("jvm") version kotlinVersion
@@ -11,6 +21,10 @@ pluginManagement {
         id("org.springframework.boot") version springBootVersion
         id("io.spring.dependency-management") version springDepMgmtVersion
     }
+}
+
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
 rootProject.name = "statify"

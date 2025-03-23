@@ -23,12 +23,13 @@ repositories {
     mavenCentral()
 }
 
+val springSecurityCryptoVersion = providers.gradleProperty("springSecurityCryptoVersion").get()
 val assertkVersion = providers.gradleProperty("assertkVersion").get()
 val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.springframework.security:spring-security-crypto:6.4.4")
+    implementation("org.springframework.security:spring-security-crypto:${springSecurityCryptoVersion}")
 
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")
