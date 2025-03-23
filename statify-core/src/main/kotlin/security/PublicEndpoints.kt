@@ -16,7 +16,8 @@ class PublicEndpoints {
         "/favicon.ico",
         "/api/auth/register",
         "/api/auth/login",
-        "/login/oauth2/code/**"
+        "/login/oauth2/code/**",
+        "/actuator/health"
     )
 
     val excludedEndpoints: Set<String> = setOf(
