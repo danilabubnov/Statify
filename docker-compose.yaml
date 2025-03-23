@@ -1,26 +1,52 @@
 version: '3'
 services:
-  postgres:
+  postgres-core:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Default123!}
-      POSTGRES_DB: ${POSTGRES_DB:-statify-core}
+      POSTGRES_USER: ${POSTGRES_CORE_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_CORE_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_CORE_DB}
     ports:
       - "5432:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_CORE_USER} -d $${POSTGRES_CORE_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 10
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_core_data:/var/lib/postgresql/data
     networks:
-      - statify-core-network
+      - app-network
+
+  statify-core:
+    build: ./statify-core
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: ${POSTGRES_CORE_DOCKER_URL}
+      POSTGRES_USER: ${POSTGRES_CORE_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_CORE_PASSWORD}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
+      SERVER_PORT: ${STATIFY_CORE_PORT}
+      SERVER_URL: ${STATIFY_CORE_URL}
+      ENCRYPTION_PASSWORD: ${ENCRYPTION_PASSWORD}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT}
+    depends_on:
+      postgres-core:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:$${STATIFY_CORE_PORT}/actuator/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
 
 networks:
-  statify-core-network:
+  app-network:
     driver: bridge
 
 volumes:
-  postgres_data:
+  postgres_core_data:
