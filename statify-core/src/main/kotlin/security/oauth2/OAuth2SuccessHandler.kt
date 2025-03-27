@@ -22,7 +22,7 @@ import java.util.UUID
 class OAuth2SuccessHandler(
     private val authorizedClientService: OAuth2AuthorizedClientService,
     private val oAuth2LinkStateRepository: OAuth2LinkStateRepository,
-    private val kafkaTemplate: KafkaTemplate<String, UserConnectedEvent>,
+    private val kafkaTemplate: KafkaTemplate<String, Any>,
     private val spotifyInfoService: SpotifyInfoService
 ) : AuthenticationSuccessHandler {
 
