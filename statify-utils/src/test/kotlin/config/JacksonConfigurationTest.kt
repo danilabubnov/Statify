@@ -10,13 +10,18 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import java.time.Instant
 
 @SpringBootTest(classes = [JacksonConfiguration::class])
 class JacksonConfigurationTest @Autowired constructor(
     private val objectMapper: ObjectMapper
 ) {
 
-    data class TestClass(val name: String? = null, val list: List<String> = emptyList())
+    data class TestClass(
+        val name: String? = null,
+        val list: List<String> = emptyList(),
+        val timestamp: Instant? = null
+    )
 
     @Test
     fun `should configure SerializationFeature WRITE_DATES_AS_TIMESTAMPS to false`() {
@@ -51,4 +56,17 @@ class JacksonConfigurationTest @Autowired constructor(
         val result = objectMapper.readValue(json, TestClass::class.java)
         assertThat(result.name).isEqualTo("test")
     }
+
+    @Test
+    fun `should serialize Instant to ISO-8601 format`() {
+        val json = objectMapper.writeValueAsString(TestClass(name = "test", list = listOf("value"), timestamp = Instant.parse("2025-03-27T12:34:56Z")))
+        org.assertj.core.api.Assertions.assertThat(json).contains("2025-03-27T12:34:56Z")
+    }
+
+    @Test
+    fun `should deserialize ISO-8601 formatted date to Instant`() {
+        val result = objectMapper.readValue("""{"name":"test","list":["value"],"timestamp":"2025-03-27T12:34:56Z"}""", TestClass::class.java)
+        assertThat(result.timestamp).isEqualTo(Instant.parse("2025-03-27T12:34:56Z"))
+    }
+
 }

@@ -28,7 +28,7 @@ class KafkaConfig(@Value("\${spring.kafka.bootstrap-servers}") private val boots
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
             ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
-            JsonSerializer.TYPE_MAPPINGS to "UserConnectedEvent:org.danila.events.UserConnectedEvent"
+            JsonSerializer.TYPE_MAPPINGS to "UserConnectedEvent:event.UserConnectedEvent"
         )
 
         return DefaultKafkaProducerFactory(
@@ -48,7 +48,7 @@ class KafkaConfig(@Value("\${spring.kafka.bootstrap-servers}") private val boots
     fun topics(): Collection<NewTopic> = listOf(
         TopicBuilder.name(USER_SPOTIFY_CONNECTED_TOPIC)
             .partitions(3)
-            .replicas(2)
+            .replicas(1)
             .config(TopicConfig.RETENTION_MS_CONFIG, "604800000") // 7 days
             .build()
     )
