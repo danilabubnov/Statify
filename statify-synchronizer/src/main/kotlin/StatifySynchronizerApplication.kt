@@ -4,8 +4,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
-class StatifyCoreApplication
+class StatifySynchronizerApplication
 
 fun main(args: Array<String>) {
-    runApplication<StatifyCoreApplication>(*args)
+    runApplication<StatifySynchronizerApplication>(*args)
 }
