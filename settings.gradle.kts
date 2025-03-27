@@ -6,7 +6,6 @@ pluginManagement {
     val mockitoKotlinVersion: String by settings
     val kafkaVersion: String by settings
     val postgresqlVersion: String by settings
-    val dotenvKotlinVersion: String by settings
     val springDocOpenApiVersion: String by settings
     val jjwtVersion: String by settings
     val dataFakerVersion: String by settings

@@ -30,7 +30,6 @@ repositories {
 val kafkaVersion = providers.gradleProperty("kafkaVersion").get()
 val springDocOpenApiVersion = providers.gradleProperty("springDocOpenApiVersion").get()
 val postgresqlVersion = providers.gradleProperty("postgresqlVersion").get()
-val dotenvKotlinVersion = providers.gradleProperty("dotenvKotlinVersion").get()
 val jjwtVersion = providers.gradleProperty("jjwtVersion").get()
 val assertkVersion = providers.gradleProperty("assertkVersion").get()
 val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
@@ -56,8 +55,6 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-
-    implementation("io.github.cdimascio:dotenv-kotlin:${dotenvKotlinVersion}")
 
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")

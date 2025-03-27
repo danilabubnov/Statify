@@ -29,20 +29,22 @@ repositories {
 
 val kafkaVersion = providers.gradleProperty("kafkaVersion").get()
 val postgresqlVersion = providers.gradleProperty("postgresqlVersion").get()
-val dotenvKotlinVersion = providers.gradleProperty("dotenvKotlinVersion").get()
 
 dependencies {
     implementation(project(":statify-utils"))
 
+    implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     implementation("org.springframework.integration:spring-integration-kafka:$kafkaVersion")
 
-    implementation("org.postgresql:postgresql:$postgresqlVersion")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
-    runtimeOnly("io.github.cdimascio:dotenv-kotlin:$dotenvKotlinVersion")
+    implementation("org.postgresql:postgresql:$postgresqlVersion")
 
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
