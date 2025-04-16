@@ -1,10 +1,10 @@
 package org.danila.security.oauth2
 
+import event.UserConnectedEvent
+import event.UserMetadata
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.danila.configuration.USER_SPOTIFY_CONNECTED_TOPIC
-import org.danila.events.UserConnectedEvent
-import org.danila.events.UserConnectedMetadata
 import org.danila.repository.OAuth2LinkStateRepository
 import org.danila.service.SpotifyInfoService
 import org.springframework.http.HttpStatus
@@ -16,7 +16,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler
 import org.springframework.stereotype.Component
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 @Component
 class OAuth2SuccessHandler(
@@ -66,12 +66,12 @@ class OAuth2SuccessHandler(
                 USER_SPOTIFY_CONNECTED_TOPIC, UserConnectedEvent(
                     eventId = UUID.randomUUID(),
                     userId = user.id,
-                    eventType = "USER_SPOTIFY_CONNECTED",
                     timestamp = Instant.now(),
-                    metadata = UserConnectedMetadata(
+                    metadata = UserMetadata(
                         spotifyId = spotifyId,
                         accessToken = accessToken,
-                        refreshToken = refreshToken
+                        refreshToken = refreshToken,
+                        expiresAt = expiresAt
                     )
                 )
             )

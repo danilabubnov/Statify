@@ -1,11 +1,9 @@
-import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm")
     kotlin("plugin.spring")
-    id("org.jetbrains.kotlin.plugin.jpa")
     id("org.jetbrains.kotlin.plugin.allopen")
     id("org.springframework.boot")
     id("io.spring.dependency-management")
@@ -28,26 +26,40 @@ repositories {
 }
 
 val kafkaVersion = providers.gradleProperty("kafkaVersion").get()
-val postgresqlVersion = providers.gradleProperty("postgresqlVersion").get()
+val retrofitVersion = providers.gradleProperty("retrofitVersion").get()
+val r2dbcPostgresVersion = providers.gradleProperty("r2dbcPostgresVersion").get()
+val reactorKafkaVersion = providers.gradleProperty("reactorKafkaVersion").get()
+val retrofitLoggingVersion = providers.gradleProperty("retrofitLoggingVersion").get()
+val assertkVersion = providers.gradleProperty("assertkVersion").get()
+val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
 
 dependencies {
     implementation(project(":statify-utils"))
 
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
+    implementation("io.projectreactor.kafka:reactor-kafka:$reactorKafkaVersion")
+
     implementation("org.springframework.integration:spring-integration-kafka:$kafkaVersion")
+
+    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
+    implementation("com.squareup.retrofit2:converter-jackson:$retrofitVersion")
+    implementation("com.squareup.okhttp3:logging-interceptor:$retrofitLoggingVersion")
 
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
-    implementation("org.postgresql:postgresql:$postgresqlVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    testImplementation("org.springframework.boot:spring-boot-starter-test") {
+        exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
+    }
+    testImplementation("com.willowtreeapps.assertk:assertk-jvm:$assertkVersion")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
 }
 
 tasks.withType<KotlinCompile> {

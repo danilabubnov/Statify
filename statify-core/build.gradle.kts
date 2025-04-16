@@ -1,4 +1,3 @@
-import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -35,6 +34,7 @@ val assertkVersion = providers.gradleProperty("assertkVersion").get()
 val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
 val dataFakerVersion = providers.gradleProperty("dataFakerVersion").get()
 val h2Version = providers.gradleProperty("h2Version").get()
+val springSecurityCryptoVersion = providers.gradleProperty("springSecurityCryptoVersion").get()
 
 dependencies {
     implementation(project(":statify-utils"))
@@ -47,21 +47,17 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     implementation("org.springframework.integration:spring-integration-kafka:$kafkaVersion")
+    implementation("org.springframework.security:spring-security-crypto:${springSecurityCryptoVersion}")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:${springDocOpenApiVersion}")
 
     implementation("org.postgresql:postgresql:$postgresqlVersion")
 
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-
     implementation("io.jsonwebtoken:jjwt-api:${jjwtVersion}")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:${jjwtVersion}")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:${jjwtVersion}")
+
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")

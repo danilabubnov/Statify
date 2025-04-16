@@ -11,6 +11,9 @@ pluginManagement {
     val dataFakerVersion: String by settings
     val h2Version: String by settings
     val springSecurityCryptoVersion: String by settings
+    val retrofitVersion: String by settings
+    val reactorKafkaVersion: String by settings
+    val retrofitLoggingVersion: String by settings
 
     plugins {
         kotlin("jvm") version kotlinVersion
@@ -31,3 +34,4 @@ rootProject.name = "statify"
 include("statify-core")
 include("statify-utils")
 include("statify-synchronizer")
+include("statify-data-api")

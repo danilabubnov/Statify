@@ -3,19 +3,22 @@ package org.danila.configuration
 import com.fasterxml.jackson.databind.ObjectMapper
 import event.UserConnectedEvent
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
-import org.springframework.kafka.core.ConsumerFactory
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory
-import org.springframework.kafka.listener.DefaultErrorHandler
-import org.springframework.kafka.listener.RetryListener
+import org.springframework.kafka.core.DefaultKafkaProducerFactory
+import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.core.ProducerFactory
 import org.springframework.kafka.support.serializer.JsonDeserializer
+import org.springframework.kafka.support.serializer.JsonSerializer
+import reactor.kafka.receiver.ReceiverOptions
 
 const val USER_SPOTIFY_CONNECTED_TOPIC = "user.spotify.connected.v1"
+const val USER_SPOTIFY_ACCESS_TOKEN_UPDATED_TOPIC = "user.spotify.access.token.updated.v1"
 
 @Configuration
 class KafkaConfig(
@@ -24,8 +27,8 @@ class KafkaConfig(
 ) {
 
     @Bean
-    fun consumerFactory(@Qualifier("kafkaObjectMapper") objectMapper: ObjectMapper): ConsumerFactory<String, UserConnectedEvent> {
-        val props = mapOf(
+    fun receiverOptions(): ReceiverOptions<String, UserConnectedEvent> {
+        val props = mutableMapOf<String, Any>(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
             ConsumerConfig.GROUP_ID_CONFIG to groupId,
             ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
@@ -34,24 +37,29 @@ class KafkaConfig(
             JsonDeserializer.TYPE_MAPPINGS to "UserConnectedEvent:event.UserConnectedEvent"
         )
 
-        return DefaultKafkaConsumerFactory(props)
+        return ReceiverOptions.create<String, UserConnectedEvent>(props)
+            .subscription(listOf(USER_SPOTIFY_CONNECTED_TOPIC))
     }
 
     @Bean
-    fun kafkaListenerContainerFactory(
-        consumerFactory: ConsumerFactory<String, UserConnectedEvent>
-    ): ConcurrentKafkaListenerContainerFactory<String, UserConnectedEvent> {
-        val factory = ConcurrentKafkaListenerContainerFactory<String, UserConnectedEvent>()
-        factory.consumerFactory = consumerFactory
+    fun producerFactory(@Qualifier("kafkaObjectMapper") objectMapper: ObjectMapper): ProducerFactory<String, Any> {
+        val config = mapOf(
+            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
+            JsonSerializer.TYPE_MAPPINGS to """
+                AccessTokenUpdatedEvent:event.AccessTokenUpdatedEvent
+            """.trimIndent()
+        )
 
-        factory.setCommonErrorHandler(DefaultErrorHandler().apply {
-            setRetryListeners(
-                RetryListener { record, ex, deliveryAttempt ->  // Явное указание SAM-типа
-                    println("Failed record: ${record.key()}, attempt: $deliveryAttempt")
-                }
-            )
-        })
-        return factory
+        return DefaultKafkaProducerFactory(
+            config,
+            StringSerializer(),
+            JsonSerializer<Any>(objectMapper)
+        )
     }
+
+    @Bean
+    fun kafkaTemplate(producerFactory: ProducerFactory<String, Any>) = KafkaTemplate(producerFactory)
 
 }
