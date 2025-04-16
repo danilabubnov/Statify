@@ -1,4 +1,3 @@
-import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -23,16 +22,13 @@ repositories {
     mavenCentral()
 }
 
-val springSecurityCryptoVersion = providers.gradleProperty("springSecurityCryptoVersion").get()
 val assertkVersion = providers.gradleProperty("assertkVersion").get()
 val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.springframework.security:spring-security-crypto:${springSecurityCryptoVersion}")
 
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
@@ -47,10 +43,6 @@ tasks.withType<KotlinCompile> {
         freeCompilerArgs.set(listOf("-Xjsr305=strict"))
         jvmTarget.set(JvmTarget.JVM_17)
     }
-}
-
-kotlin {
-    jvmToolchain(17)
 }
 
 tasks.test {

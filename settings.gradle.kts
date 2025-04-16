@@ -12,6 +12,7 @@ pluginManagement {
     val h2Version: String by settings
     val springSecurityCryptoVersion: String by settings
     val retrofitVersion: String by settings
+    val r2dbcPostgresVersion: String by settings
     val reactorKafkaVersion: String by settings
     val retrofitLoggingVersion: String by settings
 
@@ -34,4 +35,3 @@ rootProject.name = "statify"
 include("statify-core")
 include("statify-utils")
 include("statify-synchronizer")
-include("statify-data-api")
