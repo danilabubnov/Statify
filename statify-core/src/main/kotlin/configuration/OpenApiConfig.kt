@@ -2,8 +2,8 @@ package org.danila.configuration
 
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType
 import io.swagger.v3.oas.annotations.security.SecurityScheme
-import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.security.SecurityRequirement
+import org.springdoc.core.customizers.OpenApiCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -17,9 +17,10 @@ import org.springframework.context.annotation.Configuration
 class OpenApiConfig {
 
     @Bean
-    fun customOpenAPI(): OpenAPI? {
-        return OpenAPI()
-            .addSecurityItem(SecurityRequirement().addList("bearerAuth"))
+    fun customOpenAPI(): OpenApiCustomizer? {
+        return OpenApiCustomizer { openApi ->
+            openApi.addSecurityItem(SecurityRequirement().addList("bearerAuth"))
+        }
     }
 
 }
