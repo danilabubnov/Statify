@@ -1,10 +1,10 @@
 package org.danila.configuration
 
+import org.danila.security.PublicEndpoints
 import org.danila.security.jwt.JwtAuthenticationFilter
 import org.danila.security.jwt.JwtUtils
-import org.danila.security.oauth2.OAuth2SuccessHandler
-import org.danila.security.PublicEndpoints
 import org.danila.security.oauth2.CustomOAuth2AuthorizationRequestRepository
+import org.danila.security.oauth2.OAuth2SuccessHandler
 import org.danila.security.oauth2.SpotifyOAuth2UserService
 import org.danila.security.user.UserDetailsServiceImpl
 import org.springframework.context.annotation.Bean

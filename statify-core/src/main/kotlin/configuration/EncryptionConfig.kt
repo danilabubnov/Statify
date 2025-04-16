@@ -1,6 +1,5 @@
 package org.danila.configuration
 
-import config.EncryptionUtil
 import jakarta.annotation.PostConstruct
 import org.danila.converter.CryptoConverter
 import org.springframework.context.annotation.Configuration

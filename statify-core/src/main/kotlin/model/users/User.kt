@@ -1,19 +1,11 @@
 package org.danila.model.users
 
-import jakarta.persistence.CascadeType
-import jakarta.persistence.Column
-import jakarta.persistence.ElementCollection
-import jakarta.persistence.Entity
-import jakarta.persistence.FetchType
-import jakarta.persistence.Id
-import jakarta.persistence.Index
-import jakarta.persistence.OneToOne
-import jakarta.persistence.Table
-import org.danila.model.spotify.SpotifyInfo
+import jakarta.persistence.*
+import org.danila.model.SpotifyInfo
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 @Entity
 @Table(

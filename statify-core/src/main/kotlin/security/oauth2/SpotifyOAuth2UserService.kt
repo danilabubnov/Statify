@@ -1,6 +1,6 @@
 package org.danila.security.oauth2
 
-import org.danila.model.spotify.SpotifyInfo
+import org.danila.model.SpotifyInfo
 import org.danila.service.SpotifyInfoService
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService
