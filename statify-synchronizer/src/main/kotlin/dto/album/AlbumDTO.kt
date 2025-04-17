@@ -88,12 +88,6 @@ data class SavedAlbumsResponseDTO(
     @JsonProperty("next")
     val next: String?,
 
-    @JsonProperty("offset")
-    val offset: Int,
-
-    @JsonProperty("previous")
-    val previous: String?,
-
     @JsonProperty("total")
     val total: Int,
 

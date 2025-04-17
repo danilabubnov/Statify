@@ -38,10 +38,7 @@ data class ArtistSimpleDTO(
 data class CursorsDTO(
 
     @JsonProperty("after")
-    val after: String?,
-
-    @JsonProperty("before")
-    val before: String?
+    val after: String?
 
 )
 

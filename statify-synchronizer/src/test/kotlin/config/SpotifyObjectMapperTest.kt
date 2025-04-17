@@ -141,11 +141,6 @@ class SpotifyObjectMapperTest @Autowired constructor(
                 ),
                 artists = listOf(ArtistSimpleDTO(id = "0TnOYISbd1XYRBk9myaseg", name = "Pitbull")),
                 tracks = TracksDTO(
-                    limit = 50,
-                    next = null,
-                    offset = 0,
-                    previous = null,
-                    total = 18,
                     items = listOf(
                         TrackItemDTO(
                             artists = listOf(ArtistSimpleDTO(id = "0TnOYISbd1XYRBk9myaseg", name = "Pitbull")),

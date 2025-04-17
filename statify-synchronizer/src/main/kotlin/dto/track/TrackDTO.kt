@@ -2,6 +2,7 @@ package org.danila.dto.track
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.danila.dto.album.AlbumSimpleDTO
+import org.danila.dto.artist.ArtistSimpleDTO
 
 data class TrackDTO(
 
@@ -9,7 +10,7 @@ data class TrackDTO(
     val album: AlbumSimpleDTO,
 
     @JsonProperty("artists")
-    val artists: List<org.danila.dto.artist.ArtistSimpleDTO>,
+    val artists: List<ArtistSimpleDTO>,
 
     @JsonProperty("duration_ms")
     val durationMs: Int,
@@ -34,7 +35,7 @@ data class TrackDTO(
 data class TrackItemDTO(
 
     @JsonProperty("artists")
-    val artists: List<org.danila.dto.artist.ArtistSimpleDTO>,
+    val artists: List<ArtistSimpleDTO>,
 
     @JsonProperty("duration_ms")
     val durationMs: Int,
@@ -54,21 +55,6 @@ data class TrackItemDTO(
 )
 
 data class TracksDTO(
-
-    @JsonProperty("limit")
-    val limit: Int,
-
-    @JsonProperty("next")
-    val next: String?,
-
-    @JsonProperty("offset")
-    val offset: Int,
-
-    @JsonProperty("previous")
-    val previous: String?,
-
-    @JsonProperty("total")
-    val total: Int,
 
     @JsonProperty("items")
     val items: List<TrackItemDTO>
@@ -92,15 +78,6 @@ data class SavedTracksResponseDTO(
 
     @JsonProperty("next")
     val next: String?,
-
-    @JsonProperty("offset")
-    val offset: Int,
-
-    @JsonProperty("previous")
-    val previous: String?,
-
-    @JsonProperty("total")
-    val total: Int,
 
     @JsonProperty("items")
     val items: List<SavedTrackItemDTO>
