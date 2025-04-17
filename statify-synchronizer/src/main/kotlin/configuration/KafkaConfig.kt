@@ -6,9 +6,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
-import org.danila.event.EnrichAlbumEvent
-import org.danila.event.EnrichArtistEvent
-import org.danila.event.EnrichTrackEvent
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -30,7 +27,7 @@ const val TRACK_ENRICH_TOPIC = "statify.track.enrich.v1"
 @Configuration
 class KafkaConfig(
     @Value("\${spring.kafka.bootstrap-servers}") private val bootstrapServers: String,
-    @Value("\${spring.kafka.consumer.group-id}") private val groupId: String
+    @Value("\${spring.kafka.consumer.group-id}") private val groupId: String,
 ) {
 
     @Bean
@@ -50,75 +47,35 @@ class KafkaConfig(
 
     @Bean
     fun reactiveKafkaConsumer(
-        receiverOptions: ReceiverOptions<String, UserConnectedEvent>
+        receiverOptions: ReceiverOptions<String, UserConnectedEvent>,
     ): ReactiveKafkaConsumerTemplate<String, UserConnectedEvent> {
         return ReactiveKafkaConsumerTemplate(receiverOptions)
     }
 
     @Bean
-    fun artistEnrichReceiverOptions(): ReceiverOptions<String, EnrichArtistEvent> {
-        val props = mutableMapOf<String, Any>(
+    fun allEnrichReceiverOptions(): ReceiverOptions<String, Any> {
+        val props = mapOf<String, Any>(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
-            ConsumerConfig.GROUP_ID_CONFIG to "${groupId}-artist-enrich",
+            ConsumerConfig.GROUP_ID_CONFIG to "$groupId‑all‑enrich",
             ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
             ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to JsonDeserializer::class.java,
             JsonDeserializer.TRUSTED_PACKAGES to "*",
-            JsonDeserializer.TYPE_MAPPINGS to "EnrichArtistEvent:org.danila.event.EnrichArtistEvent"
+            JsonDeserializer.TYPE_MAPPINGS to """
+                EnrichArtistEvent:org.danila.event.EnrichArtistEvent,
+                EnrichAlbumEvent:org.danila.event.EnrichAlbumEvent,
+                EnrichTrackEvent:org.danila.event.EnrichTrackEvent
+            """.trimIndent()
         )
 
-        return ReceiverOptions.create<String, EnrichArtistEvent>(props)
-            .subscription(listOf(ARTIST_ENRICH_TOPIC))
+        return ReceiverOptions.create<String, Any>(props)
+            .subscription(listOf(ARTIST_ENRICH_TOPIC, ALBUM_ENRICH_TOPIC, TRACK_ENRICH_TOPIC))
     }
 
     @Bean
-    fun artistEnrichConsumerTemplate(
-        artistEnrichReceiverOptions: ReceiverOptions<String, EnrichArtistEvent>
-    ): ReactiveKafkaConsumerTemplate<String, EnrichArtistEvent> {
-        return ReactiveKafkaConsumerTemplate(artistEnrichReceiverOptions)
-    }
-
-    @Bean
-    fun albumEnrichReceiverOptions(): ReceiverOptions<String, EnrichAlbumEvent> {
-        val props = mutableMapOf<String, Any>(
-            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
-            ConsumerConfig.GROUP_ID_CONFIG to "${groupId}-album-enrich",
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to JsonDeserializer::class.java,
-            JsonDeserializer.TRUSTED_PACKAGES to "*",
-            JsonDeserializer.TYPE_MAPPINGS to "EnrichAlbumEvent:org.danila.event.EnrichAlbumEvent"
-        )
-
-        return ReceiverOptions.create<String, EnrichAlbumEvent>(props)
-            .subscription(listOf(ALBUM_ENRICH_TOPIC))
-    }
-
-    @Bean
-    fun albumEnrichConsumerTemplate(
-        albumEnrichReceiverOptions: ReceiverOptions<String, EnrichAlbumEvent>
-    ): ReactiveKafkaConsumerTemplate<String, EnrichAlbumEvent> {
-        return ReactiveKafkaConsumerTemplate(albumEnrichReceiverOptions)
-    }
-
-    @Bean
-    fun trackEnrichReceiverOptions(): ReceiverOptions<String, EnrichTrackEvent> {
-        val props = mutableMapOf<String, Any>(
-            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
-            ConsumerConfig.GROUP_ID_CONFIG to "${groupId}-track-enrich",
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to JsonDeserializer::class.java,
-            JsonDeserializer.TRUSTED_PACKAGES to "*",
-            JsonDeserializer.TYPE_MAPPINGS to "EnrichTrackEvent:org.danila.event.EnrichTrackEvent"
-        )
-
-        return ReceiverOptions.create<String, EnrichTrackEvent>(props)
-            .subscription(listOf(TRACK_ENRICH_TOPIC))
-    }
-
-    @Bean
-    fun trackEnrichConsumerTemplate(
-        trackEnrichReceiverOptions: ReceiverOptions<String, EnrichTrackEvent>
-    ): ReactiveKafkaConsumerTemplate<String, EnrichTrackEvent> {
-        return ReactiveKafkaConsumerTemplate(trackEnrichReceiverOptions)
+    fun enrichConsumer(
+        allEnrichReceiverOptions: ReceiverOptions<String, Any>,
+    ): ReactiveKafkaConsumerTemplate<String, Any> {
+        return ReactiveKafkaConsumerTemplate(allEnrichReceiverOptions)
     }
 
     @Bean

@@ -1,17 +1,19 @@
 package org.danila.services.spotify
 
+import event.UserConnectedEvent
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.future.await
+import org.danila.configuration.ALBUM_ENRICH_TOPIC
+import org.danila.configuration.ARTIST_ENRICH_TOPIC
+import org.danila.configuration.TRACK_ENRICH_TOPIC
 import org.danila.dto.album.AlbumDTO
 import org.danila.dto.album.SavedAlbumItemDTO
 import org.danila.dto.artist.ArtistDTO
 import org.danila.dto.track.SavedTrackItemDTO
 import org.danila.dto.track.TrackDTO
-import org.danila.event.EnrichAlbumEvent
-import org.danila.event.EnrichArtistEvent
-import org.danila.event.EnrichMetadata
-import org.danila.event.EnrichTrackEvent
+import org.danila.event.*
 import org.danila.model.spotify.AlbumArtist
 import org.danila.model.spotify.TrackArtist
 import org.danila.model.spotify.album.Album
@@ -23,7 +25,7 @@ import org.danila.model.spotify.track.Track
 import org.danila.services.api.spotify.SpotifyApiClient
 import org.danila.services.model.spotify.*
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.ApplicationEventPublisher
+import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import java.util.*
 
@@ -41,59 +43,59 @@ class SpotifyService @Autowired constructor(
     private val spotifyDataProcessor: SpotifyDataProcessor,
     private val spotifyApiClient: SpotifyApiClient,
 
-    private val eventPublisher: ApplicationEventPublisher
+    private val kafkaTemplate: KafkaTemplate<String, Any>,
 ) {
 
-    suspend fun fetchSpotifyData(accessToken: String) {
-        val authHeader = "Bearer $accessToken"
+    suspend fun fetchSpotifyData(event: UserConnectedEvent) {
+        val authHeader = "Bearer ${event.metadata.accessToken}"
         val (artistDTOs, savedTracksDTOs, savedAlbumsDTOs) = fetchSpotifyDTOs(authHeader)
 
         processSpotifyData(
             artistDTOs = artistDTOs,
             trackDTOs = savedTracksDTOs.map { it.track },
             albumDTOs = savedAlbumsDTOs.map { it.album },
-            accessToken = accessToken,
-            enrich = false
+            enrichMetadata = EnrichMetadata(accessToken = event.metadata.accessToken, correlationId = event.eventId.toString(), generation = 0)
         )
     }
 
-    suspend fun enrichArtists(artistIds: Set<String>, accessToken: String) {
-        val authHeader = "Bearer $accessToken"
-        val artistDTOs = spotifyApiClient.getSeveralArtists(artistIds = artistIds, authHeader = authHeader)
+    suspend fun enrich(event: EnrichEvent) {
+        val authHeader = "Bearer ${event.metadata.accessToken}"
+        val nextMeta = event.metadata.copy(generation = event.metadata.generation + 1)
 
-        processSpotifyData(
-            artistDTOs = artistDTOs,
-            trackDTOs = emptyList(),
-            albumDTOs = emptyList(),
-            accessToken = accessToken,
-            enrich = true
-        )
-    }
+        when (event) {
+            is EnrichArtistEvent -> {
+                val artists = spotifyApiClient.getSeveralArtists(artistIds = event.artistIds, authHeader = authHeader)
 
-    suspend fun enrichAlbums(albumIds: Set<String>, accessToken: String) {
-        val authHeader = "Bearer $accessToken"
-        val albumDTOs = spotifyApiClient.getSeveralAlbums(albumIds = albumIds, authHeader = authHeader)
+                processSpotifyData(
+                    artistDTOs = artists,
+                    trackDTOs = emptyList(),
+                    albumDTOs = emptyList(),
+                    enrichMetadata = nextMeta
+                )
+            }
 
-        processSpotifyData(
-            artistDTOs = emptyList(),
-            trackDTOs = emptyList(),
-            albumDTOs = albumDTOs,
-            accessToken = accessToken,
-            enrich = true
-        )
-    }
+            is EnrichAlbumEvent -> {
+                val albums = spotifyApiClient.getSeveralAlbums(albumIds = event.albumIds, authHeader = authHeader)
 
-    suspend fun enrichTracks(trackIds: Set<String>, accessToken: String) {
-        val authHeader = "Bearer $accessToken"
-        val trackDTOs = spotifyApiClient.getSeveralTracks(trackIds = trackIds, authHeader = authHeader)
+                processSpotifyData(
+                    artistDTOs = emptyList(),
+                    trackDTOs = emptyList(),
+                    albumDTOs = albums,
+                    enrichMetadata = nextMeta
+                )
+            }
 
-        processSpotifyData(
-            artistDTOs = emptyList(),
-            trackDTOs = trackDTOs,
-            albumDTOs = emptyList(),
-            accessToken = accessToken,
-            enrich = true
-        )
+            is EnrichTrackEvent -> {
+                val tracks = spotifyApiClient.getSeveralTracks(trackIds = event.trackIds, authHeader = authHeader)
+
+                processSpotifyData(
+                    artistDTOs = emptyList(),
+                    trackDTOs = tracks,
+                    albumDTOs = emptyList(),
+                    enrichMetadata = nextMeta
+                )
+            }
+        }
     }
 
     private suspend fun fetchSpotifyDTOs(authHeader: String): Triple<List<ArtistDTO>, List<SavedTrackItemDTO>, List<SavedAlbumItemDTO>> =
@@ -105,13 +107,13 @@ class SpotifyService @Autowired constructor(
             Triple(artistsDeferred.await(), tracksDeferred.await(), albumsDeferred.await())
         }
 
-    private suspend fun processSpotifyData(artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>, accessToken: String, enrich: Boolean) {
+    private suspend fun processSpotifyData(artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>, enrichMetadata: EnrichMetadata) {
         val existingData = fetchExistingData(artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs)
         val saveCollections = spotifyDataProcessor.processData(artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
 
         val savedCollections = saveData(saveCollections = saveCollections)
 
-        publishEvents(savedCollections = savedCollections, accessToken = accessToken)
+        sendEnrichEvents(savedCollections = savedCollections, enrichMetadata = enrichMetadata)
     }
 
     private suspend fun fetchExistingData(artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>): ExistingData = coroutineScope {
@@ -131,13 +133,13 @@ class SpotifyService @Autowired constructor(
         val albumArtistsDeferred = async {
             albumArtistService.findExistingAlbumArtists(
                 albumDTOs.flatMap { album -> album.artists.map { artist -> album.id to artist.id } }.toSet() +
-                    trackDTOs.flatMap { trackDTO -> trackDTO.album.artists.map { artist -> trackDTO.album.id to artist.id } }.toSet()
+                        trackDTOs.flatMap { trackDTO -> trackDTO.album.artists.map { artist -> trackDTO.album.id to artist.id } }.toSet()
             )
         }
         val trackArtistsDeferred = async {
             trackArtistService.findExistingTrackArtists(
                 trackDTOs.flatMap { track -> track.artists.map { artist -> track.id to artist.id } }.toSet() +
-                    albumDTOs.flatMap { album -> album.tracks.items.flatMap { track -> track.artists.map { artist -> track.id to artist.id } } }.toSet()
+                        albumDTOs.flatMap { album -> album.tracks.items.flatMap { track -> track.artists.map { artist -> track.id to artist.id } } }.toSet()
             )
         }
         val artistImagesDeferred = async {
@@ -183,13 +185,28 @@ class SpotifyService @Autowired constructor(
         saveCollections
     }
 
-    private fun publishEvents(savedCollections: SaveCollections, accessToken: String) {
-        eventPublisher.publishEvent(savedCollections.albums.filter { it.isSimpleAlbum() }.map { it.spotifyId }
-            .let { EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = it.toSet(), metadata = EnrichMetadata(accessToken = accessToken)) })
-        eventPublisher.publishEvent(savedCollections.artists.filter { it.isSimpleArtist() }.map { it.spotifyId }
-            .let { EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = it.toSet(), metadata = EnrichMetadata(accessToken = accessToken)) })
-        eventPublisher.publishEvent(savedCollections.tracks.filter { it.isSimpleTrack() }.map { it.spotifyId }
-            .let { EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = it.toSet(), metadata = EnrichMetadata(accessToken = accessToken)) })
+    private suspend fun sendEnrichEvents(savedCollections: SaveCollections, enrichMetadata: EnrichMetadata) {
+        val albumIdsToSend = savedCollections.albums.filter { it.isSimpleAlbum() }.map { it.spotifyId }
+        val artistIdsToSend = savedCollections.artists.filter { it.isSimpleArtist() }.map { it.spotifyId }
+        val trackIdsToSend = savedCollections.tracks.filter { it.isSimpleTrack() }.map { it.spotifyId }
+
+        if (albumIdsToSend.isNotEmpty())
+            kafkaTemplate.send(
+                ALBUM_ENRICH_TOPIC,
+                EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = albumIdsToSend.toSet(), metadata = enrichMetadata)
+            ).await()
+
+        if (artistIdsToSend.isNotEmpty())
+            kafkaTemplate.send(
+                ARTIST_ENRICH_TOPIC,
+                EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = artistIdsToSend.toSet(), metadata = enrichMetadata)
+            ).await()
+
+        if (trackIdsToSend.isNotEmpty())
+            kafkaTemplate.send(
+                TRACK_ENRICH_TOPIC,
+                EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = trackIdsToSend.toSet(), metadata = enrichMetadata)
+            ).await()
     }
 
 }
@@ -202,5 +219,5 @@ data class ExistingData(
     val trackArtists: Set<TrackArtist>,
     val artistImages: Set<ArtistImage>,
     val artistGenres: Set<ArtistGenre>,
-    val albumImages: Set<AlbumImage>
+    val albumImages: Set<AlbumImage>,
 )

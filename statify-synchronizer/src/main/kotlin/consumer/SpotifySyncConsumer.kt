@@ -4,16 +4,18 @@ import event.AccessTokenUpdatedEvent
 import event.UserConnectedEvent
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.reactor.mono
 import org.danila.configuration.USER_SPOTIFY_ACCESS_TOKEN_UPDATED_TOPIC
-import org.danila.event.EnrichAlbumEvent
-import org.danila.event.EnrichArtistEvent
-import org.danila.event.EnrichTrackEvent
+import org.danila.event.EnrichEvent
 import org.danila.services.api.spotify.SpotifyAuthService
 import org.danila.services.spotify.SpotifyService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
 import org.springframework.stereotype.Component
+import reactor.core.publisher.GroupedFlux
+import reactor.core.publisher.Mono
+import reactor.kafka.receiver.ReceiverRecord
 import java.time.Instant
 import java.util.*
 
@@ -23,45 +25,56 @@ class SpotifySyncConsumer @Autowired constructor(
     private val spotifyAuthService: SpotifyAuthService,
     private val spotifyService: SpotifyService,
 
-    private val userConnectedConsumerTemplate: ReactiveKafkaConsumerTemplate<String, UserConnectedEvent>,
-    private val artistEnrichConsumerTemplate: ReactiveKafkaConsumerTemplate<String, EnrichArtistEvent>,
-    private val albumEnrichConsumerTemplate: ReactiveKafkaConsumerTemplate<String, EnrichAlbumEvent>,
-    private val trackEnrichConsumerTemplate: ReactiveKafkaConsumerTemplate<String, EnrichTrackEvent>
+    private val userConnectedConsumer: ReactiveKafkaConsumerTemplate<String, UserConnectedEvent>,
+    private val enrichConsumer: ReactiveKafkaConsumerTemplate<String, Any>,
 ) {
 
-    suspend fun handleUserConnectedEvent(event: UserConnectedEvent) {
-        println("${Instant.now()}: Получено событие: ${event.eventId}") // TODO: logs
-
-        var accessToken = event.metadata.accessToken
-
-        if (spotifyAuthService.isAccessTokenExpired(event.metadata.expiresAt))
-            accessToken = getAccessToken(event = event)
-
-        spotifyService.fetchSpotifyData(accessToken = accessToken)
+    @PostConstruct
+    fun startConsumers() {
+        consumeUserConnected()
+        consumeEnrichWaves()
     }
 
-    suspend fun handleArtistEnrichEvent(event: EnrichArtistEvent) {
-        println("${Instant.now()}: Получено событие: ${event.eventId} для обогащения артиста") // TODO: logs
+    private fun consumeUserConnected() {
+        userConnectedConsumer
+            .receive()
+            .flatMap<Void>({ rec ->
+                mono {
+                    val evt = rec.value()
 
-        val accessToken = event.metadata.accessToken
+                    println("${Instant.now()}: UserConnectedEvent ${evt.eventId}")
 
-        spotifyService.enrichArtists(accessToken = accessToken, artistIds = event.artistIds)
+                    val token = getAccessToken(evt)
+
+                    spotifyService.fetchSpotifyData(evt.copy(metadata = evt.metadata.copy(accessToken = token)))
+                }.then(Mono.fromRunnable { rec.receiverOffset().acknowledge() })
+            }, 3)
+            .onErrorContinue { err, _ -> err.printStackTrace() }
+            .subscribe()
     }
 
-    suspend fun handleAlbumEnrichEvent(event: EnrichAlbumEvent) {
-        println("${Instant.now()}: Получено событие: ${event.eventId} для обогащения альбома") // TODO: logs
+    private fun consumeEnrichWaves() {
+        enrichConsumer
+            .receive()
+            .map { rec -> (rec.value() as EnrichEvent) to rec }
+            .groupBy { (evt, _) -> evt.metadata.correlationId }
+            .flatMapSequential({ group: GroupedFlux<String, Pair<EnrichEvent, ReceiverRecord<String, Any>>> ->
+                group
+                    .windowUntilChanged { (evt, _) -> evt.metadata.generation }
+                    .concatMap { wave ->
+                        wave
+                            .flatMap<Void> { (evt, rec) ->
+                                mono {
+                                    println("${Instant.now()}: EnrichEvent ${evt.eventId} (gen=${evt.metadata.generation})")
 
-        val accessToken = event.metadata.accessToken
-
-        spotifyService.enrichAlbums(accessToken = accessToken, albumIds = event.albumIds)
-    }
-
-    suspend fun handleTrackEnrichEvent(event: EnrichTrackEvent) {
-        println("${Instant.now()}: Получено событие: ${event.eventId} для обогащения трека") // TODO: logs
-
-        val accessToken = event.metadata.accessToken
-
-        spotifyService.enrichTracks(accessToken = accessToken, trackIds = event.trackIds)
+                                    spotifyService.enrich(evt)
+                                }.then(Mono.fromRunnable { rec.receiverOffset().acknowledge() })
+                            }
+                            .then()
+                    }
+            }, 4)
+            .onErrorContinue { err, _ -> err.printStackTrace() }
+            .subscribe()
     }
 
     private suspend fun getAccessToken(event: UserConnectedEvent): String =
@@ -76,70 +89,6 @@ class SpotifySyncConsumer @Autowired constructor(
             USER_SPOTIFY_ACCESS_TOKEN_UPDATED_TOPIC,
             AccessTokenUpdatedEvent(eventId = UUID.randomUUID(), accessToken = accessToken, spotifyId = spotifyId)
         ).await()
-    }
-
-    @PostConstruct
-    fun consumeUserConnectedEvents() {
-        userConnectedConsumerTemplate
-            .receive()
-            .concatMap { record ->
-                kotlinx.coroutines.reactor.mono {
-                    handleUserConnectedEvent(record.value())
-                        .also { record.receiverOffset().acknowledge() }
-                }
-            }
-            .onErrorContinue { throwable, _ ->
-                throwable.printStackTrace() // TODO: logs
-            }
-            .subscribe()
-    }
-
-    @PostConstruct
-    fun consumeArtistEnrichEvents() {
-        artistEnrichConsumerTemplate
-            .receive()
-            .concatMap { record ->
-                kotlinx.coroutines.reactor.mono {
-                    handleArtistEnrichEvent(record.value())
-                        .also { record.receiverOffset().acknowledge() }
-                }
-            }
-            .onErrorContinue { throwable, _ ->
-                throwable.printStackTrace() // TODO: logs
-            }
-            .subscribe()
-    }
-
-    @PostConstruct
-    fun consumeAlbumEnrichEvents() {
-        albumEnrichConsumerTemplate
-            .receive()
-            .concatMap { record ->
-                kotlinx.coroutines.reactor.mono {
-                    handleAlbumEnrichEvent(record.value())
-                        .also { record.receiverOffset().acknowledge() }
-                }
-            }
-            .onErrorContinue { throwable, _ ->
-                throwable.printStackTrace() // TODO: logs
-            }
-            .subscribe()
-    }
-
-    @PostConstruct
-    fun consumeTrackEnrichEvents() {
-        trackEnrichConsumerTemplate
-            .receive()
-            .concatMap { record ->
-                kotlinx.coroutines.reactor.mono {
-                    handleTrackEnrichEvent(record.value())
-                        .also { record.receiverOffset().acknowledge() }
-                }
-            }
-            .onErrorContinue { throwable, _ ->
-                throwable.printStackTrace() // TODO: logs
-            }
-            .subscribe()
     }
 
 }
