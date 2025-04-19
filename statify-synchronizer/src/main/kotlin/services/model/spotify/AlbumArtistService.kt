@@ -20,7 +20,7 @@ class AlbumArtistService @Autowired constructor(
 
     suspend fun persistAlbumArtists(albumArtists: Collection<AlbumArtist>): Collection<AlbumArtist> =
         transactionalOperator.executeAndAwait {
-            albumArtists.chunked(1000)
+            albumArtists.chunked(300)
                 .map { chunk ->
                     albumArtistsRepository.insertBatch(chunk)
                         .collectList()

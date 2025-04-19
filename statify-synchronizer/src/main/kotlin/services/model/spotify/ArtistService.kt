@@ -19,7 +19,7 @@ class ArtistService @Autowired constructor(
 
     suspend fun upsertArtists(artists: Collection<Artist>): Collection<Artist> =
         transactionalOperator.executeAndAwait {
-            artists.chunked(1000)
+            artists.chunked(300)
                 .map { chunk ->
                     artistRepository.upsertBatch(chunk)
                         .collectList()

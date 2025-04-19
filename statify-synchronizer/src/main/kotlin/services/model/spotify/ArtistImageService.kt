@@ -20,7 +20,7 @@ class ArtistImageService @Autowired constructor(
 
     suspend fun persistArtistImage(artistImages: Collection<ArtistImage>): Collection<ArtistImage> =
         transactionalOperator.executeAndAwait {
-            artistImages.chunked(1000)
+            artistImages.chunked(300)
                 .map { chunk ->
                     artistImageRepository.insertBatch(chunk)
                         .collectList()

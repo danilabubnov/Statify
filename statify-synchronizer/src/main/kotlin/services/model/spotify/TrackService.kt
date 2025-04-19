@@ -19,7 +19,7 @@ class TrackService @Autowired constructor(
 
     suspend fun upsertTracks(tracks: Collection<Track>): Collection<Track> =
         transactionalOperator.executeAndAwait {
-            tracks.chunked(1000)
+            tracks.chunked(300)
                 .map { chunk ->
                     trackRepository.upsertBatch(chunk)
                         .collectList()

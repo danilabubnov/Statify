@@ -19,7 +19,7 @@ class AlbumService @Autowired constructor(
 
     suspend fun upsertAlbums(albums: Collection<Album>): Collection<Album> =
         transactionalOperator.executeAndAwait {
-            albums.chunked(1000)
+            albums.chunked(300)
                 .map { chunk ->
                     albumRepository.upsertBatch(chunk)
                         .collectList()

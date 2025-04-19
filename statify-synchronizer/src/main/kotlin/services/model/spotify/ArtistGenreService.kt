@@ -19,7 +19,7 @@ class ArtistGenreService @Autowired constructor(
 
     suspend fun persistArtistGenres(artistGenres: Collection<ArtistGenre>): Collection<ArtistGenre> =
         transactionalOperator.executeAndAwait {
-            artistGenres.chunked(1000)
+            artistGenres.chunked(300)
                 .map { chunk ->
                     artistGenreRepository.insertBatch(chunk)
                         .collectList()
