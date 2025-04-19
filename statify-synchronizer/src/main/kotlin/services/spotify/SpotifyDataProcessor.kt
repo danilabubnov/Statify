@@ -2,27 +2,86 @@ package org.danila.services.spotify
 
 import org.danila.dto.*
 import org.danila.dto.album.AlbumDTO
+import org.danila.dto.album.SavedAlbumItemDTO
 import org.danila.dto.artist.ArtistDTO
+import org.danila.dto.track.SavedTrackItemDTO
 import org.danila.dto.track.TrackDTO
 import org.danila.model.spotify.AlbumArtist
 import org.danila.model.spotify.TrackArtist
 import org.danila.model.spotify.album.Album
 import org.danila.model.spotify.album.AlbumImage
+import org.danila.model.spotify.album.UserFavoriteAlbum
 import org.danila.model.spotify.artist.Artist
 import org.danila.model.spotify.artist.ArtistGenre
 import org.danila.model.spotify.artist.ArtistImage
 import org.danila.model.spotify.track.Track
+import org.danila.model.spotify.track.UserFavoriteTrack
 import org.springframework.stereotype.Service
+import java.time.Instant
+import java.util.*
 
 @Service
 class SpotifyDataProcessor {
 
-    fun processData(artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>, existingData: ExistingData): SaveCollections {
+    fun processData(
+        userId: UUID,
+        artistDTOs: List<ArtistDTO>,
+        trackDTOs: List<SavedTrackItemDTO>,
+        albumDTOs: List<SavedAlbumItemDTO>,
+        existingData: ExistingData
+    ): SaveCollections {
         val saveCollections = SaveCollections()
 
-        handleArtists(artistDTOs = artistDTOs, existingData = existingData, saveCollections = saveCollections)
-        handleAlbums(albumDTOs = albumDTOs, existingData = existingData, saveCollections = saveCollections)
-        handleTracks(trackDTOs = trackDTOs, existingData = existingData, saveCollections = saveCollections)
+        handleArtists(
+            artistDTOs = artistDTOs,
+            existingData = existingData,
+            saveCollections = saveCollections
+        )
+        handleAlbums(
+            items = albumDTOs,
+            existingData = existingData,
+            saveCollections = saveCollections,
+            albumOf = { it.album },
+            userFavoriteOf = { UserFavoriteAlbum(userId, it.album.id, Instant.parse(it.addedAt)) }
+        )
+        handleTracks(
+            items = trackDTOs,
+            existingData = existingData,
+            saveCollections = saveCollections,
+            trackOf = { it.track },
+            userFavoriteOf = { UserFavoriteTrack(userId, it.track.id, Instant.parse(it.addedAt)) }
+        )
+
+        return saveCollections
+    }
+
+    fun processData(
+        artistDTOs: List<ArtistDTO>,
+        trackDTOs: List<TrackDTO>,
+        albumDTOs: List<AlbumDTO>,
+        existingData: ExistingData
+    ): SaveCollections {
+        val saveCollections = SaveCollections()
+
+        handleArtists(
+            artistDTOs = artistDTOs,
+            existingData = existingData,
+            saveCollections = saveCollections
+        )
+        handleAlbums(
+            items = albumDTOs,
+            existingData = existingData,
+            saveCollections = saveCollections,
+            albumOf = { it },
+            userFavoriteOf = { null }
+        )
+        handleTracks(
+            items = trackDTOs,
+            existingData = existingData,
+            saveCollections = saveCollections,
+            trackOf = { it },
+            userFavoriteOf = { null }
+        )
 
         return saveCollections
     }
@@ -58,101 +117,123 @@ class SpotifyDataProcessor {
         }
     }
 
-    private fun handleAlbums(albumDTOs: List<AlbumDTO>, existingData: ExistingData, saveCollections: SaveCollections) {
-        albumDTOs.forEach { albumDTO ->
-            val existingAlbum = existingData.albums.find { it.spotifyId == albumDTO.id }
+    private inline fun <T> handleAlbums(
+        items: List<T>,
+        existingData: ExistingData,
+        saveCollections: SaveCollections,
+        crossinline albumOf: (T) -> AlbumDTO,
+        crossinline userFavoriteOf: (T) -> UserFavoriteAlbum?
+    ) {
+        items.forEach { item ->
+            val dto = albumOf(item)
+            val existingAlbum = existingData.albums.find { it.spotifyId == dto.id }
 
-            if (existingAlbum == null || existingAlbum.isSimpleAlbum() || !existingAlbum.matchesDto(albumDTO)) {
-                saveCollections.addAlbumIfAbsent(albumDTO.toFullAlbumDb())
+            if (existingAlbum == null || existingAlbum.isSimpleAlbum() || !existingAlbum.matchesDto(dto)) {
+                saveCollections.addAlbumIfAbsent(dto.toFullAlbumDb())
             }
 
-            val existingAlbumImages = existingData.albumImages.filter { it.albumId == albumDTO.id }
-            var albumImageIndex = existingAlbumImages.size
+            val userFavorite = userFavoriteOf(item)
 
-            albumDTO.images.forEach { imageDTO ->
-                if (existingAlbumImages.none { it.albumId == albumDTO.id && it.imageUrl == imageDTO.url }) {
-                    saveCollections.addAlbumImageIfAbsent(imageDTO.toAlbumImageDb(index = albumImageIndex++, albumId = albumDTO.id))
-                }
+            if (userFavorite != null) {
+                val alreadyExists = existingData.userFavoriteAlbums.any { fav -> fav.albumId == dto.id }
 
-                // TODO: remove missing albumImages from db
-            }
-
-            albumDTO.artists.forEach { artistSimpleDto ->
-                if (existingData.artists.none { it.spotifyId == artistSimpleDto.id }) {
-                    saveCollections.addArtistIfAbsent(artistSimpleDto.toSimpleArtistDb())
-                }
-
-                if (existingData.albumArtists.none { it.artistId == artistSimpleDto.id && it.albumId == albumDTO.id }) {
-                    saveCollections.addAlbumArtistIfAbsent(AlbumArtist(artistId = artistSimpleDto.id, albumId = albumDTO.id))
-
-                    // TODO: remove missing albumArtists from db
+                if (!alreadyExists) {
+                    saveCollections.addUserFavoriteAlbumIfAbsent(userFavorite)
                 }
             }
 
-            albumDTO.tracks.items.forEach { trackSimpleDto ->
-                if (existingData.tracks.none { it.spotifyId == trackSimpleDto.id }) {
-                    saveCollections.addTrackIfAbsent(trackSimpleDto.toSimpleTrackDb(albumId = albumDTO.id))
+            val images = existingData.albumImages.filter { it.albumId == dto.id }
+            var idx = images.size
+
+            dto.images.forEach { image ->
+                if (images.none { it.imageUrl == image.url }) {
+                    saveCollections.addAlbumImageIfAbsent(image.toAlbumImageDb(idx++, dto.id))
+                }
+            }
+
+            dto.artists.forEach { artist ->
+                if (existingData.artists.none { it.spotifyId == artist.id }) {
+                    saveCollections.addArtistIfAbsent(artist.toSimpleArtistDb())
                 }
 
-                trackSimpleDto.artists.forEach { artistSimpleDto ->
-                    if (existingData.artists.none { it.spotifyId == artistSimpleDto.id }) {
-                        saveCollections.addArtistIfAbsent(artistSimpleDto.toSimpleArtistDb())
+                if (existingData.albumArtists.none { it.albumId == dto.id && it.artistId == artist.id }) {
+                    saveCollections.addAlbumArtistIfAbsent(AlbumArtist(artist.id, dto.id))
+                }
+            }
+
+            dto.tracks.items.forEach { track ->
+                if (existingData.tracks.none { it.spotifyId == track.id }) {
+                    saveCollections.addTrackIfAbsent(track.toSimpleTrackDb(dto.id))
+                }
+
+                track.artists.forEach { artist ->
+                    if (existingData.artists.none { it.spotifyId == artist.id }) {
+                        saveCollections.addArtistIfAbsent(artist.toSimpleArtistDb())
                     }
 
-                    if (existingData.trackArtists.none { it.trackId == trackSimpleDto.id && it.artistId == artistSimpleDto.id }) {
-                        saveCollections.addTrackArtistIfAbsent(TrackArtist(trackId = trackSimpleDto.id, artistId = artistSimpleDto.id))
+                    if (existingData.trackArtists.none { it.trackId == track.id && it.artistId == artist.id }) {
+                        saveCollections.addTrackArtistIfAbsent(TrackArtist(track.id, artist.id))
                     }
-
-                    // TODO: remove missing trackArtists from db
                 }
             }
         }
     }
 
-    private fun handleTracks(trackDTOs: List<TrackDTO>, existingData: ExistingData, saveCollections: SaveCollections) {
-        trackDTOs.forEach { trackDTO ->
-            val existingTrack = existingData.tracks.find { it.spotifyId == trackDTO.id }
+    private inline fun <T> handleTracks(
+        items: List<T>,
+        existingData: ExistingData,
+        saveCollections: SaveCollections,
+        crossinline trackOf: (T) -> TrackDTO,
+        crossinline userFavoriteOf: (T) -> UserFavoriteTrack?
+    ) {
+        items.forEach { item ->
+            val dto = trackOf(item)
+            val existingTrack = existingData.tracks.find { it.spotifyId == dto.id }
 
-            if (existingTrack == null || existingTrack.isSimpleTrack() || !existingTrack.matchesDto(trackDTO)) {
-                saveCollections.addTrackIfAbsent(trackDTO.toFullTrackDb())
+            if (existingTrack == null || existingTrack.isSimpleTrack() || !existingTrack.matchesDto(dto)) {
+                saveCollections.addTrackIfAbsent(dto.toFullTrackDb())
             }
 
-            if (existingData.albums.none { it.spotifyId == trackDTO.album.id }) {
-                saveCollections.addAlbumIfAbsent(trackDTO.album.toSimpleAlbumDb())
-            }
+            val userFavorite = userFavoriteOf(item)
 
-            val existingAlbumImages = existingData.albumImages.filter { it.albumId == trackDTO.album.id }
-            var albumImageIndex = existingAlbumImages.size
+            if (userFavorite != null) {
+                val alreadyExists = existingData.userFavoriteTracks.any { fav -> fav.trackId == dto.id }
 
-            trackDTO.album.images.forEach { imageDTO ->
-                if (existingAlbumImages.none { it.albumId == trackDTO.album.id && it.imageUrl == imageDTO.url }) {
-                    saveCollections.addAlbumImageIfAbsent(imageDTO.toAlbumImageDb(index = albumImageIndex++, albumId = trackDTO.album.id))
-                }
-
-                // TODO: remove missing images from db
-            }
-
-            trackDTO.album.artists.forEach { artistSimpleDto ->
-                if (existingData.artists.none { it.spotifyId == artistSimpleDto.id }) {
-                    saveCollections.addArtistIfAbsent(artistSimpleDto.toSimpleArtistDb())
-                }
-
-                if (existingData.albumArtists.none { it.albumId == trackDTO.album.id && it.artistId == artistSimpleDto.id }) {
-                    saveCollections.addAlbumArtistIfAbsent(AlbumArtist(albumId = trackDTO.album.id, artistId = artistSimpleDto.id))
-
-                    // TODO: remove missing albumArtists from db
+                if (!alreadyExists) {
+                    saveCollections.addUserFavoriteTrackIfAbsent(userFavorite)
                 }
             }
 
-            trackDTO.artists.forEach { artistSimpleDto ->
-                if (existingData.artists.none { it.spotifyId == artistSimpleDto.id }) {
-                    saveCollections.addArtistIfAbsent(artistSimpleDto.toSimpleArtistDb())
+            if (existingData.albums.none { it.spotifyId == dto.album.id }) {
+                saveCollections.addAlbumIfAbsent(dto.album.toSimpleAlbumDb())
+            }
+
+            val images = existingData.albumImages.filter { it.albumId == dto.album.id }
+            var idx = images.size
+
+            dto.album.images.forEach { image ->
+                if (images.none { it.imageUrl == image.url }) {
+                    saveCollections.addAlbumImageIfAbsent(image.toAlbumImageDb(idx++, dto.album.id))
+                }
+            }
+
+            dto.album.artists.forEach { artist ->
+                if (existingData.artists.none { it.spotifyId == artist.id }) {
+                    saveCollections.addArtistIfAbsent(artist.toSimpleArtistDb())
                 }
 
-                if (existingData.trackArtists.none { it.trackId == trackDTO.id && it.artistId == artistSimpleDto.id }) {
-                    saveCollections.addTrackArtistIfAbsent(TrackArtist(trackId = trackDTO.id, artistId = artistSimpleDto.id))
+                if (existingData.albumArtists.none { it.albumId == dto.album.id && it.artistId == artist.id }) {
+                    saveCollections.addAlbumArtistIfAbsent(AlbumArtist(dto.album.id, artist.id))
+                }
+            }
 
-                    // TODO: remove missing trackArtists from db
+            dto.artists.forEach { artist ->
+                if (existingData.artists.none { it.spotifyId == artist.id }) {
+                    saveCollections.addArtistIfAbsent(artist.toSimpleArtistDb())
+                }
+
+                if (existingData.trackArtists.none { it.trackId == dto.id && it.artistId == artist.id }) {
+                    saveCollections.addTrackArtistIfAbsent(TrackArtist(dto.id, artist.id))
                 }
             }
         }
@@ -168,14 +249,15 @@ data class SaveCollections(
     val albumImages: MutableSet<AlbumImage> = mutableSetOf(),
     val albumArtists: MutableSet<AlbumArtist> = mutableSetOf(),
     val tracks: MutableSet<Track> = mutableSetOf(),
-    val trackArtists: MutableSet<TrackArtist> = mutableSetOf()
+    val trackArtists: MutableSet<TrackArtist> = mutableSetOf(),
+    val userFavoriteTracks: MutableSet<UserFavoriteTrack> = mutableSetOf(),
+    val userFavoriteAlbums: MutableSet<UserFavoriteAlbum> = mutableSetOf()
 ) {
 
     fun addArtistIfAbsent(artist: Artist) {
         if (this.artists.none { it.spotifyId == artist.spotifyId }) {
             this.artists.add(artist)
-        }
-        else if (this.artists.any { it.isSimpleArtist() && !artist.isSimpleArtist() }) {
+        } else if (this.artists.any { it.isSimpleArtist() && !artist.isSimpleArtist() }) {
             this.artists.removeIf { it.spotifyId == artist.spotifyId }
             this.artists.add(artist)
         }
@@ -184,8 +266,7 @@ data class SaveCollections(
     fun addTrackIfAbsent(track: Track) {
         if (this.tracks.none { it.spotifyId == track.spotifyId }) {
             this.tracks.add(track)
-        }
-        else if (this.tracks.any { it.isSimpleTrack() && !track.isSimpleTrack() }) {
+        } else if (this.tracks.any { it.isSimpleTrack() && !track.isSimpleTrack() }) {
             this.tracks.removeIf { it.spotifyId == track.spotifyId }
             this.tracks.add(track)
         }
@@ -194,8 +275,7 @@ data class SaveCollections(
     fun addAlbumIfAbsent(album: Album) {
         if (this.albums.none { it.spotifyId == album.spotifyId }) {
             this.albums.add(album)
-        }
-        else if (this.albums.any { it.isSimpleAlbum() && !album.isSimpleAlbum() }) {
+        } else if (this.albums.any { it.isSimpleAlbum() && !album.isSimpleAlbum() }) {
             this.albums.removeIf { it.spotifyId == album.spotifyId }
             this.albums.add(album)
         }
@@ -228,6 +308,18 @@ data class SaveCollections(
     fun addTrackArtistIfAbsent(trackArtist: TrackArtist) {
         if (this.trackArtists.none { it.trackId == trackArtist.trackId && it.artistId == trackArtist.artistId }) {
             this.trackArtists.add(trackArtist)
+        }
+    }
+
+    fun addUserFavoriteTrackIfAbsent(userFavoriteTrack: UserFavoriteTrack) {
+        if (this.userFavoriteTracks.none { it.userId == userFavoriteTrack.userId && it.trackId == userFavoriteTrack.trackId }) {
+            this.userFavoriteTracks.add(userFavoriteTrack)
+        }
+    }
+
+    fun addUserFavoriteAlbumIfAbsent(userFavoriteAlbum: UserFavoriteAlbum) {
+        if (this.userFavoriteAlbums.none { it.userId == userFavoriteAlbum.userId && it.albumId == userFavoriteAlbum.albumId }) {
+            this.userFavoriteAlbums.add(userFavoriteAlbum)
         }
     }
 

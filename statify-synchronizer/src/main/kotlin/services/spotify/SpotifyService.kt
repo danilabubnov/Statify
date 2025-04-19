@@ -18,10 +18,12 @@ import org.danila.model.spotify.AlbumArtist
 import org.danila.model.spotify.TrackArtist
 import org.danila.model.spotify.album.Album
 import org.danila.model.spotify.album.AlbumImage
+import org.danila.model.spotify.album.UserFavoriteAlbum
 import org.danila.model.spotify.artist.Artist
 import org.danila.model.spotify.artist.ArtistGenre
 import org.danila.model.spotify.artist.ArtistImage
 import org.danila.model.spotify.track.Track
+import org.danila.model.spotify.track.UserFavoriteTrack
 import org.danila.services.api.spotify.SpotifyApiClient
 import org.danila.services.model.spotify.*
 import org.springframework.beans.factory.annotation.Autowired
@@ -31,6 +33,8 @@ import java.util.*
 
 @Service
 class SpotifyService @Autowired constructor(
+    private val userFavoriteAlbumService: UserFavoriteAlbumService,
+    private val userFavoriteTrackService: UserFavoriteTrackService,
     private val trackArtistService: TrackArtistService,
     private val albumArtistService: AlbumArtistService,
     private val artistGenreService: ArtistGenreService,
@@ -43,7 +47,7 @@ class SpotifyService @Autowired constructor(
     private val spotifyDataProcessor: SpotifyDataProcessor,
     private val spotifyApiClient: SpotifyApiClient,
 
-    private val kafkaTemplate: KafkaTemplate<String, Any>,
+    private val kafkaTemplate: KafkaTemplate<String, Any>
 ) {
 
     suspend fun fetchSpotifyData(event: UserConnectedEvent) {
@@ -52,9 +56,10 @@ class SpotifyService @Autowired constructor(
 
         processSpotifyData(
             artistDTOs = artistDTOs,
-            trackDTOs = savedTracksDTOs.map { it.track },
-            albumDTOs = savedAlbumsDTOs.map { it.album },
-            enrichMetadata = EnrichMetadata(accessToken = event.metadata.accessToken, correlationId = event.eventId.toString(), generation = 0)
+            trackDTOs = savedTracksDTOs,
+            albumDTOs = savedAlbumsDTOs,
+            enrichMetadata = EnrichMetadata(accessToken = event.metadata.accessToken, correlationId = event.eventId.toString(), generation = 0),
+            userId = event.userId
         )
     }
 
@@ -107,8 +112,28 @@ class SpotifyService @Autowired constructor(
             Triple(artistsDeferred.await(), tracksDeferred.await(), albumsDeferred.await())
         }
 
-    private suspend fun processSpotifyData(artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>, enrichMetadata: EnrichMetadata) {
-        val existingData = fetchExistingData(artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs)
+    private suspend fun processSpotifyData(
+        userId: UUID,
+        artistDTOs: List<ArtistDTO>,
+        trackDTOs: List<SavedTrackItemDTO>,
+        albumDTOs: List<SavedAlbumItemDTO>,
+        enrichMetadata: EnrichMetadata
+    ) {
+        val existingData = fetchExistingData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs.map { it.track }, albumDTOs = albumDTOs.map { it.album })
+        val saveCollections = spotifyDataProcessor.processData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
+
+        val savedCollections = saveData(saveCollections = saveCollections)
+
+        sendEnrichEvents(savedCollections = savedCollections, enrichMetadata = enrichMetadata)
+    }
+
+    private suspend fun processSpotifyData(
+        artistDTOs: List<ArtistDTO>,
+        trackDTOs: List<TrackDTO>,
+        albumDTOs: List<AlbumDTO>,
+        enrichMetadata: EnrichMetadata
+    ) {
+        val existingData = fetchExistingData(userId = null, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs)
         val saveCollections = spotifyDataProcessor.processData(artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
 
         val savedCollections = saveData(saveCollections = saveCollections)
@@ -116,7 +141,7 @@ class SpotifyService @Autowired constructor(
         sendEnrichEvents(savedCollections = savedCollections, enrichMetadata = enrichMetadata)
     }
 
-    private suspend fun fetchExistingData(artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>): ExistingData = coroutineScope {
+    private suspend fun fetchExistingData(userId: UUID?, artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>): ExistingData = coroutineScope {
         val artistsDeferred = async {
             artistService.findExistingArtists(
                 artistDTOs.map { it.id }.toSet() +
@@ -153,6 +178,8 @@ class SpotifyService @Autowired constructor(
                 albumDTOs.map { it.id to it.images }.toSet() + trackDTOs.map { track -> track.album.id to track.album.images }.toSet()
             )
         }
+        val userFavoriteTracksDeferred = async { if (userId != null) userFavoriteTrackService.findExistingUserFavoriteTracks(userId) else emptyList() }
+        val userFavoriteAlbumsDeferred = async { if (userId != null) userFavoriteAlbumService.findExistingUserFavoriteAlbums(userId) else emptyList() }
 
         ExistingData(
             artists = artistsDeferred.await().toSet(),
@@ -162,7 +189,9 @@ class SpotifyService @Autowired constructor(
             trackArtists = trackArtistsDeferred.await().toSet(),
             artistImages = artistImagesDeferred.await().toSet(),
             artistGenres = artistGenresDeferred.await().toSet(),
-            albumImages = albumImagesDeferred.await().toSet()
+            albumImages = albumImagesDeferred.await().toSet(),
+            userFavoriteTracks = userFavoriteTracksDeferred.await().toSet(),
+            userFavoriteAlbums = userFavoriteAlbumsDeferred.await().toSet()
         )
     }
 
@@ -179,7 +208,9 @@ class SpotifyService @Autowired constructor(
             async { artistImageService.persistArtistImage(saveCollections.artistImages) },
             async { artistGenreService.persistArtistGenres(saveCollections.artistGenres) },
             async { albumArtistService.persistAlbumArtists(saveCollections.albumArtists) },
-            async { trackArtistService.persistTrackArtists(saveCollections.trackArtists) }
+            async { trackArtistService.persistTrackArtists(saveCollections.trackArtists) },
+            async { userFavoriteTrackService.persistUserFavoriteTracks(saveCollections.userFavoriteTracks) },
+            async { userFavoriteAlbumService.persistUserFavoriteAlbums(saveCollections.userFavoriteAlbums) }
         )
 
         saveCollections
@@ -220,4 +251,6 @@ data class ExistingData(
     val artistImages: Set<ArtistImage>,
     val artistGenres: Set<ArtistGenre>,
     val albumImages: Set<AlbumImage>,
+    val userFavoriteTracks: Set<UserFavoriteTrack>,
+    val userFavoriteAlbums: Set<UserFavoriteAlbum>
 )
