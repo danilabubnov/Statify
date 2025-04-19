@@ -147,7 +147,7 @@ class SpotifyDataProcessor {
 
             dto.images.forEach { image ->
                 if (images.none { it.imageUrl == image.url }) {
-                    saveCollections.addAlbumImageIfAbsent(image.toAlbumImageDb(idx++, dto.id))
+                    saveCollections.addAlbumImageIfAbsent(image.toAlbumImageDb(index = idx++, albumId = dto.id))
                 }
             }
 
@@ -157,13 +157,13 @@ class SpotifyDataProcessor {
                 }
 
                 if (existingData.albumArtists.none { it.albumId == dto.id && it.artistId == artist.id }) {
-                    saveCollections.addAlbumArtistIfAbsent(AlbumArtist(artist.id, dto.id))
+                    saveCollections.addAlbumArtistIfAbsent(AlbumArtist(albumId = dto.id, artistId = artist.id))
                 }
             }
 
             dto.tracks.items.forEach { track ->
                 if (existingData.tracks.none { it.spotifyId == track.id }) {
-                    saveCollections.addTrackIfAbsent(track.toSimpleTrackDb(dto.id))
+                    saveCollections.addTrackIfAbsent(track.toSimpleTrackDb(albumId = dto.id))
                 }
 
                 track.artists.forEach { artist ->
@@ -172,7 +172,7 @@ class SpotifyDataProcessor {
                     }
 
                     if (existingData.trackArtists.none { it.trackId == track.id && it.artistId == artist.id }) {
-                        saveCollections.addTrackArtistIfAbsent(TrackArtist(track.id, artist.id))
+                        saveCollections.addTrackArtistIfAbsent(TrackArtist(trackId = track.id, artistId = artist.id))
                     }
                 }
             }
@@ -213,7 +213,7 @@ class SpotifyDataProcessor {
 
             dto.album.images.forEach { image ->
                 if (images.none { it.imageUrl == image.url }) {
-                    saveCollections.addAlbumImageIfAbsent(image.toAlbumImageDb(idx++, dto.album.id))
+                    saveCollections.addAlbumImageIfAbsent(image.toAlbumImageDb(index = idx++, albumId = dto.album.id))
                 }
             }
 
@@ -223,7 +223,7 @@ class SpotifyDataProcessor {
                 }
 
                 if (existingData.albumArtists.none { it.albumId == dto.album.id && it.artistId == artist.id }) {
-                    saveCollections.addAlbumArtistIfAbsent(AlbumArtist(dto.album.id, artist.id))
+                    saveCollections.addAlbumArtistIfAbsent(AlbumArtist(albumId = dto.album.id, artistId = artist.id))
                 }
             }
 
@@ -233,7 +233,7 @@ class SpotifyDataProcessor {
                 }
 
                 if (existingData.trackArtists.none { it.trackId == dto.id && it.artistId == artist.id }) {
-                    saveCollections.addTrackArtistIfAbsent(TrackArtist(dto.id, artist.id))
+                    saveCollections.addTrackArtistIfAbsent(TrackArtist(trackId = dto.id, artistId = artist.id))
                 }
             }
         }
