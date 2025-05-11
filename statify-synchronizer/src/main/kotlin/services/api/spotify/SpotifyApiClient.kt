@@ -1,6 +1,7 @@
 package org.danila.services.api.spotify
 
 import org.danila.dto.album.AlbumDTO
+import org.danila.dto.album.AlbumSimpleDTO
 import org.danila.dto.album.SavedAlbumItemDTO
 import org.danila.dto.artist.ArtistDTO
 import org.danila.dto.track.SavedTrackItemDTO
@@ -48,7 +49,11 @@ class SpotifyApiClient @Autowired constructor(
                 offset = offset
             )
 
-            allAlbums.addAll(response.items)
+            allAlbums.addAll(response.items.map { saved ->
+                saved.copy(
+                    album = saved.album.normalized()
+                )
+            })
 
             offset += response.limit
         } while (response.next != null)
@@ -58,7 +63,7 @@ class SpotifyApiClient @Autowired constructor(
 
     suspend fun getSeveralAlbums(authHeader: String, albumIds: Set<String>): List<AlbumDTO> {
         return albumIds.chunked(20).flatMap { chunk ->
-            spotifyApi.getSeveralAlbums(authHeader = authHeader, ids = chunk.joinToString(",")).albums
+            spotifyApi.getSeveralAlbums(authHeader = authHeader, ids = chunk.joinToString(",")).albums.map { it.normalized() }
         }
     }
 
@@ -73,7 +78,7 @@ class SpotifyApiClient @Autowired constructor(
                 offset = offset
             )
 
-            allTracks.addAll(response.items)
+            allTracks.addAll(response.items.map { it.normalized() })
 
             offset += response.limit
         } while (response.next != null)
@@ -83,8 +88,30 @@ class SpotifyApiClient @Autowired constructor(
 
     suspend fun getSeveralTracks(authHeader: String, trackIds: Set<String>): List<TrackDTO> {
         return trackIds.chunked(50).flatMap { chunk ->
-            spotifyApi.getSeveralTracks(authHeader = authHeader, ids = chunk.joinToString(",")).tracks
+            spotifyApi.getSeveralTracks(authHeader = authHeader, ids = chunk.joinToString(",")).tracks.map { it.normalized() }
         }
     }
+
+    private fun AlbumDTO.normalized(): AlbumDTO =
+        this.copy(
+            albumType            = this.albumType.uppercase(),
+            releaseDatePrecision = this.releaseDatePrecision.uppercase()
+        )
+
+    private fun AlbumSimpleDTO.normalized(): AlbumSimpleDTO =
+        this.copy(
+            albumType            = this.albumType.uppercase(),
+            releaseDatePrecision = this.releaseDatePrecision.uppercase()
+        )
+
+    private fun TrackDTO.normalized(): TrackDTO =
+        this.copy(
+            album = this.album.normalized()
+        )
+
+    private fun SavedTrackItemDTO.normalized(): SavedTrackItemDTO =
+        this.copy(
+            track = this.track.normalized()
+        )
 
 }
