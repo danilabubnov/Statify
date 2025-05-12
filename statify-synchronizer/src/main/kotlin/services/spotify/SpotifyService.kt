@@ -5,6 +5,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.reactor.awaitSingle
 import org.danila.configuration.ALBUM_ENRICH_TOPIC
 import org.danila.configuration.ARTIST_ENRICH_TOPIC
 import org.danila.configuration.TRACK_ENRICH_TOPIC
@@ -28,6 +29,7 @@ import org.danila.services.api.spotify.SpotifyApiClient
 import org.danila.services.model.spotify.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate
 import org.springframework.stereotype.Service
 import java.util.*
 
@@ -47,7 +49,7 @@ class SpotifyService @Autowired constructor(
     private val spotifyDataProcessor: SpotifyDataProcessor,
     private val spotifyApiClient: SpotifyApiClient,
 
-    private val kafkaTemplate: KafkaTemplate<String, Any>
+    private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>
 ) {
 
     suspend fun fetchSpotifyData(event: UserConnectedEvent) {
@@ -225,19 +227,22 @@ class SpotifyService @Autowired constructor(
             kafkaTemplate.send(
                 ALBUM_ENRICH_TOPIC,
                 EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = albumIdsToSend.toSet(), metadata = enrichMetadata)
-            ).await()
+            ).doOnError { println("Failed to send enrich event ${it.message}") }
+                .awaitSingle()
 
         if (artistIdsToSend.isNotEmpty())
             kafkaTemplate.send(
                 ARTIST_ENRICH_TOPIC,
                 EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = artistIdsToSend.toSet(), metadata = enrichMetadata)
-            ).await()
+            ).doOnError { println("Failed to send enrich event ${it.message}") }
+                .awaitSingle()
 
         if (trackIdsToSend.isNotEmpty())
             kafkaTemplate.send(
                 TRACK_ENRICH_TOPIC,
                 EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = trackIdsToSend.toSet(), metadata = enrichMetadata)
-            ).await()
+            ).doOnError { println("Failed to send enrich event ${it.message}") }
+                .awaitSingle()
     }
 
 }

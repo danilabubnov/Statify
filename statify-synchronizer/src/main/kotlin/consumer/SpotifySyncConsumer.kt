@@ -50,7 +50,11 @@ class SpotifySyncConsumer @Autowired constructor(
                     .then<Void>(Mono.fromRunnable { rec.receiverOffset().acknowledge() })
                     .retryWhen(
                         Retry.fixedDelay(3, Duration.ofSeconds(5))
-                            .doAfterRetry { r -> println("Retry #${r.totalRetries()} for ${rec.topic()}") })
+                            .doAfterRetry { r ->
+                                println(r.failure().message)
+                                println(r.failure().stackTrace)
+                                println("Retry #${r.totalRetries()} for ${rec.topic()}")
+                            })
                     .onErrorResume { ex ->
                         kafkaTemplate
                             .send("${rec.topic()}.DLT", rec.partition(), rec.key(), rec.value())
@@ -80,7 +84,11 @@ class SpotifySyncConsumer @Autowired constructor(
                                     .then<Void>(Mono.fromRunnable { rec.receiverOffset().acknowledge() })
                                     .retryWhen(
                                         Retry.fixedDelay(3, Duration.ofSeconds(5))
-                                            .doAfterRetry { r -> println("Retry #${r.totalRetries()} for ${rec.topic()}") })
+                                            .doAfterRetry { r ->
+                                                println(r.failure().message)
+                                                println(r.failure().stackTrace)
+                                                println("Retry #${r.totalRetries()} for ${rec.topic()}")
+                                            })
                                     .onErrorResume { ex ->
                                         kafkaTemplate
                                             .send("${rec.topic()}.DLT", rec.partition(), rec.key(), rec.value())
