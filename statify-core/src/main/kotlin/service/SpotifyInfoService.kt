@@ -21,9 +21,7 @@ class SpotifyInfoService @Autowired constructor(
                 spotifyId = spotifyId,
                 email = email,
                 user = user,
-                accessToken = null,
                 refreshToken = null,
-                expiresAt = null
             )
         )
     }

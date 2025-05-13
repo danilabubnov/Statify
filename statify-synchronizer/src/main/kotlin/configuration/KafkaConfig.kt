@@ -22,7 +22,6 @@ import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
 const val USER_SPOTIFY_CONNECTED_TOPIC = "user.spotify.connected.v1"
-const val USER_SPOTIFY_ACCESS_TOKEN_UPDATED_TOPIC = "user.spotify.access.token.updated.v1"
 
 const val ARTIST_ENRICH_TOPIC = "statify.artist.enrich.v1"
 const val ARTIST_ENRICH_DLT = "$ARTIST_ENRICH_TOPIC.DLT"
@@ -99,7 +98,6 @@ class KafkaConfig(
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG   to StringSerializer::class.java,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
                 JsonSerializer.TYPE_MAPPINGS                to """
-                    AccessTokenUpdatedEvent:event.AccessTokenUpdatedEvent,
                     EnrichArtistEvent:org.danila.event.EnrichArtistEvent,
                     EnrichAlbumEvent:org.danila.event.EnrichAlbumEvent,
                     EnrichTrackEvent:org.danila.event.EnrichTrackEvent

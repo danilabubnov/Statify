@@ -7,5 +7,5 @@ data class UserConnectedEvent(
     val eventId: UUID,
     val userId: UUID,
     val timestamp: Instant,
-    val metadata: UserMetadata
+    val tokenCredentials: TokenCredentials
 )

@@ -3,7 +3,6 @@ package org.danila.services.api.spotify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
-import java.time.Instant
 import java.util.*
 
 @Service
@@ -14,9 +13,6 @@ class SpotifyAuthService @Autowired constructor(
     @Value("\${spring.security.oauth2.client.registration.spotify.client-id}") private val spotifyClientId: String
 
 ) {
-
-    fun isAccessTokenExpired(expiresAt: Instant): Boolean =
-        Instant.now().isAfter(expiresAt.minusSeconds(60))
 
     suspend fun refreshAccessToken(refreshToken: String): String {
         val authString = "$spotifyClientId:$spotifyClientSecret"

@@ -1,13 +1,9 @@
 package org.danila.consumer
 
-import event.AccessTokenUpdatedEvent
 import event.UserConnectedEvent
 import jakarta.annotation.PostConstruct
-import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.mono
-import org.danila.configuration.USER_SPOTIFY_ACCESS_TOKEN_UPDATED_TOPIC
 import org.danila.event.EnrichEvent
-import org.danila.services.api.spotify.SpotifyAuthService
 import org.danila.services.spotify.SpotifyService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
@@ -16,12 +12,10 @@ import org.springframework.stereotype.Component
 import reactor.core.publisher.Mono
 import reactor.util.retry.Retry
 import java.time.Duration
-import java.util.*
 
 @Component
 class SpotifySyncConsumer @Autowired constructor(
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>,
-    private val spotifyAuthService: SpotifyAuthService,
     private val spotifyService: SpotifyService,
 
     private val userConnectedConsumer: ReactiveKafkaConsumerTemplate<String, UserConnectedEvent>,
@@ -43,9 +37,7 @@ class SpotifySyncConsumer @Autowired constructor(
 
                     println("UserConnectedEvent ${evt.eventId}")
 
-                    val token = getAccessToken(evt)
-
-                    spotifyService.fetchSpotifyData(evt.copy(metadata = evt.metadata.copy(accessToken = token)))
+                    spotifyService.fetchSpotifyData(evt)
                 }
                     .then<Void>(Mono.fromRunnable { rec.receiverOffset().acknowledge() })
                     .retryWhen(
@@ -100,26 +92,6 @@ class SpotifySyncConsumer @Autowired constructor(
                     }
             }, 4)
             .subscribe()
-    }
-
-    private suspend fun getAccessToken(event: UserConnectedEvent): String =
-        if (spotifyAuthService.isAccessTokenExpired(event.metadata.expiresAt)) {
-            val newToken = spotifyAuthService.refreshAccessToken(event.metadata.refreshToken)
-
-            sendTokenUpdateEvent(newToken, event.metadata.spotifyId)
-
-            newToken
-        } else event.metadata.accessToken
-
-    private suspend fun sendTokenUpdateEvent(accessToken: String, spotifyId: String) {
-        kafkaTemplate.send(
-            USER_SPOTIFY_ACCESS_TOKEN_UPDATED_TOPIC, AccessTokenUpdatedEvent(
-                eventId = UUID.randomUUID(),
-                accessToken = accessToken,
-                spotifyId = spotifyId
-            )
-        ).doOnError { println("Failed to send token update ${it.message}") }
-            .awaitSingle()
     }
 
 }

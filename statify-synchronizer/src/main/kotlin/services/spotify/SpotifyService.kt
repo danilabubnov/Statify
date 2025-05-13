@@ -1,10 +1,10 @@
 package org.danila.services.spotify
 
+import event.TokenCredentials
 import event.UserConnectedEvent
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.reactor.awaitSingle
 import org.danila.configuration.ALBUM_ENRICH_TOPIC
 import org.danila.configuration.ARTIST_ENRICH_TOPIC
@@ -28,7 +28,6 @@ import org.danila.model.spotify.track.UserFavoriteTrack
 import org.danila.services.api.spotify.SpotifyApiClient
 import org.danila.services.model.spotify.*
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate
 import org.springframework.stereotype.Service
 import java.util.*
@@ -53,25 +52,23 @@ class SpotifyService @Autowired constructor(
 ) {
 
     suspend fun fetchSpotifyData(event: UserConnectedEvent) {
-        val authHeader = "Bearer ${event.metadata.accessToken}"
-        val (artistDTOs, savedTracksDTOs, savedAlbumsDTOs) = fetchSpotifyDTOs(authHeader)
+        val (artistDTOs, savedTracksDTOs, savedAlbumsDTOs) = fetchSpotifyDTOs(event.tokenCredentials)
 
         processSpotifyData(
             artistDTOs = artistDTOs,
             trackDTOs = savedTracksDTOs,
             albumDTOs = savedAlbumsDTOs,
-            enrichMetadata = EnrichMetadata(accessToken = event.metadata.accessToken, correlationId = event.eventId.toString(), generation = 0),
+            enrichMetadata = EnrichMetadata(tokenCredentials = event.tokenCredentials, correlationId = event.eventId.toString(), generation = 0),
             userId = event.userId
         )
     }
 
     suspend fun enrich(event: EnrichEvent) {
-        val authHeader = "Bearer ${event.metadata.accessToken}"
         val nextMeta = event.metadata.copy(generation = event.metadata.generation + 1)
 
         when (event) {
             is EnrichArtistEvent -> {
-                val artists = spotifyApiClient.getSeveralArtists(artistIds = event.artistIds, authHeader = authHeader)
+                val artists = spotifyApiClient.getSeveralArtists(artistIds = event.artistIds, tokenCredentials = event.metadata.tokenCredentials)
 
                 processSpotifyData(
                     artistDTOs = artists,
@@ -82,7 +79,7 @@ class SpotifyService @Autowired constructor(
             }
 
             is EnrichAlbumEvent -> {
-                val albums = spotifyApiClient.getSeveralAlbums(albumIds = event.albumIds, authHeader = authHeader)
+                val albums = spotifyApiClient.getSeveralAlbums(albumIds = event.albumIds, tokenCredentials = event.metadata.tokenCredentials)
 
                 processSpotifyData(
                     artistDTOs = emptyList(),
@@ -93,7 +90,7 @@ class SpotifyService @Autowired constructor(
             }
 
             is EnrichTrackEvent -> {
-                val tracks = spotifyApiClient.getSeveralTracks(trackIds = event.trackIds, authHeader = authHeader)
+                val tracks = spotifyApiClient.getSeveralTracks(trackIds = event.trackIds, tokenCredentials = event.metadata.tokenCredentials)
 
                 processSpotifyData(
                     artistDTOs = emptyList(),
@@ -105,11 +102,11 @@ class SpotifyService @Autowired constructor(
         }
     }
 
-    private suspend fun fetchSpotifyDTOs(authHeader: String): Triple<List<ArtistDTO>, List<SavedTrackItemDTO>, List<SavedAlbumItemDTO>> =
+    private suspend fun fetchSpotifyDTOs(tokenCredentials: TokenCredentials): Triple<List<ArtistDTO>, List<SavedTrackItemDTO>, List<SavedAlbumItemDTO>> =
         coroutineScope {
-            val artistsDeferred = async { spotifyApiClient.getAllFollowedArtists(authHeader) }
-            val tracksDeferred = async { spotifyApiClient.getAllSavedTracks(authHeader) }
-            val albumsDeferred = async { spotifyApiClient.getAllSavedAlbums(authHeader) }
+            val artistsDeferred = async { spotifyApiClient.getAllFollowedArtists(tokenCredentials) }
+            val tracksDeferred = async { spotifyApiClient.getAllSavedTracks(tokenCredentials) }
+            val albumsDeferred = async { spotifyApiClient.getAllSavedAlbums(tokenCredentials) }
 
             Triple(artistsDeferred.await(), tracksDeferred.await(), albumsDeferred.await())
         }

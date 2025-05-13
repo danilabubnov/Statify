@@ -1,3 +1,5 @@
 package org.danila.event
 
-data class EnrichMetadata(val accessToken: String, val correlationId: String, val generation: Int)
+import event.TokenCredentials
+
+data class EnrichMetadata(val tokenCredentials: TokenCredentials, val correlationId: String, val generation: Int)

@@ -22,16 +22,9 @@ data class SpotifyInfo(
     @JoinColumn(name = "user_id")
     var user: User? = null,
 
-    @Column(name = "access_token", length = 1000)
-    @Convert(converter = CryptoConverter::class)
-    var accessToken: String?,
-
     @Column(name = "refresh_token", length = 1000)
     @Convert(converter = CryptoConverter::class)
     var refreshToken: String?,
-
-    @Column(name = "expires_at")
-    var expiresAt: Instant?,
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

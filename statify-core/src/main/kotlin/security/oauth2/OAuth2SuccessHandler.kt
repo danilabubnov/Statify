@@ -1,7 +1,7 @@
 package org.danila.security.oauth2
 
+import event.TokenCredentials
 import event.UserConnectedEvent
-import event.UserMetadata
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.danila.configuration.USER_SPOTIFY_CONNECTED_TOPIC
@@ -43,7 +43,6 @@ class OAuth2SuccessHandler(
                 ?: throw IllegalStateException("Authorized client not found")
 
             val accessToken = authorizedClient.accessToken.tokenValue
-            val expiresAt = authorizedClient.accessToken.expiresAt ?: throw IllegalArgumentException("Access token expiresAt not set")
             val refreshToken = authorizedClient.refreshToken?.tokenValue ?: throw IllegalArgumentException("Refresh token not set")
 
             val spotifyUser = auth.principal as? SpotifyOAuth2User ?: throw IllegalStateException("Principal is not a SpotifyOAuth2User")
@@ -56,9 +55,7 @@ class OAuth2SuccessHandler(
             spotifyInfoService.update(
                 spotifyInfo.copy(
                     user = user,
-                    accessToken = accessToken,
-                    refreshToken = refreshToken,
-                    expiresAt = expiresAt
+                    refreshToken = refreshToken
                 )
             )
 
@@ -67,11 +64,9 @@ class OAuth2SuccessHandler(
                     eventId = UUID.randomUUID(),
                     userId = user.id,
                     timestamp = Instant.now(),
-                    metadata = UserMetadata(
-                        spotifyId = spotifyId,
+                    tokenCredentials = TokenCredentials(
                         accessToken = accessToken,
-                        refreshToken = refreshToken,
-                        expiresAt = expiresAt
+                        refreshToken = refreshToken
                     )
                 )
             )
