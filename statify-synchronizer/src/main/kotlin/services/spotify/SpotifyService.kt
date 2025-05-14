@@ -2,10 +2,12 @@ package org.danila.services.spotify
 
 import event.TokenCredentials
 import event.UserConnectedEvent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.withContext
 import org.danila.configuration.ALBUM_ENRICH_TOPIC
 import org.danila.configuration.ARTIST_ENRICH_TOPIC
 import org.danila.configuration.TRACK_ENRICH_TOPIC
@@ -119,7 +121,9 @@ class SpotifyService @Autowired constructor(
         enrichMetadata: EnrichMetadata
     ) {
         val existingData = fetchExistingData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs.map { it.track }, albumDTOs = albumDTOs.map { it.album })
-        val saveCollections = spotifyDataProcessor.processData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
+        val saveCollections = withContext(Dispatchers.Default) {
+            spotifyDataProcessor.processData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
+        }
 
         val savedCollections = saveData(saveCollections = saveCollections)
 
