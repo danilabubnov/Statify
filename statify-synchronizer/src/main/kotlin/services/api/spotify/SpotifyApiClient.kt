@@ -1,6 +1,11 @@
 package org.danila.services.api.spotify
 
 import event.TokenCredentials
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.danila.dto.album.AlbumDTO
 import org.danila.dto.album.AlbumSimpleDTO
 import org.danila.dto.album.SavedAlbumItemDTO
@@ -21,86 +26,115 @@ class SpotifyApiClient @Autowired constructor(
         val allArtists = mutableListOf<ArtistDTO>()
         var after: String? = null
 
-        withAuthRetry(tokenCredentials) { authHeader ->
-            val authHeader = "Bearer ${tokenCredentials.accessToken}"
+        do {
+            val response = withRetryAfter {
+                withAuthRetry(tokenCredentials) { authHeader ->
+                    withContext(Dispatchers.IO) {
+                        spotifyApi.getFollowedArtists(
+                            authHeader = authHeader,
+                            after = after
+                        ).artists
+                    }
+                }
+            }
 
-            do {
-                val response = spotifyApi.getFollowedArtists(
-                    authHeader = authHeader,
-                    after = after
-                ).artists
+            allArtists.addAll(response.items)
 
-                allArtists.addAll(response.items)
-
-                after = response.cursors.after
-            } while (response.next != null)
-        }
+            after = response.cursors.after
+        } while (response.next != null)
 
         return allArtists
     }
 
-    suspend fun getSeveralArtists(tokenCredentials: TokenCredentials, artistIds: Set<String>): List<ArtistDTO> {
-        return withAuthRetry(tokenCredentials) { authHeader ->
-            artistIds.chunked(50).flatMap { chunk ->
-                spotifyApi.getSeveralArtists(authHeader = authHeader, ids = chunk.joinToString(",")).artists
+    suspend fun getSeveralArtists(
+        tokenCredentials: TokenCredentials,
+        artistIds: Set<String>
+    ): List<ArtistDTO> =
+        artistIds.chunked(50).flatMap { chunk ->
+            withRetryAfter {
+                withAuthRetry(tokenCredentials) { auth ->
+                    withContext(Dispatchers.IO) {
+                        spotifyApi.getSeveralArtists(authHeader = auth, ids = chunk.joinToString(",")).artists
+                    }
+                }
             }
         }
-    }
 
     suspend fun getAllSavedAlbums(tokenCredentials: TokenCredentials): List<SavedAlbumItemDTO> {
         val allAlbums = mutableListOf<SavedAlbumItemDTO>()
         var offset = 0
 
-        withAuthRetry(tokenCredentials) { authHeader ->
-            do {
-                val resp = spotifyApi.getSavedAlbums(
-                    authHeader = authHeader,
-                    limit = 50,
-                    offset = offset
-                )
+        do {
+            val response = withRetryAfter {
+                withAuthRetry(tokenCredentials) { auth ->
+                    withContext(Dispatchers.IO) {
+                        spotifyApi.getSavedAlbums(
+                            authHeader = auth,
+                            limit = 50,
+                            offset = offset
+                        )
+                    }
+                }
+            }
 
-                allAlbums += resp.items.map { it.copy(album = it.album.normalized()) }
-                offset += resp.limit
-            } while (resp.next != null)
-        }
+            allAlbums += response.items.map { it.copy(album = it.album.normalized()) }
+            offset += response.limit
+        } while (response.next != null)
 
         return allAlbums
     }
 
-    suspend fun getSeveralAlbums(tokenCredentials: TokenCredentials, albumIds: Set<String>): List<AlbumDTO> {
-        return withAuthRetry(tokenCredentials) { authHeader ->
-            albumIds.chunked(20).flatMap { chunk ->
-                spotifyApi.getSeveralAlbums(authHeader = authHeader, ids = chunk.joinToString(",")).albums.map { it.normalized() }
+    suspend fun getSeveralAlbums(
+        tokenCredentials: TokenCredentials,
+        albumIds: Set<String>
+    ): List<AlbumDTO> =
+        albumIds.chunked(20).flatMap { chunk ->
+            withRetryAfter {
+                withAuthRetry(tokenCredentials) { auth ->
+                    withContext(Dispatchers.IO) {
+                        spotifyApi.getSeveralAlbums(authHeader = auth, ids = chunk.joinToString(",")).albums.map { it.normalized() }
+                    }
+                }
             }
         }
-    }
 
     suspend fun getAllSavedTracks(tokenCredentials: TokenCredentials): List<SavedTrackItemDTO> {
         val allTracks = mutableListOf<SavedTrackItemDTO>()
         var offset = 0
 
-        withAuthRetry(tokenCredentials) { authHeader ->
-            do {
-                val resp = spotifyApi.getSavedTracks(
-                    authHeader = authHeader,
-                    limit = 50, offset = offset
-                )
+        do {
+            val response = withRetryAfter {
+                withAuthRetry(tokenCredentials) { auth ->
+                    withContext(Dispatchers.IO) {
+                        spotifyApi.getSavedTracks(
+                            authHeader = auth,
+                            limit = 50,
+                            offset = offset
+                        )
+                    }
+                }
+            }
 
-                allTracks += resp.items.map { it.normalized() }
-                offset += resp.limit
-            } while (resp.next != null)
-        }
+            allTracks += response.items.map { it.normalized() }
+            offset += response.limit
+        } while (response.next != null)
 
         return allTracks
     }
 
-    suspend fun getSeveralTracks(tokenCredentials: TokenCredentials, trackIds: Set<String>): List<TrackDTO> {
-        return withAuthRetry(tokenCredentials) { authHeader ->
-            trackIds.chunked(50).flatMap { chunk ->
-                spotifyApi.getSeveralTracks(authHeader = authHeader, ids = chunk.joinToString(",")).tracks.map { it.normalized() }
+    suspend fun getSeveralTracks(
+        tokenCredentials: TokenCredentials,
+        trackIds: Set<String>
+    ): List<TrackDTO> =
+        trackIds.chunked(50).flatMap { chunk ->
+            withRetryAfter {
+                withAuthRetry(tokenCredentials) { auth ->
+                    withContext(Dispatchers.IO) {
+                        spotifyApi.getSeveralTracks(authHeader = auth, ids = chunk.joinToString(",")).tracks.map { it.normalized() }
+                    }
+                }
             }
         }
-    }
 
     private fun AlbumDTO.normalized(): AlbumDTO =
         this.copy(
@@ -124,27 +158,55 @@ class SpotifyApiClient @Autowired constructor(
             track = this.track.normalized()
         )
 
+    private val tokenMutex = Mutex()
+
     private suspend inline fun <T> withAuthRetry(
         tokenCredentials: TokenCredentials,
         crossinline block: suspend (authHeader: String) -> T
     ): T {
-        val initialAuth = "Bearer ${tokenCredentials.accessToken}"
+        val initialToken = tokenCredentials.accessToken
 
-        try {
-            return block(initialAuth)
+        return try {
+            block("Bearer $initialToken")
         } catch (e: HttpException) {
-            if (e.code() == 401) {
-                val newToken = spotifyAuthService.refreshAccessToken(tokenCredentials.refreshToken)
-                val retryAuth = "Bearer $newToken"
+            if (e.code() != 401) throw e
 
-                tokenCredentials.accessToken = newToken
+            val newAuth = tokenMutex.withLock {
+                if (tokenCredentials.accessToken == initialToken) {
+                    val refreshed = spotifyAuthService.refreshAccessToken(tokenCredentials.refreshToken)
 
-                return block(retryAuth)
+                    tokenCredentials.accessToken = refreshed
+
+                    "Bearer $refreshed"
+                } else "Bearer ${tokenCredentials.accessToken}"
             }
 
-            throw e
+            block(newAuth)
         }
     }
 
+    private suspend inline fun <T> withRetryAfter(
+        maxRetries: Int = 3,
+        crossinline block: suspend () -> T
+    ): T {
+        repeat(maxRetries - 1) { attempt ->
+            try {
+                return block()
+            } catch (e: HttpException) {
+                if (e.code() != 429) throw e
+
+                val retryAfterSec = e.response()?.headers()?.get("Retry-After")?.toLongOrNull() ?: run {
+                    println("Retry-After header is missing, using default value of 5 seconds")
+                    5L
+                }
+
+                println("Rate limited, attempt ${attempt + 1}/$maxRetries — retrying after $retryAfterSec s")
+
+                delay(retryAfterSec * 1_000L)
+            }
+        }
+
+        return block()
+    }
 
 }
