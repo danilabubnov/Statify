@@ -73,6 +73,19 @@ services:
     networks:
       - app-network
 
+  redis:
+    image: redis:7-alpine
+    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}" ]
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${REDIS_PORT}:6379"
+    networks:
+      - app-network
+
   statify-core:
     build: ./statify-core
     environment:
@@ -117,12 +130,17 @@ services:
       SPOTIFY_API_URL: ${SPOTIFY_API_URL}
       SPOTIFY_AUTH_URL: ${SPOTIFY_AUTH_URL}
       SPOTIFY_TIMEOUT_SECONDS: ${SPOTIFY_TIMEOUT_SECONDS}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
     depends_on:
       postgres-data-storage:
         condition: service_healthy
       kafka:
         condition: service_healthy
       statify-data-api:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:$${STATIFY_SYNCHRONIZER_PORT}/actuator/health || exit 1" ]

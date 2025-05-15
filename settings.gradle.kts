@@ -15,6 +15,7 @@ pluginManagement {
     val r2dbcPostgresVersion: String by settings
     val reactorKafkaVersion: String by settings
     val retrofitLoggingVersion: String by settings
+    val lettuceCoreVersion: String by settings
 
     plugins {
         kotlin("jvm") version kotlinVersion

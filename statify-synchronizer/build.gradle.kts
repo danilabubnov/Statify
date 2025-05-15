@@ -32,6 +32,7 @@ val reactorKafkaVersion = providers.gradleProperty("reactorKafkaVersion").get()
 val retrofitLoggingVersion = providers.gradleProperty("retrofitLoggingVersion").get()
 val assertkVersion = providers.gradleProperty("assertkVersion").get()
 val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
+val lettuceCoreVersion = providers.gradleProperty("lettuceCoreVersion").get()
 
 dependencies {
     implementation(project(":statify-utils"))
@@ -40,12 +41,15 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     implementation("org.postgresql:r2dbc-postgresql:$r2dbcPostgresVersion")
 
     implementation("io.projectreactor.kafka:reactor-kafka:$reactorKafkaVersion")
 
     implementation("org.springframework.integration:spring-integration-kafka:$kafkaVersion")
+
+    implementation("io.lettuce:lettuce-core:$lettuceCoreVersion")
 
     implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
     implementation("com.squareup.retrofit2:converter-jackson:$retrofitVersion")
