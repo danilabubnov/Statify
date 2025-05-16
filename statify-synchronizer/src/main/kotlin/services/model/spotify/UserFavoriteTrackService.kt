@@ -23,10 +23,10 @@ class UserFavoriteTrackService @Autowired constructor(
 ) {
 
     suspend fun findExistingUserFavoriteTracks(userId: UUID): List<UserFavoriteTrack> =
-        writeSemaphore.withPermit { userFavoriteTrackRepository.findUserFavoriteTracksByUserId(userId).awaitList() }
+        readSemaphore.withPermit { userFavoriteTrackRepository.findUserFavoriteTracksByUserId(userId).awaitList() }
 
     suspend fun persistUserFavoriteTracks(userFavoriteTracks: Collection<UserFavoriteTrack>): Collection<UserFavoriteTrack> =
-        readSemaphore.withPermit {
+        writeSemaphore.withPermit {
             transactionalOperator.executeAndAwait {
                 userFavoriteTracks.chunked(300)
                     .map { chunk ->
