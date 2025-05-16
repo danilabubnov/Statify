@@ -1,25 +1,29 @@
 package org.danila.configuration
 
-import org.springframework.cache.annotation.EnableCaching
+import com.fasterxml.jackson.databind.ObjectMapper
+import event.TokenCredentials
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.data.redis.cache.RedisCacheConfiguration
-import org.springframework.data.redis.cache.RedisCacheManager
-import org.springframework.data.redis.connection.RedisConnectionFactory
-import java.time.Duration
+import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory
+import org.springframework.data.redis.core.ReactiveRedisTemplate
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer
+import org.springframework.data.redis.serializer.RedisSerializationContext
+import org.springframework.data.redis.serializer.StringRedisSerializer
 
 @Configuration
-@EnableCaching
 class CacheConfig {
 
     @Bean
-    fun cacheManager(factory: RedisConnectionFactory): RedisCacheManager {
-        val defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
-            .entryTtl(Duration.ofMinutes(15))
-            .disableCachingNullValues()
+    fun reactiveRedisTemplate(@Qualifier("redisObjectMapper") redisObjectMapper: ObjectMapper, factory: ReactiveRedisConnectionFactory): ReactiveRedisTemplate<String, TokenCredentials> {
+        val serializer = Jackson2JsonRedisSerializer(redisObjectMapper, TokenCredentials::class.java)
 
-        return RedisCacheManager.builder(factory)
-            .cacheDefaults(defaultConfig)
+        val ctx = RedisSerializationContext
+            .newSerializationContext<String, TokenCredentials>(StringRedisSerializer())
+            .value(serializer)
             .build()
+
+        return ReactiveRedisTemplate(factory, ctx)
     }
+
 }

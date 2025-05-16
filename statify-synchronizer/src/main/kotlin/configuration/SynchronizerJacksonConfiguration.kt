@@ -23,4 +23,9 @@ class SynchronizerJacksonConfiguration {
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         .configure(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT, true)
 
+    @Bean("redisObjectMapper")
+    fun redisObjectMapper(): ObjectMapper = ObjectMapper()
+        .registerModule(KotlinModule.Builder().build())
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+
 }

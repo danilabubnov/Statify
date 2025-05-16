@@ -1,20 +1,38 @@
 package org.danila.services.spotify
 
 import event.TokenCredentials
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.springframework.cache.annotation.CachePut
-import org.springframework.cache.annotation.Cacheable
+import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.stereotype.Service
-import java.util.UUID
+import java.time.Duration
+import java.util.*
 
 @Service
-class TokenStore {
+class TokenStore @Autowired constructor(
+    private val redisTemplate: ReactiveRedisTemplate<String, TokenCredentials>
+) {
 
-    @Cacheable("tokens", key = "#userId")
-    suspend fun get(userId: UUID): TokenCredentials = withContext(Dispatchers.IO) { throw NoSuchElementException("No creds for $userId") }
+    /**
+     * Currently using a manual wrapper around ReactiveRedisTemplate
+     * because Spring Boot 3.4.x (Spring Data Redis 3.6.x) does not provide
+     * a ReactiveRedisCacheManager implementation.
+     *
+     * Once you upgrade to Spring Boot 3.5+ (Spring Data Redis 3.7+),
+     * you can switch to ReactiveRedisCacheManager and re-enable
+     * Spring Cache annotations.
+     */
 
-    @CachePut("tokens", key = "#userId")
-    suspend fun put(userId: UUID, creds: TokenCredentials): TokenCredentials = withContext(Dispatchers.IO) { creds }
+    suspend fun get(userId: UUID): TokenCredentials {
+        return redisTemplate.opsForValue().get(userId.toString()).awaitSingleOrNull()
+            ?: throw NoSuchElementException("No creds for $userId")
+    }
+
+    suspend fun put(userId: UUID, creds: TokenCredentials): TokenCredentials {
+        redisTemplate.opsForValue().set(userId.toString(), creds, Duration.ofMinutes(15)).awaitSingle()
+
+        return creds
+    }
 
 }
