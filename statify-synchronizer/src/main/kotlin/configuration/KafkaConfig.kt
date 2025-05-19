@@ -23,6 +23,9 @@ import reactor.kafka.sender.SenderOptions
 
 const val USER_SPOTIFY_CONNECTED_TOPIC = "user.spotify.connected.v1"
 
+const val SPOTIFY_FETCH_BATCH_TOPIC = "statify.spotify.fetch.batch.v1"
+const val SPOTIFY_FETCH_BATCH_DLT = "$SPOTIFY_FETCH_BATCH_TOPIC.DLT"
+
 const val ARTIST_ENRICH_TOPIC = "statify.artist.enrich.v1"
 const val ARTIST_ENRICH_DLT = "$ARTIST_ENRICH_TOPIC.DLT"
 

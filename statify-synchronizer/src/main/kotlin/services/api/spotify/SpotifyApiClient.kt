@@ -13,6 +13,7 @@ import org.danila.dto.artist.ArtistDTO
 import org.danila.dto.track.SavedTrackItemDTO
 import org.danila.dto.track.TrackDTO
 import org.danila.services.spotify.TokenStore
+import org.danila.util.SpotifyFetchContextKey
 import org.danila.util.UserIdKey
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
@@ -27,25 +28,33 @@ class SpotifyApiClient @Autowired constructor(
 ) {
 
     suspend fun getAllFollowedArtists(): List<ArtistDTO> {
-        val allArtists = mutableListOf<ArtistDTO>()
-        var after: String? = null
+        val context = coroutineContext[SpotifyFetchContextKey] ?: throw IllegalStateException("No fetch context found")
 
-        do {
+        val artistLimit = context.artistLimit
+        var artistAfter = context.artistAfter
+        var remainingArtists = context.artistTotal
+
+        val allArtists = mutableListOf<ArtistDTO>()
+
+        while (allArtists.size < artistLimit) {
+            val limit = minOf(remainingArtists ?: FETCH_ARTISTS_MAX_LIMIT, FETCH_ARTISTS_MAX_LIMIT)
+
             val response = withRetryAfter {
                 withAuthRetry { authHeader ->
                     withContext(Dispatchers.IO) {
-                        spotifyApi.getFollowedArtists(
-                            authHeader = authHeader,
-                            after = after
-                        ).artists
+                        spotifyApi.getFollowedArtists(authHeader = authHeader, after = artistAfter, limit = limit).artists
                     }
                 }
             }
 
             allArtists.addAll(response.items)
+            artistAfter = response.cursors.after
+            remainingArtists = maxOf((remainingArtists ?: response.total) - response.items.size, 0)
 
-            after = response.cursors.after
-        } while (response.next != null)
+            if (response.next == null || allArtists.size >= artistLimit) break
+        }
+
+        context.updateFetchOptions(artistAfter = artistAfter, artistTotal = remainingArtists ?: 0)
 
         return allArtists
     }
@@ -64,25 +73,37 @@ class SpotifyApiClient @Autowired constructor(
         }
 
     suspend fun getAllSavedAlbums(): List<SavedAlbumItemDTO> {
-        val allAlbums = mutableListOf<SavedAlbumItemDTO>()
-        var offset = 0
+        val context = coroutineContext[SpotifyFetchContextKey] ?: throw IllegalStateException("No fetch context found")
 
-        do {
+        val albumLimit = context.albumLimit
+        var albumOffset = context.albumOffset ?: 0
+        var remainingAlbums = context.albumTotal
+
+        val allAlbums = mutableListOf<SavedAlbumItemDTO>()
+
+        while (allAlbums.size < albumLimit) {
+            val limit = minOf(remainingAlbums ?: FETCH_ALBUMS_MAX_LIMIT, FETCH_ALBUMS_MAX_LIMIT)
+
             val response = withRetryAfter {
                 withAuthRetry { auth ->
                     withContext(Dispatchers.IO) {
                         spotifyApi.getSavedAlbums(
                             authHeader = auth,
-                            limit = 50,
-                            offset = offset
+                            limit = limit,
+                            offset = albumOffset
                         )
                     }
                 }
             }
 
-            allAlbums += response.items.map { it.copy(album = it.album.normalized()) }
-            offset += response.limit
-        } while (response.next != null)
+            allAlbums.addAll(response.items.map { it.copy(album = it.album.normalized()) })
+            albumOffset += response.limit
+            remainingAlbums = maxOf((remainingAlbums ?: response.total) - response.items.size, 0)
+
+            if (response.next == null || allAlbums.size >= albumLimit) break
+        }
+
+        context.updateFetchOptions(albumOffset = albumOffset, albumTotal = remainingAlbums ?: 0)
 
         return allAlbums
     }
@@ -101,25 +122,37 @@ class SpotifyApiClient @Autowired constructor(
         }
 
     suspend fun getAllSavedTracks(): List<SavedTrackItemDTO> {
-        val allTracks = mutableListOf<SavedTrackItemDTO>()
-        var offset = 0
+        val context = coroutineContext[SpotifyFetchContextKey] ?: throw IllegalStateException("No fetch context found")
 
-        do {
+        val trackLimit = context.trackLimit
+        var trackOffset = context.trackOffset ?: 0
+        var remainingTracks = context.trackTotal
+
+        val allTracks = mutableListOf<SavedTrackItemDTO>()
+
+        while (allTracks.size < trackLimit) {
+            val limit = minOf(remainingTracks ?: FETCH_TRACKS_MAX_LIMIT, FETCH_TRACKS_MAX_LIMIT)
+
             val response = withRetryAfter {
                 withAuthRetry { auth ->
                     withContext(Dispatchers.IO) {
                         spotifyApi.getSavedTracks(
                             authHeader = auth,
-                            limit = 50,
-                            offset = offset
+                            limit = limit,
+                            offset = trackOffset
                         )
                     }
                 }
             }
 
-            allTracks += response.items.map { it.normalized() }
-            offset += response.limit
-        } while (response.next != null)
+            allTracks.addAll(response.items.map { it.normalized() })
+            trackOffset += response.limit
+            remainingTracks = maxOf((remainingTracks ?: response.total) - response.items.size, 0)
+
+            if (response.next == null || allTracks.size >= trackLimit) break
+        }
+
+        context.updateFetchOptions(trackOffset = trackOffset, trackTotal = remainingTracks ?: 0)
 
         return allTracks
     }

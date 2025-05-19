@@ -6,16 +6,28 @@ import org.danila.dto.artist.FollowingArtistsResponseDTO
 import org.danila.dto.artist.FullArtistsResponseDTO
 import org.danila.dto.track.FullTracksResponseDTO
 import org.danila.dto.track.SavedTracksResponseDTO
+import org.danila.dto.track.SavedTracksTotalDTO
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Query
 
+const val FETCH_TRACKS_MAX_LIMIT = 50
+const val FETCH_ARTISTS_MAX_LIMIT = 50
+const val FETCH_ALBUMS_MAX_LIMIT = 50
+
 interface SpotifyAPI {
+
+    @GET("v1/me/tracks")
+    suspend fun getSavedTracksTotal(
+        @Header("Authorization") authHeader: String,
+        @Query("limit") limit: Int = 1,
+        @Query("offset") offset: Int = 0
+    ): SavedTracksTotalDTO
 
     @GET("v1/me/tracks")
     suspend fun getSavedTracks(
         @Header("Authorization") authHeader: String,
-        @Query("limit") limit: Int = 50,
+        @Query("limit") limit: Int = FETCH_TRACKS_MAX_LIMIT,
         @Query("offset") offset: Int = 0
     ): SavedTracksResponseDTO
 
@@ -23,14 +35,14 @@ interface SpotifyAPI {
     suspend fun getFollowedArtists(
         @Header("Authorization") authHeader: String,
         @Query("type") type: String = "artist",
-        @Query("limit") limit: Int = 50,
+        @Query("limit") limit: Int = FETCH_ARTISTS_MAX_LIMIT,
         @Query("after") after: String? = null
     ): FollowingArtistsResponseDTO
 
     @GET("v1/me/albums")
     suspend fun getSavedAlbums(
         @Header("Authorization") authHeader: String,
-        @Query("limit") limit: Int = 50,
+        @Query("limit") limit: Int = FETCH_ALBUMS_MAX_LIMIT,
         @Query("offset") offset: Int = 0
     ): SavedAlbumsResponseDTO
 

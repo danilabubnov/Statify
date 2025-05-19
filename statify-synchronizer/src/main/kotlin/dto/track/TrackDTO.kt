@@ -80,6 +80,9 @@ data class SavedTracksResponseDTO(
     val next: String?,
 
     @JsonProperty("items")
-    val items: List<SavedTrackItemDTO>
+    val items: List<SavedTrackItemDTO>,
+
+    @JsonProperty("total")
+    val total: Int
 
 )

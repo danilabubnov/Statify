@@ -5,6 +5,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.reactor.awaitSingle
 import org.danila.configuration.ALBUM_ENRICH_TOPIC
 import org.danila.configuration.ARTIST_ENRICH_TOPIC
+import org.danila.configuration.SPOTIFY_FETCH_BATCH_TOPIC
 import org.danila.configuration.TRACK_ENRICH_TOPIC
 import org.danila.dto.album.AlbumDTO
 import org.danila.dto.album.SavedAlbumItemDTO
@@ -24,6 +25,8 @@ import org.danila.model.spotify.track.Track
 import org.danila.model.spotify.track.UserFavoriteTrack
 import org.danila.services.api.spotify.SpotifyApiClient
 import org.danila.services.model.spotify.*
+import org.danila.util.SpotifyFetchContext
+import org.danila.util.SpotifyFetchContextKey
 import org.danila.util.UserIdElement
 import org.danila.util.UserIdKey
 import org.springframework.beans.factory.annotation.Autowired
@@ -53,7 +56,7 @@ class SpotifyService @Autowired constructor(
 ) {
 
     suspend fun fetchSpotifyData(event: UserConnectedEvent) {
-        withContext(UserIdElement(event.userId)) {
+        withContext(coroutineContext + UserIdElement(event.userId)) {
             tokenStore.put(userId = event.userId, creds = event.tokenCredentials)
 
             val (artistDTOs, savedTracksDTOs, savedAlbumsDTOs) = fetchSpotifyDTOs()
@@ -109,14 +112,25 @@ class SpotifyService @Autowired constructor(
         }
     }
 
-    private suspend fun fetchSpotifyDTOs(): Triple<List<ArtistDTO>, List<SavedTrackItemDTO>, List<SavedAlbumItemDTO>> =
-        coroutineScope {
-            val artistsDeferred = async { spotifyApiClient.getAllFollowedArtists() }
-            val tracksDeferred = async { spotifyApiClient.getAllSavedTracks() }
-            val albumsDeferred = async { spotifyApiClient.getAllSavedAlbums() }
+    private suspend fun fetchSpotifyDTOs(): Triple<List<ArtistDTO>, List<SavedTrackItemDTO>, List<SavedAlbumItemDTO>> {
+        val spotifyFetchContext = coroutineContext[SpotifyFetchContextKey] ?: SpotifyFetchContext()
 
-            Triple(artistsDeferred.await(), tracksDeferred.await(), albumsDeferred.await())
+        val response = withContext(coroutineContext + spotifyFetchContext) {
+            coroutineScope {
+                val artistsDeferred = async { spotifyApiClient.getAllFollowedArtists() }
+                val tracksDeferred = async { spotifyApiClient.getAllSavedTracks() }
+                val albumsDeferred = async { spotifyApiClient.getAllSavedAlbums() }
+
+                Triple(artistsDeferred.await(), tracksDeferred.await(), albumsDeferred.await())
+            }
         }
+
+        kafkaTemplate.send(SPOTIFY_FETCH_BATCH_TOPIC, spotifyFetchContext)
+            .doOnError { println("Failed to send enrich event ${it.message}") }
+            .awaitSingle()
+
+        return response
+    }
 
     private suspend fun processSpotifyData(
         userId: UUID,
