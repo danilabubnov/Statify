@@ -134,3 +134,6 @@ const val TRACK_ENRICH_TOPIC = "statify.track.enrich.v1"
  * Dead-letter topic for track enrichment errors.
  */
 const val TRACK_ENRICH_DLT = "$TRACK_ENRICH_TOPIC.DLT"
+
+const val SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000L
+const val FOURTEEN_DAYS_IN_MS = 14 * 24 * 60 * 60 * 1000L

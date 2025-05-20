@@ -111,32 +111,32 @@ class KafkaConfig(
         TopicBuilder.name(ARTIST_ENRICH_TOPIC)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "604800000") // 7 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, SEVEN_DAYS_IN_MS.toString())
             .build(),
         TopicBuilder.name(ARTIST_ENRICH_DLT)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "1209600000") // 14 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())
             .build(),
         TopicBuilder.name(ALBUM_ENRICH_TOPIC)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "604800000") // 7 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, SEVEN_DAYS_IN_MS.toString())
             .build(),
         TopicBuilder.name(ALBUM_ENRICH_DLT)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "1209600000") // 14 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())
             .build(),
         TopicBuilder.name(TRACK_ENRICH_TOPIC)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "604800000") // 7 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, SEVEN_DAYS_IN_MS.toString())
             .build(),
         TopicBuilder.name(TRACK_ENRICH_DLT)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "1209600000") // 14 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())
             .build()
     )
 

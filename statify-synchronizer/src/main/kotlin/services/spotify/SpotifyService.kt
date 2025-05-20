@@ -3,7 +3,6 @@ package org.danila.services.spotify
 import event.UserConnectedEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.reactor.awaitSingle
 import org.danila.*
