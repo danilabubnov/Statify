@@ -24,16 +24,12 @@ class TrackService @Autowired constructor(
     suspend fun findExistingTracks(ids: Set<String>): List<Track> =
         readSemaphore.withPermit { trackRepository.findTracksBySpotifyIdIn(ids).awaitList() }
 
-    suspend fun upsertTracks(tracks: Collection<Track>): Collection<Track> =
+    suspend fun upsertAndReturnSimpleTracks(tracks: Collection<Track>): Collection<String> =
         writeSemaphore.withPermit {
             transactionalOperator.executeAndAwait {
-                tracks.chunked(300)
-                    .map { chunk ->
-                        trackRepository.upsertBatch(chunk)
-                            .collectList()
-                            .awaitSingle()
-                    }
-                    .flatten()
+                trackRepository.upsertAndReturnSimpleTracks(tracks)
+                    .collectList()
+                    .awaitSingle()
             }
         }
 

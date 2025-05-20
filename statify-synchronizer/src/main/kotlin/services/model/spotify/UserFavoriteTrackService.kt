@@ -1,6 +1,6 @@
 package org.danila.services.model.spotify
 
-import kotlinx.coroutines.reactive.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.danila.awaitList
@@ -25,16 +25,11 @@ class UserFavoriteTrackService @Autowired constructor(
     suspend fun findExistingUserFavoriteTracks(userId: UUID): List<UserFavoriteTrack> =
         readSemaphore.withPermit { userFavoriteTrackRepository.findUserFavoriteTracksByUserId(userId).awaitList() }
 
-    suspend fun persistUserFavoriteTracks(userFavoriteTracks: Collection<UserFavoriteTrack>): Collection<UserFavoriteTrack> =
+    suspend fun persistUserFavoriteTracks(userFavoriteTracks: Collection<UserFavoriteTrack>): Unit =
         writeSemaphore.withPermit {
             transactionalOperator.executeAndAwait {
-                userFavoriteTracks.chunked(300)
-                    .map { chunk ->
-                        userFavoriteTrackRepository.insertBatch(chunk)
-                            .collectList()
-                            .awaitSingle()
-                    }
-                    .flatten()
+                userFavoriteTrackRepository.insertBatch(userFavoriteTracks)
+                    .awaitSingleOrNull()
             }
         }
 

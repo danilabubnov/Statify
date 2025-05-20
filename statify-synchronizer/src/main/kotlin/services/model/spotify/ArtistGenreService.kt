@@ -1,6 +1,7 @@
 package org.danila.services.model.spotify
 
 import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.danila.model.spotify.artist.ArtistGenre
@@ -23,16 +24,11 @@ class ArtistGenreService @Autowired constructor(
     suspend fun findExistingArtistGenres(artistIdGenres: Set<Pair<String, List<String>>>): List<ArtistGenre> =
         readSemaphore.withPermit { artistGenreRepository.selectBatch(artistIdGenres).collectList().awaitSingle() }
 
-    suspend fun persistArtistGenres(artistGenres: Collection<ArtistGenre>): Collection<ArtistGenre> =
+    suspend fun persistArtistGenres(artistGenres: Collection<ArtistGenre>): Unit =
         writeSemaphore.withPermit {
             transactionalOperator.executeAndAwait {
-                artistGenres.chunked(300)
-                    .map { chunk ->
-                        artistGenreRepository.insertBatch(chunk)
-                            .collectList()
-                            .awaitSingle()
-                    }
-                    .flatten()
+                artistGenreRepository.insertBatch(artistGenres)
+                    .awaitSingleOrNull()
             }
         }
 

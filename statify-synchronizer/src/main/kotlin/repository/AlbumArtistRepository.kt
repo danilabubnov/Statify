@@ -4,6 +4,7 @@ import org.danila.model.spotify.AlbumArtist
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 @Repository
 class AlbumArtistRepository(private val databaseClient: DatabaseClient) {
@@ -38,12 +39,13 @@ class AlbumArtistRepository(private val databaseClient: DatabaseClient) {
             .all()
     }
 
-    fun insertBatch(albumArtists: Collection<AlbumArtist>): Flux<AlbumArtist> {
-        if (albumArtists.isEmpty()) return Flux.empty()
+    fun insertBatch(albumArtists: Collection<AlbumArtist>): Mono<Void> {
+        if (albumArtists.isEmpty()) return Mono.empty()
 
         val sql = """
             INSERT INTO album_artists (album_id, artist_id) 
             VALUES ${albumArtists.indices.joinToString(", ") { index -> "($${index * 2 + 1}, $${index * 2 + 2})" }}
+            ON CONFLICT (album_id, artist_id) DO NOTHING
         """.trimIndent()
 
         var boundStatement = databaseClient.sql(sql)
@@ -53,9 +55,10 @@ class AlbumArtistRepository(private val databaseClient: DatabaseClient) {
             boundStatement = boundStatement.bind(index * 2 + 1, item.artistId)
         }
 
-        return boundStatement.fetch()
+        return boundStatement
+            .fetch()
             .rowsUpdated()
-            .flatMapMany { _ -> Flux.fromIterable(albumArtists) }
+            .then()
     }
 
 }

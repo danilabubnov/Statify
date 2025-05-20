@@ -13,5 +13,5 @@ interface AlbumRepository : ReactiveCrudRepository<Album, String>, AlbumReposito
 }
 
 interface AlbumRepositoryCustom {
-    fun upsertBatch(albums: Collection<Album>): Flux<Album>
+    fun upsertAndReturnSimpleAlbums(albums: Collection<Album>): Flux<String>
 }

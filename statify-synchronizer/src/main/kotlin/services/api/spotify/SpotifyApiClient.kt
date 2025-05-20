@@ -3,9 +3,14 @@ package org.danila.services.api.spotify
 import event.TokenCredentials
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.danila.MAX_ALBUMS_PER_MULTI_FETCH
+import org.danila.MAX_ARTISTS_PER_MULTI_FETCH
+import org.danila.MAX_TRACKS_PER_MULTI_FETCH
 import org.danila.dto.album.AlbumDTO
 import org.danila.dto.album.AlbumSimpleDTO
 import org.danila.dto.album.SavedAlbumItemDTO
@@ -26,116 +31,102 @@ class SpotifyApiClient @Autowired constructor(
     private val tokenStore: TokenStore,
 ) {
 
-    suspend fun getAllFollowedArtists(): List<ArtistDTO> {
-        val allArtists = mutableListOf<ArtistDTO>()
+    fun getAllFollowedArtists(): Flow<ArtistDTO> = flow {
         var after: String? = null
 
         do {
             val response = withRetryAfter {
                 withAuthRetry { authHeader ->
-                    withContext(Dispatchers.IO) {
-                        spotifyApi.getFollowedArtists(
-                            authHeader = authHeader,
-                            after = after
-                        ).artists
-                    }
+                    spotifyApi.getFollowedArtists(
+                        authHeader = authHeader,
+                        after = after
+                    ).artists
                 }
             }
 
-            allArtists.addAll(response.items)
+            response.items.forEach { emit(it) }
 
             after = response.cursors.after
         } while (response.next != null)
-
-        return allArtists
     }
 
     suspend fun getSeveralArtists(
         artistIds: Set<String>,
-    ): List<ArtistDTO> =
-        artistIds.chunked(50).flatMap { chunk ->
+    ): Flow<ArtistDTO> = flow {
+        artistIds.chunked(MAX_ARTISTS_PER_MULTI_FETCH).forEach { chunk ->
             withRetryAfter {
                 withAuthRetry { auth ->
                     withContext(Dispatchers.IO) {
-                        spotifyApi.getSeveralArtists(authHeader = auth, ids = chunk.joinToString(",")).artists
+                        spotifyApi.getSeveralArtists(authHeader = auth, ids = chunk.joinToString(",")).artists.forEach { emit(it) }
                     }
                 }
             }
         }
+    }
 
-    suspend fun getAllSavedAlbums(): List<SavedAlbumItemDTO> {
-        val allAlbums = mutableListOf<SavedAlbumItemDTO>()
+    fun getAllSavedAlbums(): Flow<SavedAlbumItemDTO> = flow {
         var offset = 0
 
         do {
             val response = withRetryAfter {
                 withAuthRetry { auth ->
-                    withContext(Dispatchers.IO) {
-                        spotifyApi.getSavedAlbums(
-                            authHeader = auth,
-                            limit = 50,
-                            offset = offset
-                        )
-                    }
+                    spotifyApi.getSavedAlbums(
+                        authHeader = auth,
+                        offset = offset
+                    )
                 }
             }
 
-            allAlbums += response.items.map { it.copy(album = it.album.normalized()) }
+            response.items.forEach { emit(it.copy(album = it.album.normalized())) }
             offset += response.limit
         } while (response.next != null)
-
-        return allAlbums
     }
 
     suspend fun getSeveralAlbums(
         albumIds: Set<String>,
-    ): List<AlbumDTO> =
-        albumIds.chunked(20).flatMap { chunk ->
+    ): Flow<AlbumDTO> = flow {
+        albumIds.chunked(MAX_ALBUMS_PER_MULTI_FETCH).forEach { chunk ->
             withRetryAfter {
                 withAuthRetry { auth ->
                     withContext(Dispatchers.IO) {
-                        spotifyApi.getSeveralAlbums(authHeader = auth, ids = chunk.joinToString(",")).albums.map { it.normalized() }
+                        spotifyApi.getSeveralAlbums(authHeader = auth, ids = chunk.joinToString(",")).albums.forEach { emit(it.normalized()) }
                     }
                 }
             }
         }
+    }
 
-    suspend fun getAllSavedTracks(): List<SavedTrackItemDTO> {
-        val allTracks = mutableListOf<SavedTrackItemDTO>()
+    fun getAllSavedTracks(): Flow<SavedTrackItemDTO> = flow {
         var offset = 0
 
         do {
             val response = withRetryAfter {
                 withAuthRetry { auth ->
-                    withContext(Dispatchers.IO) {
-                        spotifyApi.getSavedTracks(
-                            authHeader = auth,
-                            limit = 50,
-                            offset = offset
-                        )
-                    }
+                    spotifyApi.getSavedTracks(
+                        authHeader = auth,
+                        offset = offset
+                    )
                 }
             }
 
-            allTracks += response.items.map { it.normalized() }
+            response.items.forEach { emit(it.normalized()) }
             offset += response.limit
         } while (response.next != null)
-
-        return allTracks
     }
 
     suspend fun getSeveralTracks(
         trackIds: Set<String>,
-    ): List<TrackDTO> =
-        trackIds.chunked(50).flatMap { chunk ->
+    ): Flow<TrackDTO> = flow {
+        trackIds.chunked(MAX_TRACKS_PER_MULTI_FETCH).forEach { chunk ->
             withRetryAfter {
                 withAuthRetry { auth ->
                     withContext(Dispatchers.IO) {
-                        spotifyApi.getSeveralTracks(authHeader = auth, ids = chunk.joinToString(",")).tracks.map { it.normalized() }
+                        spotifyApi.getSeveralTracks(authHeader = auth, ids = chunk.joinToString(",")).tracks.forEach { emit(it.normalized()) }
                     }
                 }
             }
         }
+    }
 
     private fun AlbumDTO.normalized(): AlbumDTO =
         this.copy(

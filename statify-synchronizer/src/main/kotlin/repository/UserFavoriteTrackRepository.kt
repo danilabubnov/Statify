@@ -4,18 +4,20 @@ import org.danila.model.spotify.track.UserFavoriteTrack
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import java.time.Instant
 import java.util.*
 
 @Repository
 class UserFavoriteTrackRepository(val databaseClient: DatabaseClient) {
 
-    fun insertBatch(userFavoriteTracks: Collection<UserFavoriteTrack>): Flux<UserFavoriteTrack> {
-        if (userFavoriteTracks.isEmpty()) return Flux.empty()
+    fun insertBatch(userFavoriteTracks: Collection<UserFavoriteTrack>): Mono<Void> {
+        if (userFavoriteTracks.isEmpty()) return Mono.empty()
 
         val sql = """
             INSERT INTO user_favorite_tracks (user_id, track_id, added_at)
             VALUES ${userFavoriteTracks.indices.joinToString(", ") { i -> "($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})" }}
+            ON CONFLICT (user_id, track_id) DO NOTHING
         """.trimIndent()
 
         var spec = databaseClient.sql(sql)
@@ -30,7 +32,7 @@ class UserFavoriteTrackRepository(val databaseClient: DatabaseClient) {
         return spec
             .fetch()
             .rowsUpdated()
-            .flatMapMany { Flux.fromIterable(userFavoriteTracks) }
+            .then()
     }
 
     fun findUserFavoriteTracksByUserId(userId: UUID): Flux<UserFavoriteTrack> {

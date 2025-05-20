@@ -4,16 +4,18 @@ import org.danila.model.spotify.artist.ArtistGenre
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 @Repository
 class ArtistGenreRepository(private val databaseClient: DatabaseClient) {
 
-    fun insertBatch(artistGenres: Collection<ArtistGenre>): Flux<ArtistGenre> {
-        if (artistGenres.isEmpty()) return Flux.empty()
+    fun insertBatch(artistGenres: Collection<ArtistGenre>): Mono<Void> {
+        if (artistGenres.isEmpty()) return Mono.empty()
 
         val sql = """
             INSERT INTO artist_genres (artist_id, genre)   
             VALUES ${artistGenres.indices.joinToString(", ") { index -> "($${index * 2 + 1}, $${index * 2 + 2})" }}
+            ON CONFLICT (artist_id, genre) DO NOTHING
         """.trimIndent()
 
         var boundStatement = databaseClient.sql(sql)
@@ -23,9 +25,10 @@ class ArtistGenreRepository(private val databaseClient: DatabaseClient) {
             boundStatement = boundStatement.bind(index * 2 + 1, item.genre)
         }
 
-        return boundStatement.fetch()
+        return boundStatement
+            .fetch()
             .rowsUpdated()
-            .flatMapMany { _ -> Flux.fromIterable(artistGenres) }
+            .then()
     }
 
     fun selectBatch(artistIdGenres: Set<Pair<String, List<String>>>): Flux<ArtistGenre> {

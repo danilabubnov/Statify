@@ -8,11 +8,16 @@ import reactor.core.publisher.Flux
 @Repository
 class TrackRepositoryCustomImpl(val databaseClient: DatabaseClient) : TrackRepositoryCustom {
 
-    override fun upsertBatch(tracks: Collection<Track>): Flux<Track> {
+    override fun upsertAndReturnSimpleTracks(tracks: Collection<Track>): Flux<String> {
         if (tracks.isEmpty()) return Flux.empty()
 
+        val placeholders = tracks.indices.joinToString(", ") { index ->
+            "(" + ((index * 7 + 1)..(index * 7 + 7)).joinToString(", ") { "$$it" } + ")"
+        }
+
         val sql = """
-            INSERT INTO tracks (
+            WITH inserted AS (
+                INSERT INTO tracks (
                 spotify_id,
                 duration_ms,
                 explicit,
@@ -21,38 +26,41 @@ class TrackRepositoryCustomImpl(val databaseClient: DatabaseClient) : TrackRepos
                 track_number,
                 album_id
             )
-            VALUES ${
-                tracks.indices.joinToString(", ") { index ->
-                    "($${index * 7 + 1}, $${index * 7 + 2}, $${index * 7 + 3}, $${index * 7 + 4}, $${index * 7 + 5}, $${index * 7 + 6}, $${index * 7 + 7})"
-                }
-            }
-            ON CONFLICT (spotify_id)
+            VALUES $placeholders
+            ON CONFLICT (spotify_id) 
             DO UPDATE
-            SET
-                popularity = EXCLUDED.popularity
-        """.trimIndent()
+                SET 
+                    popularity = EXCLUDED.popularity
+                RETURNING
+                    spotify_id,
+                    (popularity IS NULL) AS is_simple
+            )
+        SELECT spotify_id
+        FROM inserted
+        WHERE is_simple
+    """.trimIndent()
 
-        var statement = databaseClient.sql(sql)
-
+        var spec = databaseClient.sql(sql)
         tracks.forEachIndexed { index, track ->
             val popularity = track.popularity
+            val base = index * 7
 
-            statement = statement
-                .bind(index * 7 + 0, track.spotifyId)
-                .bind(index * 7 + 1, track.durationMs)
-                .bind(index * 7 + 2, track.explicit)
-                .bind(index * 7 + 3, track.name)
-                .let {
-                    if (popularity == null) it.bindNull(index * 7 + 4, Int::class.java)
-                    else it.bind(index * 7 + 4, popularity)
+            spec = spec
+                .bind(base + 0, track.spotifyId)
+                .bind(base + 1, track.durationMs)
+                .bind(base + 2, track.explicit)
+                .bind(base + 3, track.name)
+                .let { s ->
+                    if (popularity == null) s.bindNull(base + 4, Int::class.java)
+                    else s.bind(base + 4, popularity)
                 }
-                .bind(index * 7 + 5, track.trackNumber)
-                .bind(index * 7 + 6, track.albumId)
+                .bind(base + 5, track.trackNumber)
+                .bind(base + 6, track.albumId)
         }
 
-        return statement.fetch()
-            .rowsUpdated()
-            .flatMapMany { Flux.fromIterable(tracks) }
+        return spec
+            .map { row, _ -> row.get("spotify_id", String::class.java)!! }
+            .all()
     }
 
 }

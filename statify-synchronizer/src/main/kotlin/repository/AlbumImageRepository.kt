@@ -4,16 +4,18 @@ import org.danila.model.spotify.album.AlbumImage
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 @Repository
 class AlbumImageRepository(private val databaseClient: DatabaseClient) {
 
-    fun insertBatch(albumImages: Collection<AlbumImage>): Flux<AlbumImage> {
-        if (albumImages.isEmpty()) return Flux.empty()
+    fun insertBatch(albumImages: Collection<AlbumImage>): Mono<Void> {
+        if (albumImages.isEmpty()) return Mono.empty()
 
         val sql = """
             INSERT INTO album_images (album_id, image_height, image_url, image_width, image_order)  
             VALUES ${albumImages.indices.joinToString(", ") { index -> "($${index * 5 + 1}, $${index * 5 + 2}, $${index * 5 + 3}, $${index * 5 + 4}, $${index * 5 + 5})" }}
+            ON CONFLICT (album_id, image_order) DO NOTHING
         """.trimIndent()
 
         var boundStatement = databaseClient.sql(sql)
@@ -26,9 +28,10 @@ class AlbumImageRepository(private val databaseClient: DatabaseClient) {
             boundStatement = boundStatement.bind(index * 5 + 4, item.imageOrder)
         }
 
-        return boundStatement.fetch()
+        return boundStatement
+            .fetch()
             .rowsUpdated()
-            .flatMapMany { _ -> Flux.fromIterable(albumImages) }
+            .then()
     }
 
     fun selectBatch(albumIdImages: Set<Pair<String, List<String>>>): Flux<AlbumImage> {

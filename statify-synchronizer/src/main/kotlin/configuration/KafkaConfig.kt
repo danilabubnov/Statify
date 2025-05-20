@@ -8,6 +8,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.config.TopicConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
+import org.danila.*
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -20,17 +21,6 @@ import org.springframework.kafka.support.serializer.JsonDeserializer
 import org.springframework.kafka.support.serializer.JsonSerializer
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
-
-const val USER_SPOTIFY_CONNECTED_TOPIC = "user.spotify.connected.v1"
-
-const val ARTIST_ENRICH_TOPIC = "statify.artist.enrich.v1"
-const val ARTIST_ENRICH_DLT = "$ARTIST_ENRICH_TOPIC.DLT"
-
-const val ALBUM_ENRICH_TOPIC = "statify.album.enrich.v1"
-const val ALBUM_ENRICH_DLT = "$ALBUM_ENRICH_TOPIC.DLT"
-
-const val TRACK_ENRICH_TOPIC = "statify.track.enrich.v1"
-const val TRACK_ENRICH_DLT = "$TRACK_ENRICH_TOPIC.DLT"
 
 @Configuration
 class KafkaConfig(

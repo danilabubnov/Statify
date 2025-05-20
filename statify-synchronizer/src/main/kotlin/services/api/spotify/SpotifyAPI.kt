@@ -1,5 +1,8 @@
 package org.danila.services.api.spotify
 
+import org.danila.MAX_FOLLOWED_ARTISTS_PAGE_SIZE
+import org.danila.MAX_SAVED_ALBUMS_PAGE_SIZE
+import org.danila.MAX_SAVED_TRACKS_PAGE_SIZE
 import org.danila.dto.album.FullAlbumsResponseDTO
 import org.danila.dto.album.SavedAlbumsResponseDTO
 import org.danila.dto.artist.FollowingArtistsResponseDTO
@@ -15,7 +18,7 @@ interface SpotifyAPI {
     @GET("v1/me/tracks")
     suspend fun getSavedTracks(
         @Header("Authorization") authHeader: String,
-        @Query("limit") limit: Int = 50,
+        @Query("limit") limit: Int = MAX_SAVED_TRACKS_PAGE_SIZE,
         @Query("offset") offset: Int = 0
     ): SavedTracksResponseDTO
 
@@ -23,14 +26,14 @@ interface SpotifyAPI {
     suspend fun getFollowedArtists(
         @Header("Authorization") authHeader: String,
         @Query("type") type: String = "artist",
-        @Query("limit") limit: Int = 50,
+        @Query("limit") limit: Int = MAX_FOLLOWED_ARTISTS_PAGE_SIZE,
         @Query("after") after: String? = null
     ): FollowingArtistsResponseDTO
 
     @GET("v1/me/albums")
     suspend fun getSavedAlbums(
         @Header("Authorization") authHeader: String,
-        @Query("limit") limit: Int = 50,
+        @Query("limit") limit: Int = MAX_SAVED_ALBUMS_PAGE_SIZE,
         @Query("offset") offset: Int = 0
     ): SavedAlbumsResponseDTO
 

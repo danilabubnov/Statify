@@ -7,53 +7,62 @@ import reactor.core.publisher.Flux
 
 @Repository
 class ArtistRepositoryCustomImpl(
-    val databaseClient: DatabaseClient
+    val databaseClient: DatabaseClient,
 ) : ArtistRepositoryCustom {
 
-    override fun upsertBatch(artists: Collection<Artist>): Flux<Artist> {
+    override fun upsertAndReturnSimpleArtists(artists: Collection<Artist>): Flux<String> {
         if (artists.isEmpty()) return Flux.empty()
 
+        val placeholders = artists.indices.joinToString(", ") { index ->
+            "(" + ((index * 4 + 1)..(index * 4 + 4)).joinToString(", ") { "$$it" } + ")"
+        }
+
         val sql = """
-            INSERT INTO artists (
-                spotify_id,
-                followers_total,
-                name,
-                popularity
+            WITH inserted AS (
+                INSERT INTO artists (
+                    spotify_id,
+                    followers_total,
+                    name,
+                    popularity
+                )
+                VALUES $placeholders
+                ON CONFLICT (spotify_id) 
+                DO UPDATE
+                    SET
+                        followers_total = EXCLUDED.followers_total,
+                        popularity      = EXCLUDED.popularity
+                    RETURNING
+                        spotify_id,
+                        (followers_total IS NULL OR popularity IS NULL) AS is_simple
             )
-            VALUES ${
-                artists.indices.joinToString(", ") { index ->
-                    "($${index * 4 + 1}, $${index * 4 + 2}, $${index * 4 + 3}, $${index * 4 + 4})"
-                }
-            }
-            ON CONFLICT (spotify_id)
-            DO UPDATE
-            SET
-                followers_total = EXCLUDED.followers_total,
-                popularity = EXCLUDED.popularity
+            SELECT spotify_id
+                FROM inserted
+            WHERE is_simple
         """.trimIndent()
 
-        var statement = databaseClient.sql(sql)
+        var spec = databaseClient.sql(sql)
 
         artists.forEachIndexed { index, artist ->
             val followersTotal = artist.followersTotal
             val popularity = artist.popularity
+            val base = index * 4
 
-            statement = statement
-                .bind(index * 4 + 0, artist.spotifyId)
-                .let {
-                    if (followersTotal == null) it.bindNull(index * 4 + 1, Int::class.java)
-                    else it.bind(index * 4 + 1, followersTotal)
+            spec = spec
+                .bind(base + 0, artist.spotifyId)
+                .let { s ->
+                    if (followersTotal == null) s.bindNull(base + 1, Int::class.java)
+                    else s.bind(base + 1, followersTotal)
                 }
-                .bind(index * 4 + 2, artist.name)
-                .let {
-                    if (popularity == null) it.bindNull(index * 4 + 3, Int::class.java)
-                    else it.bind(index * 4 + 3, popularity)
+                .bind(base + 2, artist.name)
+                .let { s ->
+                    if (popularity == null) s.bindNull(base + 3, Int::class.java)
+                    else s.bind(base + 3, popularity)
                 }
         }
 
-        return statement.fetch()
-            .rowsUpdated()
-            .flatMapMany { Flux.fromIterable(artists) }
+        return spec
+            .map { row, _ -> row.get("spotify_id", String::class.java)!! }
+            .all()
     }
 
 }

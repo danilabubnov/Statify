@@ -24,16 +24,12 @@ class AlbumService @Autowired constructor(
     suspend fun findExistingAlbum(ids: Set<String>): List<Album> =
         readSemaphore.withPermit { albumRepository.findAlbumsBySpotifyIdIn(ids).awaitList() }
 
-    suspend fun upsertAlbums(albums: Collection<Album>): Collection<Album> =
+    suspend fun upsertAndReturnSimpleAlbums(albums: Collection<Album>): Collection<String> =
         writeSemaphore.withPermit {
             transactionalOperator.executeAndAwait {
-                albums.chunked(300)
-                    .map { chunk ->
-                        albumRepository.upsertBatch(chunk)
-                            .collectList()
-                            .awaitSingle()
-                    }
-                    .flatten()
+                albumRepository.upsertAndReturnSimpleAlbums(albums)
+                    .collectList()
+                    .awaitSingle()
             }
         }
 

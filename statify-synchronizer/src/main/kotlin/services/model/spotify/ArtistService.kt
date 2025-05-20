@@ -24,16 +24,14 @@ class ArtistService @Autowired constructor(
     suspend fun findExistingArtists(ids: Set<String>): List<Artist> =
         readSemaphore.withPermit { artistRepository.findArtistsBySpotifyIdIn(ids).awaitList() }
 
-    suspend fun upsertArtists(artists: Collection<Artist>): Collection<Artist> =
+    suspend fun upsertAndReturnSimpleArtists(artists: Collection<Artist>): Collection<String> =
         writeSemaphore.withPermit {
             transactionalOperator.executeAndAwait {
-                artists.chunked(300)
-                    .map { chunk ->
-                        artistRepository.upsertBatch(chunk)
-                            .collectList()
-                            .awaitSingle()
-                    }
-                    .flatten()
+                try {
+                    artistRepository.upsertAndReturnSimpleArtists(artists)
+                        .collectList()
+                        .awaitSingle()
+                } catch (e: Exception) { println(e.message ?: e.localizedMessage); throw e }
             }
         }
 

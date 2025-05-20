@@ -1,6 +1,7 @@
 package org.danila.services.model.spotify
 
 import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.danila.dto.common.ImageDTO
@@ -22,18 +23,13 @@ class ArtistImageService @Autowired constructor(
 ) {
 
     suspend fun findExistingArtistImages(artistIdImages: Set<Pair<String, List<ImageDTO>>>): List<ArtistImage> =
-        readSemaphore.withPermit { artistImageRepository.selectBatch(artistIdImages.map { it.first to it.second.map { it.url }}.toSet()).collectList().awaitSingle() }
+        readSemaphore.withPermit { artistImageRepository.selectBatch(artistIdImages.map { it.first to it.second.map { it.url } }.toSet()).collectList().awaitSingle() }
 
-    suspend fun persistArtistImage(artistImages: Collection<ArtistImage>): Collection<ArtistImage> =
+    suspend fun persistArtistImage(artistImages: Collection<ArtistImage>): Unit =
         writeSemaphore.withPermit {
             transactionalOperator.executeAndAwait {
-                artistImages.chunked(300)
-                    .map { chunk ->
-                        artistImageRepository.insertBatch(chunk)
-                            .collectList()
-                            .awaitSingle()
-                    }
-                    .flatten()
+                artistImageRepository.insertBatch(artistImages)
+                    .awaitSingleOrNull()
             }
         }
 

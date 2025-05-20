@@ -13,5 +13,5 @@ interface ArtistRepository : ReactiveCrudRepository<Artist, String>, ArtistRepos
 }
 
 interface ArtistRepositoryCustom {
-    fun upsertBatch(artists: Collection<Artist>): Flux<Artist>
+    fun upsertAndReturnSimpleArtists(artists: Collection<Artist>): Flux<String>
 }

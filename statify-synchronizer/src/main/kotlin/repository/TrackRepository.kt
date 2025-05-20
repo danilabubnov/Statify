@@ -13,5 +13,5 @@ interface TrackRepository : ReactiveCrudRepository<Track, String>, TrackReposito
 }
 
 interface TrackRepositoryCustom {
-    fun upsertBatch(tracks: Collection<Track>): Flux<Track>
+    fun upsertAndReturnSimpleTracks(tracks: Collection<Track>): Flux<String>
 }
