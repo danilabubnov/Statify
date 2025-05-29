@@ -4,6 +4,7 @@ import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
 import org.danila.dto.common.ImageDTO
 import org.danila.model.spotify.album.AlbumImage
 import org.danila.repository.AlbumImageRepository
@@ -27,9 +28,11 @@ class AlbumImageService @Autowired constructor(
 
     suspend fun persistAlbumImages(albumImages: Collection<AlbumImage>): Unit =
         writeSemaphore.withPermit {
-            transactionalOperator.executeAndAwait {
-                albumImageRepository.insertBatch(albumImages)
-                    .awaitSingleOrNull()
+            albumImages.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
+                transactionalOperator.executeAndAwait {
+                    albumImageRepository.insertBatch(chunk)
+                        .awaitSingleOrNull()
+                }
             }
         }
 

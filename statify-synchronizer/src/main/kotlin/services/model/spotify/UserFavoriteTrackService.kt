@@ -3,6 +3,7 @@ package org.danila.services.model.spotify
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.track.UserFavoriteTrack
 import org.danila.repository.UserFavoriteTrackRepository
@@ -27,9 +28,11 @@ class UserFavoriteTrackService @Autowired constructor(
 
     suspend fun persistUserFavoriteTracks(userFavoriteTracks: Collection<UserFavoriteTrack>): Unit =
         writeSemaphore.withPermit {
-            transactionalOperator.executeAndAwait {
-                userFavoriteTrackRepository.insertBatch(userFavoriteTracks)
-                    .awaitSingleOrNull()
+            userFavoriteTracks.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
+                transactionalOperator.executeAndAwait {
+                    userFavoriteTrackRepository.insertBatch(userFavoriteTracks)
+                        .awaitSingleOrNull()
+                }
             }
         }
 

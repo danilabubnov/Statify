@@ -3,6 +3,7 @@ package org.danila.services.model.spotify
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.danila.MAX_SAVED_TRACKS_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.track.Track
 import org.danila.repository.TrackRepository
@@ -26,10 +27,12 @@ class TrackService @Autowired constructor(
 
     suspend fun upsertAndReturnSimpleTracks(tracks: Collection<Track>): Collection<String> =
         writeSemaphore.withPermit {
-            transactionalOperator.executeAndAwait {
-                trackRepository.upsertAndReturnSimpleTracks(tracks)
-                    .collectList()
-                    .awaitSingle()
+            tracks.chunked(MAX_SAVED_TRACKS_CHUNK_SIZE).flatMap { chunk ->
+                transactionalOperator.executeAndAwait {
+                    trackRepository.upsertAndReturnSimpleTracks(chunk)
+                        .collectList()
+                        .awaitSingle()
+                }
             }
         }
 

@@ -3,6 +3,7 @@ package org.danila.services.model.spotify
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.TrackArtist
 import org.danila.repository.TrackArtistRepository
@@ -26,9 +27,11 @@ class TrackArtistService @Autowired constructor(
 
     suspend fun persistTrackArtists(trackArtists: Collection<TrackArtist>): Unit =
         writeSemaphore.withPermit {
-            transactionalOperator.executeAndAwait {
-                trackArtistsRepository.insertBatch(trackArtists)
-                    .awaitSingleOrNull()
+            trackArtists.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
+                transactionalOperator.executeAndAwait {
+                    trackArtistsRepository.insertBatch(chunk)
+                        .awaitSingleOrNull()
+                }
             }
         }
 

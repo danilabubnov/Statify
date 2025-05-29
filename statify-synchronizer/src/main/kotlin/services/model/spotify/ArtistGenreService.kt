@@ -4,6 +4,7 @@ import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
 import org.danila.model.spotify.artist.ArtistGenre
 import org.danila.repository.ArtistGenreRepository
 import org.springframework.beans.factory.annotation.Autowired
@@ -26,9 +27,11 @@ class ArtistGenreService @Autowired constructor(
 
     suspend fun persistArtistGenres(artistGenres: Collection<ArtistGenre>): Unit =
         writeSemaphore.withPermit {
-            transactionalOperator.executeAndAwait {
-                artistGenreRepository.insertBatch(artistGenres)
-                    .awaitSingleOrNull()
+            artistGenres.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
+                transactionalOperator.executeAndAwait {
+                    artistGenreRepository.insertBatch(chunk)
+                        .awaitSingleOrNull()
+                }
             }
         }
 

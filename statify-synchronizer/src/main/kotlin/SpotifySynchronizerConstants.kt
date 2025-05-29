@@ -97,6 +97,10 @@ const val MULTI_FETCH_ALBUMS_BATCH_SIZE = MULTI_FETCH_ALBUMS_FLOW_BUFFER_CAPACIT
  */
 const val BATCH_TIMEOUT_MS = 1_000L
 
+/**
+ * Maximum number of entities to process in a single chunk when upserting or fetching data.
+ */
+const val MAX_SAVED_ENTITIES_CHUNK_SIZE = 50
 
 // --- Kafka topic constants ---
 

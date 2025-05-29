@@ -40,6 +40,11 @@ class AlbumRepositoryCustomImpl(
                     popularity    = EXCLUDED.popularity,
                     release_day   = EXCLUDED.release_day,
                     release_month = EXCLUDED.release_month
+                WHERE 
+                    albums.label         IS DISTINCT FROM EXCLUDED.label OR
+                    albums.popularity    IS DISTINCT FROM EXCLUDED.popularity OR 
+                    albums.release_day   IS DISTINCT FROM EXCLUDED.release_day OR
+                    albums.release_month IS DISTINCT FROM EXCLUDED.release_month
                 RETURNING
                     spotify_id,
                     (label IS NULL OR popularity IS NULL) AS is_simple

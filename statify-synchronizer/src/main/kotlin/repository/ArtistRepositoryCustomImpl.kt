@@ -31,6 +31,9 @@ class ArtistRepositoryCustomImpl(
                     SET
                         followers_total = EXCLUDED.followers_total,
                         popularity      = EXCLUDED.popularity
+                    WHERE
+                        artists.followers_total IS DISTINCT FROM EXCLUDED.followers_total OR
+                        artists.popularity      IS DISTINCT FROM EXCLUDED.popularity
                     RETURNING
                         spotify_id,
                         (followers_total IS NULL OR popularity IS NULL) AS is_simple

@@ -31,6 +31,8 @@ class TrackRepositoryCustomImpl(val databaseClient: DatabaseClient) : TrackRepos
             DO UPDATE
                 SET 
                     popularity = EXCLUDED.popularity
+                WHERE 
+                    tracks.popularity IS DISTINCT FROM EXCLUDED.popularity
                 RETURNING
                     spotify_id,
                     (popularity IS NULL) AS is_simple
