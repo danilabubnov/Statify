@@ -16,6 +16,8 @@ pluginManagement {
     val reactorKafkaVersion: String by settings
     val retrofitLoggingVersion: String by settings
     val lettuceCoreVersion: String by settings
+    val resilience4jVersion: String by settings
+    val caffeineVersion: String by settings
 
     plugins {
         kotlin("jvm") version kotlinVersion

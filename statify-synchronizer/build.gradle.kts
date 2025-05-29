@@ -33,6 +33,8 @@ val retrofitLoggingVersion = providers.gradleProperty("retrofitLoggingVersion").
 val assertkVersion = providers.gradleProperty("assertkVersion").get()
 val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
 val lettuceCoreVersion = providers.gradleProperty("lettuceCoreVersion").get()
+val resilience4jVersion = providers.gradleProperty("resilience4jVersion").get()
+val caffeineVersion = providers.gradleProperty("caffeineVersion").get()
 
 dependencies {
     implementation(project(":statify-utils"))
@@ -54,6 +56,13 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
     implementation("com.squareup.retrofit2:converter-jackson:$retrofitVersion")
     implementation("com.squareup.okhttp3:logging-interceptor:$retrofitLoggingVersion")
+
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:$resilience4jVersion")
+    implementation("io.github.resilience4j:resilience4j-kotlin:$resilience4jVersion")
+    implementation("io.github.resilience4j:resilience4j-retry:$resilience4jVersion")
+    implementation("io.github.resilience4j:resilience4j-circuitbreaker:$resilience4jVersion")
+
+    implementation("com.github.ben-manes.caffeine:caffeine:$caffeineVersion")
 
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")

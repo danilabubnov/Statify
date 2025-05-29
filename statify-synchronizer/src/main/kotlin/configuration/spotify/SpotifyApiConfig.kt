@@ -1,4 +1,4 @@
-package org.danila.configuration
+package org.danila.configuration.spotify
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.OkHttpClient

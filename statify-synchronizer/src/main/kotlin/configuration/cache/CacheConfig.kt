@@ -1,4 +1,4 @@
-package org.danila.configuration
+package org.danila.configuration.cache
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import event.TokenCredentials

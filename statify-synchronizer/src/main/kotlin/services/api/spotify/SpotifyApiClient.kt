@@ -1,27 +1,36 @@
 package org.danila.services.api.spotify
 
+import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.Caffeine
 import event.TokenCredentials
-import kotlinx.coroutines.Dispatchers
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker
+import io.github.resilience4j.retry.annotation.Retry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import org.danila.MAX_ALBUMS_PER_MULTI_FETCH
 import org.danila.MAX_ARTISTS_PER_MULTI_FETCH
 import org.danila.MAX_TRACKS_PER_MULTI_FETCH
 import org.danila.dto.album.AlbumDTO
-import org.danila.dto.album.AlbumSimpleDTO
+import org.danila.dto.album.FullAlbumsResponseDTO
 import org.danila.dto.album.SavedAlbumItemDTO
+import org.danila.dto.album.SavedAlbumsResponseDTO
 import org.danila.dto.artist.ArtistDTO
+import org.danila.dto.artist.FollowingArtistsResponseDTO
+import org.danila.dto.artist.FullArtistsResponseDTO
+import org.danila.dto.track.FullTracksResponseDTO
 import org.danila.dto.track.SavedTrackItemDTO
+import org.danila.dto.track.SavedTracksResponseDTO
 import org.danila.dto.track.TrackDTO
 import org.danila.services.spotify.TokenStore
 import org.danila.util.UserIdKey
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import retrofit2.HttpException
+import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
 
 @Service
@@ -35,122 +44,244 @@ class SpotifyApiClient @Autowired constructor(
         var after: String? = null
 
         do {
-            val response = withRetryAfter {
+            val artists = withRetryAfter {
                 withAuthRetry { authHeader ->
-                    spotifyApi.getFollowedArtists(
-                        authHeader = authHeader,
-                        after = after
-                    ).artists
+                    getFollowedArtistsPage(authHeader = authHeader, after = after)?.artists
                 }
             }
 
-            response.items.forEach { emit(it) }
+            artists?.items?.forEach { emit(it) }
 
-            after = response.cursors.after
-        } while (response.next != null)
+            after = artists?.cursors?.after
+        } while (artists?.next != null)
+    }
+
+    /**
+     * This method is declared public and open **only** to allow Spring AOP proxying for Resilience4j annotations.
+     * It is intended for internal use within this class and should **not** be called directly from outside.
+     */
+    @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFollowingArtistsResponseDTO")
+    @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFollowingArtistsResponseDTO")
+    suspend fun getFollowedArtistsPage(authHeader: String, after: String?): FollowingArtistsResponseDTO? {
+        return spotifyApi.getFollowedArtists(
+            authHeader = authHeader,
+            after = after
+        )
+    }
+
+    private suspend fun spotifyServerErrorRetryFollowingArtistsResponseDTO(throwable: Throwable): FollowingArtistsResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
+    }
+
+    private suspend fun onSpotifyServiceDownFollowingArtistsResponseDTO(throwable: Throwable): FollowingArtistsResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
     }
 
     suspend fun getSeveralArtists(
         artistIds: Set<String>,
     ): Flow<ArtistDTO> = flow {
         artistIds.chunked(MAX_ARTISTS_PER_MULTI_FETCH).forEach { chunk ->
-            withRetryAfter {
+            val artists = withRetryAfter {
                 withAuthRetry { auth ->
-                    withContext(Dispatchers.IO) {
-                        spotifyApi.getSeveralArtists(authHeader = auth, ids = chunk.joinToString(",")).artists.forEach { emit(it) }
-                    }
+                    getSeveralArtistsPage(
+                        authHeader = auth,
+                        artistIds = chunk
+                    )?.artists
                 }
             }
+
+            artists?.forEach { emit(it) }
         }
+    }
+
+    /**
+     * This method is declared public and open **only** to allow Spring AOP proxying for Resilience4j annotations.
+     * It is intended for internal use within this class and should **not** be called directly from outside.
+     */
+    @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFullArtistsResponseDTO")
+    @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFullArtistsResponseDTO")
+    suspend fun getSeveralArtistsPage(authHeader: String, artistIds: List<String>): FullArtistsResponseDTO? {
+        return spotifyApi.getSeveralArtists(
+            authHeader = authHeader,
+            ids = artistIds.joinToString(",")
+        )
+    }
+
+    private suspend fun spotifyServerErrorRetryFullArtistsResponseDTO(throwable: Throwable): FullArtistsResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
+    }
+
+    private suspend fun onSpotifyServiceDownFullArtistsResponseDTO(throwable: Throwable): FullArtistsResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
     }
 
     fun getAllSavedAlbums(): Flow<SavedAlbumItemDTO> = flow {
         var offset = 0
 
         do {
-            val response = withRetryAfter {
+            val albums = withRetryAfter {
                 withAuthRetry { auth ->
-                    spotifyApi.getSavedAlbums(
+                    getAllSavedAlbumsPage(
                         authHeader = auth,
                         offset = offset
                     )
                 }
             }
 
-            response.items.forEach { emit(it.copy(album = it.album.normalized())) }
-            offset += response.limit
-        } while (response.next != null)
+            albums?.items?.forEach { emit(it.copy(album = it.album.normalized())) }
+
+            if (albums?.limit != null) offset += albums.limit
+        } while (albums?.next != null)
+    }
+
+    /**
+     * This method is declared public and open **only** to allow Spring AOP proxying for Resilience4j annotations.
+     * It is intended for internal use within this class and should **not** be called directly from outside.
+     */
+    @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetrySavedAlbumsResponseDTO")
+    @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownSavedAlbumsResponseDTO")
+    suspend fun getAllSavedAlbumsPage(authHeader: String, offset: Int): SavedAlbumsResponseDTO? {
+        return spotifyApi.getSavedAlbums(
+            authHeader = authHeader,
+            offset = offset
+        )
+    }
+
+    private suspend fun spotifyServerErrorRetrySavedAlbumsResponseDTO(throwable: Throwable): SavedAlbumsResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
+    }
+
+    private suspend fun onSpotifyServiceDownSavedAlbumsResponseDTO(throwable: Throwable): SavedAlbumsResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
     }
 
     suspend fun getSeveralAlbums(
         albumIds: Set<String>,
     ): Flow<AlbumDTO> = flow {
         albumIds.chunked(MAX_ALBUMS_PER_MULTI_FETCH).forEach { chunk ->
-            withRetryAfter {
+            val albums = withRetryAfter {
                 withAuthRetry { auth ->
-                    withContext(Dispatchers.IO) {
-                        spotifyApi.getSeveralAlbums(authHeader = auth, ids = chunk.joinToString(",")).albums.forEach { emit(it.normalized()) }
-                    }
+                    getSeveralAlbumsPage(
+                        authHeader = auth,
+                        albumsIds = chunk
+                    )?.albums
                 }
             }
+
+            albums?.forEach { emit(it.normalized()) }
         }
+    }
+
+    /**
+     * This method is declared public and open **only** to allow Spring AOP proxying for Resilience4j annotations.
+     * It is intended for internal use within this class and should **not** be called directly from outside.
+     */
+    @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFullAlbumsResponseDTO")
+    @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFullAlbumsResponseDTO")
+    suspend fun getSeveralAlbumsPage(authHeader: String, albumsIds: List<String>): FullAlbumsResponseDTO? {
+        return spotifyApi.getSeveralAlbums(
+            authHeader = authHeader,
+            ids = albumsIds.joinToString(",")
+        )
+    }
+
+    private suspend fun spotifyServerErrorRetryFullAlbumsResponseDTO(throwable: Throwable): FullAlbumsResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
+    }
+
+    private suspend fun onSpotifyServiceDownFullAlbumsResponseDTO(throwable: Throwable): FullAlbumsResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
     }
 
     fun getAllSavedTracks(): Flow<SavedTrackItemDTO> = flow {
         var offset = 0
 
         do {
-            val response = withRetryAfter {
+            val tracks = withRetryAfter {
                 withAuthRetry { auth ->
-                    spotifyApi.getSavedTracks(
+                    getSavedTracksPage(
                         authHeader = auth,
                         offset = offset
                     )
                 }
             }
 
-            response.items.forEach { emit(it.normalized()) }
-            offset += response.limit
-        } while (response.next != null)
+            tracks?.items?.forEach { emit(it.normalized()) }
+            if (tracks?.limit != null) offset += tracks.limit
+        } while (tracks?.next != null)
+    }
+
+    /**
+     * This method is declared public and open **only** to allow Spring AOP proxying for Resilience4j annotations.
+     * It is intended for internal use within this class and should **not** be called directly from outside.
+     */
+    @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetrySavedTracksResponseDTO")
+    @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownSavedTracksResponseDTO")
+    suspend fun getSavedTracksPage(authHeader: String, offset: Int): SavedTracksResponseDTO? {
+        return spotifyApi.getSavedTracks(
+            authHeader = authHeader,
+            offset = offset
+        )
+    }
+
+    private suspend fun spotifyServerErrorRetrySavedTracksResponseDTO(throwable: Throwable): SavedTracksResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
+    }
+
+    private suspend fun onSpotifyServiceDownSavedTracksResponseDTO(throwable: Throwable): SavedTracksResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
     }
 
     suspend fun getSeveralTracks(
         trackIds: Set<String>,
     ): Flow<TrackDTO> = flow {
         trackIds.chunked(MAX_TRACKS_PER_MULTI_FETCH).forEach { chunk ->
-            withRetryAfter {
+            val tracks = withRetryAfter {
                 withAuthRetry { auth ->
-                    withContext(Dispatchers.IO) {
-                        spotifyApi.getSeveralTracks(authHeader = auth, ids = chunk.joinToString(",")).tracks.forEach { emit(it.normalized()) }
-                    }
+                    getSeveralTracksPage(
+                        authHeader = auth,
+                        tracksIds = chunk
+                    )?.tracks
                 }
             }
+
+            tracks?.forEach { emit(it.normalized()) }
         }
     }
 
-    private fun AlbumDTO.normalized(): AlbumDTO =
-        this.copy(
-            albumType = this.albumType.uppercase(),
-            releaseDatePrecision = this.releaseDatePrecision.uppercase()
-        )
+    /**
+     * This method is declared public and open **only** to allow Spring AOP proxying for Resilience4j annotations.
+     * It is intended for internal use within this class and should **not** be called directly from outside.
+     */
+    @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFullTracksResponseDTO")
+    @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFullTracksResponseDTO")
+    suspend fun getSeveralTracksPage(authHeader: String, tracksIds: List<String>): FullTracksResponseDTO? {
+        return spotifyApi.getSeveralTracks(authHeader = authHeader, ids = tracksIds.joinToString(","))
+    }
 
-    private fun AlbumSimpleDTO.normalized(): AlbumSimpleDTO =
-        this.copy(
-            albumType = this.albumType.uppercase(),
-            releaseDatePrecision = this.releaseDatePrecision.uppercase()
-        )
+    private suspend fun spotifyServerErrorRetryFullTracksResponseDTO(throwable: Throwable): FullTracksResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
+    }
 
-    private fun TrackDTO.normalized(): TrackDTO =
-        this.copy(
-            album = this.album.normalized()
-        )
+    private suspend fun onSpotifyServiceDownFullTracksResponseDTO(throwable: Throwable): FullTracksResponseDTO? {
+        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
+        return null
+    }
 
-    private fun SavedTrackItemDTO.normalized(): SavedTrackItemDTO =
-        this.copy(
-            track = this.track.normalized()
-        )
-
-    private val tokenMutex = Mutex()
+    private val userTokenMutexCache: Cache<UUID, Mutex> = Caffeine.newBuilder()
+        .expireAfterAccess(1, TimeUnit.HOURS)
+        .build()
 
     private suspend inline fun <T> withAuthRetry(
         crossinline block: suspend (authHeader: String) -> T
@@ -164,7 +295,9 @@ class SpotifyApiClient @Autowired constructor(
         } catch (e: HttpException) {
             if (e.code() != 401) throw e
 
-            val newToken = tokenMutex.withLock {
+            val userTokenMutex = userTokenMutexCache.get(userId) { Mutex() }
+
+            val newToken = userTokenMutex.withLock {
                 creds = tokenStore.get(userId)
 
                 if (creds.accessToken == initial) {

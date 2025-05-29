@@ -40,7 +40,15 @@ data class AlbumDTO(
     @JsonProperty("popularity")
     val popularity: Int
 
-)
+) {
+
+    fun normalized(): AlbumDTO =
+        this.copy(
+            albumType = this.albumType.uppercase(),
+            releaseDatePrecision = this.releaseDatePrecision.uppercase()
+        )
+
+}
 
 data class AlbumSimpleDTO(
 
@@ -68,7 +76,15 @@ data class AlbumSimpleDTO(
     @JsonProperty("artists")
     val artists: List<ArtistSimpleDTO>
 
-)
+) {
+
+    fun normalized(): AlbumSimpleDTO =
+        this.copy(
+            albumType = this.albumType.uppercase(),
+            releaseDatePrecision = this.releaseDatePrecision.uppercase()
+        )
+
+}
 
 data class SavedAlbumItemDTO(
 

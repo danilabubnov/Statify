@@ -1,4 +1,4 @@
-package org.danila.configuration
+package org.danila.configuration.security
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

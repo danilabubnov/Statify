@@ -1,4 +1,4 @@
-package org.danila.configuration
+package org.danila.configuration.jackson
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper

@@ -30,7 +30,12 @@ data class TrackDTO(
     @JsonProperty("track_number")
     val trackNumber: Int
 
-)
+) {
+
+    fun normalized(): TrackDTO =
+        this.copy(album = this.album.normalized())
+
+}
 
 data class TrackItemDTO(
 
@@ -69,7 +74,12 @@ data class SavedTrackItemDTO(
     @JsonProperty("track")
     val track: TrackDTO
 
-)
+) {
+
+    fun normalized(): SavedTrackItemDTO =
+        this.copy(track = this.track.normalized())
+
+}
 
 data class SavedTracksResponseDTO(
 

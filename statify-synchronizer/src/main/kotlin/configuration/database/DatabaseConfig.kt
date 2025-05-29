@@ -1,4 +1,4 @@
-package org.danila.configuration
+package org.danila.configuration.database
 
 import io.r2dbc.spi.ConnectionFactory
 import kotlinx.coroutines.sync.Semaphore
