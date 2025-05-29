@@ -1,3 +1,3 @@
 package utils
 
-fun String.trimToNull() = this.trim().let { if (it.isBlank()) null else it }
+fun String.trimToNull() = this.trim().ifBlank { null }
