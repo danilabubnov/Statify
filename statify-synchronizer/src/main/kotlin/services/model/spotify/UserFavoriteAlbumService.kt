@@ -1,8 +1,10 @@
 package org.danila.services.model.spotify
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.album.UserFavoriteAlbum
@@ -24,14 +26,18 @@ class UserFavoriteAlbumService @Autowired constructor(
 ) {
 
     suspend fun findExistingUserFavoriteAlbums(userId: UUID): List<UserFavoriteAlbum> =
-        readSemaphore.withPermit { userFavoriteAlbumRepository.findUserFavoriteAlbumsByUserId(userId).awaitList() }
+        withContext(Dispatchers.IO) {
+            readSemaphore.withPermit { userFavoriteAlbumRepository.findUserFavoriteAlbumsByUserId(userId).awaitList() }
+        }
 
     suspend fun persistUserFavoriteAlbums(userFavoriteAlbums: Collection<UserFavoriteAlbum>): Unit =
-        writeSemaphore.withPermit {
-            userFavoriteAlbums.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
-                transactionalOperator.executeAndAwait {
-                    userFavoriteAlbumRepository.insertBatch(chunk)
-                        .awaitSingleOrNull()
+        withContext(Dispatchers.IO) {
+            writeSemaphore.withPermit {
+                userFavoriteAlbums.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
+                    transactionalOperator.executeAndAwait {
+                        userFavoriteAlbumRepository.insertBatch(chunk)
+                            .awaitSingleOrNull()
+                    }
                 }
             }
         }

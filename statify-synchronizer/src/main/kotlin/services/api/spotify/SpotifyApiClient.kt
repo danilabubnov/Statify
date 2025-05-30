@@ -5,11 +5,13 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import event.TokenCredentials
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker
 import io.github.resilience4j.retry.annotation.Retry
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.danila.MAX_ALBUMS_PER_MULTI_FETCH
 import org.danila.MAX_ARTISTS_PER_MULTI_FETCH
 import org.danila.MAX_TRACKS_PER_MULTI_FETCH
@@ -63,10 +65,12 @@ class SpotifyApiClient @Autowired constructor(
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFollowingArtistsResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFollowingArtistsResponseDTO")
     suspend fun getFollowedArtistsPage(authHeader: String, after: String?): FollowingArtistsResponseDTO? {
-        return spotifyApi.getFollowedArtists(
-            authHeader = authHeader,
-            after = after
-        )
+        return withContext(Dispatchers.IO) {
+            spotifyApi.getFollowedArtists(
+                authHeader = authHeader,
+                after = after
+            )
+        }
     }
 
     private suspend fun spotifyServerErrorRetryFollowingArtistsResponseDTO(throwable: Throwable): FollowingArtistsResponseDTO? {
@@ -103,10 +107,12 @@ class SpotifyApiClient @Autowired constructor(
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFullArtistsResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFullArtistsResponseDTO")
     suspend fun getSeveralArtistsPage(authHeader: String, artistIds: List<String>): FullArtistsResponseDTO? {
-        return spotifyApi.getSeveralArtists(
-            authHeader = authHeader,
-            ids = artistIds.joinToString(",")
-        )
+        return withContext(Dispatchers.IO) {
+            spotifyApi.getSeveralArtists(
+                authHeader = authHeader,
+                ids = artistIds.joinToString(",")
+            )
+        }
     }
 
     private suspend fun spotifyServerErrorRetryFullArtistsResponseDTO(throwable: Throwable): FullArtistsResponseDTO? {
@@ -145,10 +151,12 @@ class SpotifyApiClient @Autowired constructor(
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetrySavedAlbumsResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownSavedAlbumsResponseDTO")
     suspend fun getAllSavedAlbumsPage(authHeader: String, offset: Int): SavedAlbumsResponseDTO? {
-        return spotifyApi.getSavedAlbums(
-            authHeader = authHeader,
-            offset = offset
-        )
+        return withContext(Dispatchers.IO) {
+            spotifyApi.getSavedAlbums(
+                authHeader = authHeader,
+                offset = offset
+            )
+        }
     }
 
     private suspend fun spotifyServerErrorRetrySavedAlbumsResponseDTO(throwable: Throwable): SavedAlbumsResponseDTO? {
@@ -185,10 +193,12 @@ class SpotifyApiClient @Autowired constructor(
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFullAlbumsResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFullAlbumsResponseDTO")
     suspend fun getSeveralAlbumsPage(authHeader: String, albumsIds: List<String>): FullAlbumsResponseDTO? {
-        return spotifyApi.getSeveralAlbums(
-            authHeader = authHeader,
-            ids = albumsIds.joinToString(",")
-        )
+        return withContext(Dispatchers.IO) {
+            spotifyApi.getSeveralAlbums(
+                authHeader = authHeader,
+                ids = albumsIds.joinToString(",")
+            )
+        }
     }
 
     private suspend fun spotifyServerErrorRetryFullAlbumsResponseDTO(throwable: Throwable): FullAlbumsResponseDTO? {
@@ -226,10 +236,12 @@ class SpotifyApiClient @Autowired constructor(
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetrySavedTracksResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownSavedTracksResponseDTO")
     suspend fun getSavedTracksPage(authHeader: String, offset: Int): SavedTracksResponseDTO? {
-        return spotifyApi.getSavedTracks(
-            authHeader = authHeader,
-            offset = offset
-        )
+        return withContext(Dispatchers.IO) {
+            spotifyApi.getSavedTracks(
+                authHeader = authHeader,
+                offset = offset
+            )
+        }
     }
 
     private suspend fun spotifyServerErrorRetrySavedTracksResponseDTO(throwable: Throwable): SavedTracksResponseDTO? {
@@ -266,7 +278,9 @@ class SpotifyApiClient @Autowired constructor(
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFullTracksResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFullTracksResponseDTO")
     suspend fun getSeveralTracksPage(authHeader: String, tracksIds: List<String>): FullTracksResponseDTO? {
-        return spotifyApi.getSeveralTracks(authHeader = authHeader, ids = tracksIds.joinToString(","))
+        return withContext(Dispatchers.IO) {
+            spotifyApi.getSeveralTracks(authHeader = authHeader, ids = tracksIds.joinToString(","))
+        }
     }
 
     private suspend fun spotifyServerErrorRetryFullTracksResponseDTO(throwable: Throwable): FullTracksResponseDTO? {

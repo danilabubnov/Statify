@@ -172,9 +172,7 @@ class SpotifyService @Autowired constructor(
         val userId = coroutineContext[UserIdKey]?.userId ?: throw IllegalStateException("No userId found")
 
         val existingData = fetchExistingData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs.map { it.track }, albumDTOs = albumDTOs.map { it.album })
-        val saveCollections = withContext(Dispatchers.Default) {
-            spotifyDataProcessor.processData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
-        }
+        val saveCollections = spotifyDataProcessor.processData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
 
         saveData(saveCollections = saveCollections)
     }
@@ -244,7 +242,7 @@ class SpotifyService @Autowired constructor(
         )
     }
 
-    private suspend fun saveData(saveCollections: SaveCollections) {
+    private suspend fun saveData(saveCollections: ConcurrentSaveCollections) {
         coroutineScope {
             val (albums, artists) = awaitAll(
                 async { albumService.upsertAndReturnSimpleAlbums(saveCollections.albums) },
@@ -283,35 +281,37 @@ class SpotifyService @Autowired constructor(
 
         val jobs = mutableListOf<Deferred<Any>>()
 
-        coroutineScope {
-            if (simpleAlbums.isNotEmpty())
-                jobs += async {
-                    kafkaTemplate.send(
-                        ALBUM_ENRICH_TOPIC,
-                        EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = simpleAlbums.toSet(), metadata = enrichmentMetadata, userId = userId)
-                    ).doOnError { println("Failed to send enrich event ${it.message}") }
-                        .awaitSingle()
-                }
+        supervisorScope {
+            withContext(Dispatchers.IO) {
+                if (simpleAlbums.isNotEmpty())
+                    jobs += async {
+                        kafkaTemplate.send(
+                            ALBUM_ENRICH_TOPIC,
+                            EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = simpleAlbums.toSet(), metadata = enrichmentMetadata, userId = userId)
+                        ).doOnError { println("Failed to send enrich event ${it.message}") }
+                            .awaitSingle()
+                    }
 
-            if (simpleArtists.isNotEmpty())
-                jobs += async {
-                    kafkaTemplate.send(
-                        ARTIST_ENRICH_TOPIC,
-                        EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = simpleArtists.toSet(), metadata = enrichmentMetadata, userId = userId)
-                    ).doOnError { println("Failed to send enrich event ${it.message}") }
-                        .awaitSingle()
-                }
+                if (simpleArtists.isNotEmpty())
+                    jobs += async {
+                        kafkaTemplate.send(
+                            ARTIST_ENRICH_TOPIC,
+                            EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = simpleArtists.toSet(), metadata = enrichmentMetadata, userId = userId)
+                        ).doOnError { println("Failed to send enrich event ${it.message}") }
+                            .awaitSingle()
+                    }
 
-            if (simpleTracks.isNotEmpty())
-                jobs += async {
-                    kafkaTemplate.send(
-                        TRACK_ENRICH_TOPIC,
-                        EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = simpleTracks.toSet(), metadata = enrichmentMetadata, userId = userId)
-                    ).doOnError { println("Failed to send enrich event ${it.message}") }
-                        .awaitSingle()
-                }
+                if (simpleTracks.isNotEmpty())
+                    jobs += async {
+                        kafkaTemplate.send(
+                            TRACK_ENRICH_TOPIC,
+                            EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = simpleTracks.toSet(), metadata = enrichmentMetadata, userId = userId)
+                        ).doOnError { println("Failed to send enrich event ${it.message}") }
+                            .awaitSingle()
+                    }
 
-            jobs.awaitAll()
+                jobs.awaitAll()
+            }
         }
     }
 

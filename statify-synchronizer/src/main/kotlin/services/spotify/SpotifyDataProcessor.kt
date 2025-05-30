@@ -1,5 +1,11 @@
 package org.danila.services.spotify
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.danila.dto.*
 import org.danila.dto.album.AlbumDTO
 import org.danila.dto.album.SavedAlbumItemDTO
@@ -23,70 +29,94 @@ import java.util.*
 @Service
 class SpotifyDataProcessor {
 
-    fun processData(
+    suspend fun processData(
         userId: UUID,
         artistDTOs: List<ArtistDTO>,
         trackDTOs: List<SavedTrackItemDTO>,
         albumDTOs: List<SavedAlbumItemDTO>,
         existingData: ExistingData
-    ): SaveCollections {
-        val saveCollections = SaveCollections()
+    ): ConcurrentSaveCollections {
+        val saveCollections = ConcurrentSaveCollections()
 
-        handleArtists(
-            artistDTOs = artistDTOs,
-            existingData = existingData,
-            saveCollections = saveCollections
-        )
-        handleAlbums(
-            items = albumDTOs,
-            existingData = existingData,
-            saveCollections = saveCollections,
-            albumOf = { it.album },
-            userFavoriteOf = { UserFavoriteAlbum(userId, it.album.id, Instant.parse(it.addedAt)) }
-        )
-        handleTracks(
-            items = trackDTOs,
-            existingData = existingData,
-            saveCollections = saveCollections,
-            trackOf = { it.track },
-            userFavoriteOf = { UserFavoriteTrack(userId, it.track.id, Instant.parse(it.addedAt)) }
-        )
+        coroutineScope {
+            val job1 = launch(Dispatchers.Default) {
+                handleArtists(
+                    artistDTOs = artistDTOs,
+                    existingData = existingData,
+                    saveCollections = saveCollections
+                )
+            }
+
+            val job2 = launch(Dispatchers.Default) {
+                handleAlbums(
+                    items = albumDTOs,
+                    existingData = existingData,
+                    saveCollections = saveCollections,
+                    albumOf = { it.album },
+                    userFavoriteOf = { UserFavoriteAlbum(userId, it.album.id, Instant.parse(it.addedAt)) }
+                )
+            }
+
+            val job3 = launch(Dispatchers.Default) {
+                handleTracks(
+                    items = trackDTOs,
+                    existingData = existingData,
+                    saveCollections = saveCollections,
+                    trackOf = { it.track },
+                    userFavoriteOf = { UserFavoriteTrack(userId, it.track.id, Instant.parse(it.addedAt)) }
+                )
+            }
+
+            joinAll(job1, job2, job3)
+        }
 
         return saveCollections
     }
 
-    fun processData(
+    suspend fun processData(
         artistDTOs: List<ArtistDTO>,
         trackDTOs: List<TrackDTO>,
         albumDTOs: List<AlbumDTO>,
         existingData: ExistingData
-    ): SaveCollections {
-        val saveCollections = SaveCollections()
+    ): ConcurrentSaveCollections {
+        val saveCollections = ConcurrentSaveCollections()
 
-        handleArtists(
-            artistDTOs = artistDTOs,
-            existingData = existingData,
-            saveCollections = saveCollections
-        )
-        handleAlbums(
-            items = albumDTOs,
-            existingData = existingData,
-            saveCollections = saveCollections,
-            albumOf = { it },
-            userFavoriteOf = { null }
-        )
-        handleTracks(
-            items = trackDTOs,
-            existingData = existingData,
-            saveCollections = saveCollections,
-            trackOf = { it },
-            userFavoriteOf = { null }
-        )
+        coroutineScope {
+            val job1 = launch(Dispatchers.Default) {
+                handleArtists(
+                    artistDTOs = artistDTOs,
+                    existingData = existingData,
+                    saveCollections = saveCollections
+                )
+            }
+
+            val job2 = launch(Dispatchers.Default) {
+                handleAlbums(
+                    items = albumDTOs,
+                    existingData = existingData,
+                    saveCollections = saveCollections,
+                    albumOf = { it },
+                    userFavoriteOf = { null }
+                )
+            }
+
+            val job3 = launch(Dispatchers.Default) {
+                handleTracks(
+                    items = trackDTOs,
+                    existingData = existingData,
+                    saveCollections = saveCollections,
+                    trackOf = { it },
+                    userFavoriteOf = { null }
+                )
+            }
+
+            joinAll(job1, job2, job3)
+        }
 
         return saveCollections
     }
 
-    private fun handleArtists(artistDTOs: List<ArtistDTO>, existingData: ExistingData, saveCollections: SaveCollections) {
+    private suspend fun handleArtists(artistDTOs: List<ArtistDTO>, existingData: ExistingData, saveCollections: ConcurrentSaveCollections) {
         artistDTOs.forEach { artistDTO ->
             val existingArtist = existingData.artists.find { it.spotifyId == artistDTO.id }
 
@@ -117,12 +147,12 @@ class SpotifyDataProcessor {
         }
     }
 
-    private inline fun <T> handleAlbums(
+    private suspend fun <T> handleAlbums(
         items: List<T>,
         existingData: ExistingData,
-        saveCollections: SaveCollections,
-        crossinline albumOf: (T) -> AlbumDTO,
-        crossinline userFavoriteOf: (T) -> UserFavoriteAlbum?
+        saveCollections: ConcurrentSaveCollections,
+        albumOf: (T) -> AlbumDTO,
+        userFavoriteOf: (T) -> UserFavoriteAlbum?
     ) {
         items.forEach { item ->
             val dto = albumOf(item)
@@ -179,12 +209,12 @@ class SpotifyDataProcessor {
         }
     }
 
-    private inline fun <T> handleTracks(
+    private suspend fun <T> handleTracks(
         items: List<T>,
         existingData: ExistingData,
-        saveCollections: SaveCollections,
-        crossinline trackOf: (T) -> TrackDTO,
-        crossinline userFavoriteOf: (T) -> UserFavoriteTrack?
+        saveCollections: ConcurrentSaveCollections,
+        trackOf: (T) -> TrackDTO,
+        userFavoriteOf: (T) -> UserFavoriteTrack?
     ) {
         items.forEach { item ->
             val dto = trackOf(item)
@@ -241,7 +271,7 @@ class SpotifyDataProcessor {
 
 }
 
-data class SaveCollections(
+data class ConcurrentSaveCollections(
     val artists: MutableSet<Artist> = mutableSetOf(),
     val artistImages: MutableSet<ArtistImage> = mutableSetOf(),
     val artistGenres: MutableSet<ArtistGenre> = mutableSetOf(),
@@ -254,72 +284,103 @@ data class SaveCollections(
     val userFavoriteAlbums: MutableSet<UserFavoriteAlbum> = mutableSetOf()
 ) {
 
-    fun addArtistIfAbsent(artist: Artist) {
-        if (this.artists.none { it.spotifyId == artist.spotifyId }) {
-            this.artists.add(artist)
-        } else if (this.artists.any { it.isSimpleArtist() && !artist.isSimpleArtist() }) {
-            this.artists.removeIf { it.spotifyId == artist.spotifyId }
-            this.artists.add(artist)
+    private val artistsMutex = Mutex()
+    private val artistImagesMutex = Mutex()
+    private val artistGenresMutex = Mutex()
+    private val albumsMutex = Mutex()
+    private val albumImagesMutex = Mutex()
+    private val albumArtistsMutex = Mutex()
+    private val tracksMutex = Mutex()
+    private val trackArtistsMutex = Mutex()
+    private val userFavoriteTracksMutex = Mutex()
+    private val userFavoriteAlbumsMutex = Mutex()
+
+    suspend fun addArtistIfAbsent(artist: Artist) {
+        artistsMutex.withLock {
+            if (this.artists.none { it.spotifyId == artist.spotifyId }) {
+                this.artists.add(artist)
+            } else if (this.artists.any { it.isSimpleArtist() && !artist.isSimpleArtist() }) {
+                this.artists.removeIf { it.spotifyId == artist.spotifyId }
+                this.artists.add(artist)
+            }
         }
     }
 
-    fun addTrackIfAbsent(track: Track) {
-        if (this.tracks.none { it.spotifyId == track.spotifyId }) {
-            this.tracks.add(track)
-        } else if (this.tracks.any { it.isSimpleTrack() && !track.isSimpleTrack() }) {
-            this.tracks.removeIf { it.spotifyId == track.spotifyId }
-            this.tracks.add(track)
+    suspend fun addTrackIfAbsent(track: Track) {
+        tracksMutex.withLock {
+            if (this.tracks.none { it.spotifyId == track.spotifyId }) {
+                this.tracks.add(track)
+            } else if (this.tracks.any { it.isSimpleTrack() && !track.isSimpleTrack() }) {
+                this.tracks.removeIf { it.spotifyId == track.spotifyId }
+                this.tracks.add(track)
+            }
         }
     }
 
-    fun addAlbumIfAbsent(album: Album) {
-        if (this.albums.none { it.spotifyId == album.spotifyId }) {
-            this.albums.add(album)
-        } else if (this.albums.any { it.isSimpleAlbum() && !album.isSimpleAlbum() }) {
-            this.albums.removeIf { it.spotifyId == album.spotifyId }
-            this.albums.add(album)
+    suspend fun addAlbumIfAbsent(album: Album) {
+        albumsMutex.withLock {
+            if (this.albums.none { it.spotifyId == album.spotifyId }) {
+                this.albums.add(album)
+            } else if (this.albums.any { it.isSimpleAlbum() && !album.isSimpleAlbum() }) {
+                this.albums.removeIf { it.spotifyId == album.spotifyId }
+                this.albums.add(album)
+            }
         }
     }
 
-    fun addAlbumImageIfAbsent(albumImage: AlbumImage) {
-        if (this.albumImages.none { it.albumId == albumImage.albumId && it.imageUrl == albumImage.imageUrl }) {
-            this.albumImages.add(albumImage)
+    suspend fun addAlbumImageIfAbsent(albumImage: AlbumImage) {
+        albumImagesMutex.withLock {
+            if (this.albumImages.none { it.albumId == albumImage.albumId && it.imageUrl == albumImage.imageUrl }) {
+                this.albumImages.add(albumImage)
+            }
         }
     }
 
-    fun addArtistImageIfAbsent(artistImage: ArtistImage) {
-        if (this.artistImages.none { it.artistId == artistImage.artistId && it.imageUrl == artistImage.imageUrl }) {
-            this.artistImages.add(artistImage)
+    suspend fun addArtistImageIfAbsent(artistImage: ArtistImage) {
+        artistImagesMutex.withLock {
+            if (this.artistImages.none { it.artistId == artistImage.artistId && it.imageUrl == artistImage.imageUrl }) {
+                this.artistImages.add(artistImage)
+            }
         }
     }
 
-    fun addArtistGenreIfAbsent(artistGenre: ArtistGenre) {
-        if (this.artistGenres.none { it.artistId == artistGenre.artistId && it.genre == artistGenre.genre }) {
-            this.artistGenres.add(artistGenre)
+    suspend fun addArtistGenreIfAbsent(artistGenre: ArtistGenre) {
+        artistGenresMutex.withLock {
+            if (this.artistGenres.none { it.artistId == artistGenre.artistId && it.genre == artistGenre.genre }) {
+                this.artistGenres.add(artistGenre)
+            }
         }
     }
 
-    fun addAlbumArtistIfAbsent(albumArtist: AlbumArtist) {
-        if (this.albumArtists.none { it.albumId == albumArtist.albumId && it.artistId == albumArtist.artistId }) {
-            this.albumArtists.add(albumArtist)
+    suspend fun addAlbumArtistIfAbsent(albumArtist: AlbumArtist) {
+        albumArtistsMutex.withLock {
+            if (this.albumArtists.none { it.albumId == albumArtist.albumId && it.artistId == albumArtist.artistId }) {
+                this.albumArtists.add(albumArtist)
+            }
         }
     }
 
-    fun addTrackArtistIfAbsent(trackArtist: TrackArtist) {
-        if (this.trackArtists.none { it.trackId == trackArtist.trackId && it.artistId == trackArtist.artistId }) {
-            this.trackArtists.add(trackArtist)
+    suspend fun addTrackArtistIfAbsent(trackArtist: TrackArtist) {
+        trackArtistsMutex.withLock {
+            if (this.trackArtists.none { it.trackId == trackArtist.trackId && it.artistId == trackArtist.artistId }) {
+                this.trackArtists.add(trackArtist)
+            }
         }
     }
 
-    fun addUserFavoriteTrackIfAbsent(userFavoriteTrack: UserFavoriteTrack) {
-        if (this.userFavoriteTracks.none { it.userId == userFavoriteTrack.userId && it.trackId == userFavoriteTrack.trackId }) {
-            this.userFavoriteTracks.add(userFavoriteTrack)
+    suspend fun addUserFavoriteTrackIfAbsent(userFavoriteTrack: UserFavoriteTrack) {
+        userFavoriteTracksMutex.withLock {
+            if (this.userFavoriteTracks.none { it.userId == userFavoriteTrack.userId && it.trackId == userFavoriteTrack.trackId }) {
+                this.userFavoriteTracks.add(userFavoriteTrack)
+            }
         }
     }
 
-    fun addUserFavoriteAlbumIfAbsent(userFavoriteAlbum: UserFavoriteAlbum) {
-        if (this.userFavoriteAlbums.none { it.userId == userFavoriteAlbum.userId && it.albumId == userFavoriteAlbum.albumId }) {
-            this.userFavoriteAlbums.add(userFavoriteAlbum)
+    suspend fun addUserFavoriteAlbumIfAbsent(userFavoriteAlbum: UserFavoriteAlbum) {
+        userFavoriteAlbumsMutex.withLock {
+            if (this.userFavoriteAlbums.none { it.userId == userFavoriteAlbum.userId && it.albumId == userFavoriteAlbum.albumId }) {
+                this.userFavoriteAlbums.add(userFavoriteAlbum)
+            }
         }
     }
 

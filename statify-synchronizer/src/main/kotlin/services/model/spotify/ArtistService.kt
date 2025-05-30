@@ -1,8 +1,10 @@
 package org.danila.services.model.spotify
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import org.danila.MAX_SAVED_ARTISTS_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.artist.Artist
@@ -23,15 +25,19 @@ class ArtistService @Autowired constructor(
 ) {
 
     suspend fun findExistingArtists(ids: Set<String>): List<Artist> =
-        readSemaphore.withPermit { artistRepository.findArtistsBySpotifyIdIn(ids).awaitList() }
+        withContext(Dispatchers.IO) {
+            readSemaphore.withPermit { artistRepository.findArtistsBySpotifyIdIn(ids).awaitList() }
+        }
 
     suspend fun upsertAndReturnSimpleArtists(artists: Collection<Artist>): Collection<String> =
-        writeSemaphore.withPermit {
-            artists.chunked(MAX_SAVED_ARTISTS_CHUNK_SIZE).flatMap { chunk ->
-                transactionalOperator.executeAndAwait {
-                    artistRepository.upsertAndReturnSimpleArtists(chunk)
-                        .collectList()
-                        .awaitSingle()
+        withContext(Dispatchers.IO) {
+            writeSemaphore.withPermit {
+                artists.chunked(MAX_SAVED_ARTISTS_CHUNK_SIZE).flatMap { chunk ->
+                    transactionalOperator.executeAndAwait {
+                        artistRepository.upsertAndReturnSimpleArtists(chunk)
+                            .collectList()
+                            .awaitSingle()
+                    }
                 }
             }
         }

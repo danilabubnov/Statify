@@ -1,8 +1,10 @@
 package org.danila.services.model.spotify
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import org.danila.MAX_SAVED_TRACKS_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.track.Track
@@ -23,15 +25,19 @@ class TrackService @Autowired constructor(
 ) {
 
     suspend fun findExistingTracks(ids: Set<String>): List<Track> =
-        readSemaphore.withPermit { trackRepository.findTracksBySpotifyIdIn(ids).awaitList() }
+        withContext(Dispatchers.IO) {
+            readSemaphore.withPermit { trackRepository.findTracksBySpotifyIdIn(ids).awaitList() }
+        }
 
     suspend fun upsertAndReturnSimpleTracks(tracks: Collection<Track>): Collection<String> =
-        writeSemaphore.withPermit {
-            tracks.chunked(MAX_SAVED_TRACKS_CHUNK_SIZE).flatMap { chunk ->
-                transactionalOperator.executeAndAwait {
-                    trackRepository.upsertAndReturnSimpleTracks(chunk)
-                        .collectList()
-                        .awaitSingle()
+        withContext(Dispatchers.IO) {
+            writeSemaphore.withPermit {
+                tracks.chunked(MAX_SAVED_TRACKS_CHUNK_SIZE).flatMap { chunk ->
+                    transactionalOperator.executeAndAwait {
+                        trackRepository.upsertAndReturnSimpleTracks(chunk)
+                            .collectList()
+                            .awaitSingle()
+                    }
                 }
             }
         }

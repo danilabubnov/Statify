@@ -1,9 +1,11 @@
 package org.danila.services.model.spotify
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
 import org.danila.model.spotify.artist.ArtistGenre
 import org.danila.repository.ArtistGenreRepository
@@ -23,14 +25,18 @@ class ArtistGenreService @Autowired constructor(
 ) {
 
     suspend fun findExistingArtistGenres(artistIdGenres: Set<Pair<String, List<String>>>): List<ArtistGenre> =
-        readSemaphore.withPermit { artistGenreRepository.selectBatch(artistIdGenres).collectList().awaitSingle() }
+        withContext(Dispatchers.IO) {
+            readSemaphore.withPermit { artistGenreRepository.selectBatch(artistIdGenres).collectList().awaitSingle() }
+        }
 
     suspend fun persistArtistGenres(artistGenres: Collection<ArtistGenre>): Unit =
-        writeSemaphore.withPermit {
-            artistGenres.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
-                transactionalOperator.executeAndAwait {
-                    artistGenreRepository.insertBatch(chunk)
-                        .awaitSingleOrNull()
+        withContext(Dispatchers.IO) {
+            writeSemaphore.withPermit {
+                artistGenres.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
+                    transactionalOperator.executeAndAwait {
+                        artistGenreRepository.insertBatch(chunk)
+                            .awaitSingleOrNull()
+                    }
                 }
             }
         }
