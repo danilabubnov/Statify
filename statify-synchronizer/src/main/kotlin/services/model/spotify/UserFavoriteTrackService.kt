@@ -1,10 +1,7 @@
 package org.danila.services.model.spotify
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.track.UserFavoriteTrack
@@ -13,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import org.springframework.transaction.reactive.TransactionalOperator
-import org.springframework.transaction.reactive.executeAndAwait
 import java.util.*
 
 @Service
@@ -26,20 +22,16 @@ class UserFavoriteTrackService @Autowired constructor(
 ) {
 
     suspend fun findExistingUserFavoriteTracks(userId: UUID): List<UserFavoriteTrack> =
-        withContext(Dispatchers.IO) {
-            readSemaphore.withPermit { userFavoriteTrackRepository.findUserFavoriteTracksByUserId(userId).awaitList() }
+        DatabaseExecutionContext.withRead(readSemaphore = readSemaphore) {
+            userFavoriteTrackRepository.findUserFavoriteTracksByUserId(userId).awaitList()
         }
 
-    suspend fun persistUserFavoriteTracks(userFavoriteTracks: Collection<UserFavoriteTrack>): Unit =
-        withContext(Dispatchers.IO) {
-            writeSemaphore.withPermit {
-                userFavoriteTracks.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
-                    transactionalOperator.executeAndAwait {
-                        userFavoriteTrackRepository.insertBatch(userFavoriteTracks)
-                            .awaitSingleOrNull()
-                    }
-                }
+    suspend fun persistUserFavoriteTracks(userFavoriteTracks: Collection<UserFavoriteTrack>) {
+        userFavoriteTracks.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
+            DatabaseExecutionContext.withWriteTransactionRetry(writeSemaphore, transactionalOperator) {
+                userFavoriteTrackRepository.insertBatch(chunk).awaitSingleOrNull()
             }
         }
+    }
 
 }

@@ -8,15 +8,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.config.TopicConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
-import org.danila.ALBUM_ENRICH_DLT
-import org.danila.ALBUM_ENRICH_TOPIC
-import org.danila.ARTIST_ENRICH_DLT
-import org.danila.ARTIST_ENRICH_TOPIC
-import org.danila.FOURTEEN_DAYS_IN_MS
-import org.danila.SEVEN_DAYS_IN_MS
-import org.danila.TRACK_ENRICH_DLT
-import org.danila.TRACK_ENRICH_TOPIC
-import org.danila.USER_SPOTIFY_CONNECTED_TOPIC
+import org.danila.*
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean

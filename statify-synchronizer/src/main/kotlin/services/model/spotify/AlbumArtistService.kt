@@ -1,10 +1,7 @@
 package org.danila.services.model.spotify
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.AlbumArtist
@@ -13,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import org.springframework.transaction.reactive.TransactionalOperator
-import org.springframework.transaction.reactive.executeAndAwait
 
 @Service
 class AlbumArtistService @Autowired constructor(
@@ -25,20 +21,16 @@ class AlbumArtistService @Autowired constructor(
 ) {
 
     suspend fun findExistingAlbumArtists(ids: Set<Pair<String, String>>): List<AlbumArtist> =
-        withContext(Dispatchers.IO) {
-            readSemaphore.withPermit { albumArtistsRepository.findByAlbumArtistPairs(ids).awaitList() }
+        DatabaseExecutionContext.withRead(readSemaphore = readSemaphore) {
+            albumArtistsRepository.findByAlbumArtistPairs(ids).awaitList()
         }
 
-    suspend fun persistAlbumArtists(albumArtists: Collection<AlbumArtist>): Unit =
-        withContext(Dispatchers.IO) {
-            writeSemaphore.withPermit {
-                albumArtists.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
-                    transactionalOperator.executeAndAwait {
-                        albumArtistsRepository.insertBatch(chunk)
-                            .awaitSingleOrNull()
-                    }
-                }
+    suspend fun persistAlbumArtists(albumArtists: Collection<AlbumArtist>) {
+        albumArtists.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
+            DatabaseExecutionContext.withWriteTransactionRetry(writeSemaphore, transactionalOperator) {
+                albumArtistsRepository.insertBatch(chunk).awaitSingleOrNull()
             }
         }
+    }
 
 }

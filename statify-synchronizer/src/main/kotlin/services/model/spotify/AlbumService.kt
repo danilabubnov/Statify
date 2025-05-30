@@ -1,10 +1,6 @@
 package org.danila.services.model.spotify
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import org.danila.MAX_SAVED_ALBUMS_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.album.Album
@@ -13,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import org.springframework.transaction.reactive.TransactionalOperator
-import org.springframework.transaction.reactive.executeAndAwait
 
 @Service
 class AlbumService @Autowired constructor(
@@ -21,25 +16,23 @@ class AlbumService @Autowired constructor(
     @Qualifier("databaseReadSemaphore") private val readSemaphore: Semaphore,
 
     private val transactionalOperator: TransactionalOperator,
-    private val albumRepository: AlbumRepository
+    private val albumRepository: AlbumRepository,
 ) {
 
     suspend fun findExistingAlbum(ids: Set<String>): List<Album> =
-        withContext(Dispatchers.IO) {
-            readSemaphore.withPermit { albumRepository.findAlbumsBySpotifyIdIn(ids).awaitList() }
+        DatabaseExecutionContext.withRead(readSemaphore = readSemaphore) {
+            albumRepository.findAlbumsBySpotifyIdIn(ids).awaitList()
         }
 
     suspend fun upsertAndReturnSimpleAlbums(albums: Collection<Album>): Collection<String> =
-        withContext(Dispatchers.IO) {
-            writeSemaphore.withPermit {
-                albums.chunked(MAX_SAVED_ALBUMS_CHUNK_SIZE).flatMap { chunk ->
-                    transactionalOperator.executeAndAwait {
-                        albumRepository.upsertAndReturnSimpleAlbums(chunk)
-                            .collectList()
-                            .awaitSingle()
-                    }
+        albums
+            .sortedBy { it.spotifyId }
+            .chunked(MAX_SAVED_ALBUMS_CHUNK_SIZE)
+            .flatMap { chunk ->
+                DatabaseExecutionContext.withWriteTransactionRetry(writeSemaphore, transactionalOperator) {
+                    albumRepository.upsertAndReturnSimpleAlbums(chunk).awaitList()
                 }
             }
-        }
+
 
 }

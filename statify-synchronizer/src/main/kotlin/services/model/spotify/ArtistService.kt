@@ -1,10 +1,6 @@
 package org.danila.services.model.spotify
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import org.danila.MAX_SAVED_ARTISTS_CHUNK_SIZE
 import org.danila.awaitList
 import org.danila.model.spotify.artist.Artist
@@ -13,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import org.springframework.transaction.reactive.TransactionalOperator
-import org.springframework.transaction.reactive.executeAndAwait
 
 @Service
 class ArtistService @Autowired constructor(
@@ -25,21 +20,18 @@ class ArtistService @Autowired constructor(
 ) {
 
     suspend fun findExistingArtists(ids: Set<String>): List<Artist> =
-        withContext(Dispatchers.IO) {
-            readSemaphore.withPermit { artistRepository.findArtistsBySpotifyIdIn(ids).awaitList() }
+        DatabaseExecutionContext.withRead(readSemaphore = readSemaphore) {
+            artistRepository.findArtistsBySpotifyIdIn(ids).awaitList()
         }
 
     suspend fun upsertAndReturnSimpleArtists(artists: Collection<Artist>): Collection<String> =
-        withContext(Dispatchers.IO) {
-            writeSemaphore.withPermit {
-                artists.chunked(MAX_SAVED_ARTISTS_CHUNK_SIZE).flatMap { chunk ->
-                    transactionalOperator.executeAndAwait {
-                        artistRepository.upsertAndReturnSimpleArtists(chunk)
-                            .collectList()
-                            .awaitSingle()
-                    }
+        artists
+            .sortedBy { it.spotifyId }
+            .chunked(MAX_SAVED_ARTISTS_CHUNK_SIZE)
+            .flatMap { chunk ->
+                DatabaseExecutionContext.withWriteTransactionRetry(writeSemaphore, transactionalOperator) {
+                    artistRepository.upsertAndReturnSimpleArtists(chunk).awaitList()
                 }
             }
-        }
 
 }
