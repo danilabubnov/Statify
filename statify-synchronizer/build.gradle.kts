@@ -35,6 +35,7 @@ val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get(
 val lettuceCoreVersion = providers.gradleProperty("lettuceCoreVersion").get()
 val resilience4jVersion = providers.gradleProperty("resilience4jVersion").get()
 val caffeineVersion = providers.gradleProperty("caffeineVersion").get()
+val prometheusVersion = providers.gradleProperty("prometheusVersion").get()
 
 dependencies {
     implementation(project(":statify-utils"))
@@ -70,6 +71,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
+
+    implementation("io.micrometer:micrometer-registry-prometheus:$prometheusVersion")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")

@@ -2,8 +2,14 @@ package org.danila.consumer
 
 import event.UserConnectedEvent
 import jakarta.annotation.PostConstruct
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
+import org.danila.event.EnrichAlbumEvent
+import org.danila.event.EnrichArtistEvent
 import org.danila.event.EnrichEvent
+import org.danila.event.EnrichTrackEvent
+import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
 import org.danila.services.spotify.SpotifyService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
@@ -16,6 +22,7 @@ import java.time.Duration
 @Component
 class SpotifySyncConsumer @Autowired constructor(
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>,
+    private val coroutineMetricsInterceptor: CoroutineMetricsInterceptor,
     private val spotifyService: SpotifyService,
 
     private val userConnectedConsumer: ReactiveKafkaConsumerTemplate<String, UserConnectedEvent>,
@@ -32,7 +39,7 @@ class SpotifySyncConsumer @Autowired constructor(
         userConnectedConsumer
             .receive()
             .flatMap({ rec ->
-                mono {
+                mono(Dispatchers.Default + coroutineMetricsInterceptor + CoroutineName("consume_user_connected")) {
                     val evt = rec.value()
 
                     println("UserConnectedEvent ${evt.eventId}")
@@ -68,7 +75,14 @@ class SpotifySyncConsumer @Autowired constructor(
                     .concatMap { wave ->
                         wave
                             .flatMap { (evt, rec) ->
-                                mono {
+                                val functionName = when (evt) {
+                                    is EnrichArtistEvent -> "enrich_artists"
+                                    is EnrichTrackEvent  -> "enrich_tracks"
+                                    is EnrichAlbumEvent  -> "enrich_albums"
+                                    else                 -> "enrich_unknown"
+                                }
+
+                                mono(Dispatchers.Default + coroutineMetricsInterceptor + CoroutineName(functionName)) {
                                     println("EnrichEvent ${evt.eventId} gen=${evt.metadata.generation}")
 
                                     spotifyService.enrich(evt)

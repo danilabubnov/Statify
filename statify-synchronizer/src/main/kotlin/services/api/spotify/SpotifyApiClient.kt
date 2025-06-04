@@ -6,7 +6,6 @@ import event.TokenCredentials
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker
 import io.github.resilience4j.retry.annotation.Retry
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
@@ -38,6 +37,7 @@ import kotlin.coroutines.coroutineContext
 @Service
 class SpotifyApiClient @Autowired constructor(
     private val spotifyAuthService: SpotifyAuthService,
+    private val spotifyRateLimitRetryHelper: SpotifyRateLimitRetryHelper,
     private val spotifyApi: SpotifyAPI,
     private val tokenStore: TokenStore,
 ) {
@@ -46,7 +46,7 @@ class SpotifyApiClient @Autowired constructor(
         var after: String? = null
 
         do {
-            val artists = withRetryAfter {
+            val artists = spotifyRateLimitRetryHelper.withRetryAfter {
                 withAuthRetry { authHeader ->
                     getFollowedArtistsPage(authHeader = authHeader, after = after)?.artists
                 }
@@ -87,7 +87,7 @@ class SpotifyApiClient @Autowired constructor(
         artistIds: Set<String>,
     ): Flow<ArtistDTO> = flow {
         artistIds.chunked(MAX_ARTISTS_PER_MULTI_FETCH).forEach { chunk ->
-            val artists = withRetryAfter {
+            val artists = spotifyRateLimitRetryHelper.withRetryAfter {
                 withAuthRetry { auth ->
                     getSeveralArtistsPage(
                         authHeader = auth,
@@ -129,7 +129,7 @@ class SpotifyApiClient @Autowired constructor(
         var offset = 0
 
         do {
-            val albums = withRetryAfter {
+            val albums = spotifyRateLimitRetryHelper.withRetryAfter {
                 withAuthRetry { auth ->
                     getAllSavedAlbumsPage(
                         authHeader = auth,
@@ -173,7 +173,7 @@ class SpotifyApiClient @Autowired constructor(
         albumIds: Set<String>,
     ): Flow<AlbumDTO> = flow {
         albumIds.chunked(MAX_ALBUMS_PER_MULTI_FETCH).forEach { chunk ->
-            val albums = withRetryAfter {
+            val albums = spotifyRateLimitRetryHelper.withRetryAfter {
                 withAuthRetry { auth ->
                     getSeveralAlbumsPage(
                         authHeader = auth,
@@ -215,7 +215,7 @@ class SpotifyApiClient @Autowired constructor(
         var offset = 0
 
         do {
-            val tracks = withRetryAfter {
+            val tracks = spotifyRateLimitRetryHelper.withRetryAfter {
                 withAuthRetry { auth ->
                     getSavedTracksPage(
                         authHeader = auth,
@@ -258,7 +258,7 @@ class SpotifyApiClient @Autowired constructor(
         trackIds: Set<String>,
     ): Flow<TrackDTO> = flow {
         trackIds.chunked(MAX_TRACKS_PER_MULTI_FETCH).forEach { chunk ->
-            val tracks = withRetryAfter {
+            val tracks = spotifyRateLimitRetryHelper.withRetryAfter {
                 withAuthRetry { auth ->
                     getSeveralTracksPage(
                         authHeader = auth,
@@ -325,30 +325,6 @@ class SpotifyApiClient @Autowired constructor(
 
             block("Bearer $newToken")
         }
-    }
-
-    private suspend inline fun <T> withRetryAfter(
-        maxRetries: Int = 3,
-        crossinline block: suspend () -> T
-    ): T {
-        repeat(maxRetries - 1) { attempt ->
-            try {
-                return block()
-            } catch (e: HttpException) {
-                if (e.code() != 429) throw e
-
-                val retryAfterSec = e.response()?.headers()?.get("Retry-After")?.toLongOrNull() ?: run {
-                    println("Retry-After header is missing, using default value of 5 seconds")
-                    5L
-                }
-
-                println("Rate limited, attempt ${attempt + 1}/$maxRetries — retrying after $retryAfterSec s")
-
-                delay(retryAfterSec * 1_000L)
-            }
-        }
-
-        return block()
     }
 
 }

@@ -12,6 +12,8 @@ import org.danila.dto.artist.ArtistDTO
 import org.danila.dto.track.SavedTrackItemDTO
 import org.danila.dto.track.TrackDTO
 import org.danila.event.*
+import org.danila.metrics.StatifySynchronizerMetrics
+import org.danila.metrics.batchEmits
 import org.danila.model.spotify.AlbumArtist
 import org.danila.model.spotify.TrackArtist
 import org.danila.model.spotify.album.Album
@@ -28,6 +30,7 @@ import org.danila.util.EnrichmentMetadataElement
 import org.danila.util.EnrichmentMetadataKey
 import org.danila.util.UserIdElement
 import org.danila.util.UserIdKey
+import org.danila.util.reactive.batchWithTimeout
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate
 import org.springframework.stereotype.Service
@@ -48,6 +51,7 @@ class SpotifyService @Autowired constructor(
     private val trackService: TrackService,
 
     private val spotifyDataProcessor: SpotifyDataProcessor,
+    private val metrics: StatifySynchronizerMetrics,
     private val spotifyApiClient: SpotifyApiClient,
     private val tokenStore: TokenStore,
 
@@ -59,49 +63,50 @@ class SpotifyService @Autowired constructor(
 
         tokenStore.put(userId = event.userId, creds = event.tokenCredentials)
 
-        withContext(UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
-            coroutineScope {
-                launch {
-                    spotifyApiClient.getAllFollowedArtists()
-                        .flowOn(Dispatchers.IO)
-                        .buffer(FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY)
-                        .batchWithTimeout(FOLLOWED_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                        .collect {
-                            processInitialSpotifyData(
-                                artistDTOs = it,
-                                trackDTOs = emptyList(),
-                                albumDTOs = emptyList()
-                            )
-                        }
-                }
+        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
+            launch {
+                spotifyApiClient.getAllFollowedArtists()
+                    .flowOn(Dispatchers.IO)
+                    .buffer(FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY)
+                    .batchWithTimeout(FOLLOWED_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                    .batchEmits(totalCounter = metrics.followedArtistsTotalCounter, timeoutCounter = metrics.followedArtistsTimeoutCounter)
+                    .collect {
+                        processInitialSpotifyData(
+                            artistDTOs = it.result,
+                            trackDTOs = emptyList(),
+                            albumDTOs = emptyList()
+                        )
+                    }
+            }
 
-                launch {
-                    spotifyApiClient.getAllSavedTracks()
-                        .flowOn(Dispatchers.IO)
-                        .buffer(SAVED_TRACKS_FLOW_BUFFER_CAPACITY)
-                        .batchWithTimeout(SAVED_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                        .collect {
-                            processInitialSpotifyData(
-                                artistDTOs = emptyList(),
-                                trackDTOs = it,
-                                albumDTOs = emptyList()
-                            )
-                        }
-                }
+            launch {
+                spotifyApiClient.getAllSavedTracks()
+                    .flowOn(Dispatchers.IO)
+                    .buffer(SAVED_TRACKS_FLOW_BUFFER_CAPACITY)
+                    .batchWithTimeout(SAVED_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                    .batchEmits(totalCounter = metrics.savedTracksTotalCounter, timeoutCounter = metrics.savedTracksTimeoutCounter)
+                    .collect {
+                        processInitialSpotifyData(
+                            artistDTOs = emptyList(),
+                            trackDTOs = it.result,
+                            albumDTOs = emptyList()
+                        )
+                    }
+            }
 
-                launch {
-                    spotifyApiClient.getAllSavedAlbums()
-                        .flowOn(Dispatchers.IO)
-                        .buffer(SAVED_ALBUMS_FLOW_BUFFER_CAPACITY)
-                        .batchWithTimeout(SAVED_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                        .collect {
-                            processInitialSpotifyData(
-                                artistDTOs = emptyList(),
-                                trackDTOs = emptyList(),
-                                albumDTOs = it
-                            )
-                        }
-                }
+            launch {
+                spotifyApiClient.getAllSavedAlbums()
+                    .flowOn(Dispatchers.IO)
+                    .buffer(SAVED_ALBUMS_FLOW_BUFFER_CAPACITY)
+                    .batchWithTimeout(SAVED_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                    .batchEmits(totalCounter = metrics.savedAlbumsTotalCounter, timeoutCounter = metrics.savedAlbumsTimeoutCounter)
+                    .collect {
+                        processInitialSpotifyData(
+                            artistDTOs = emptyList(),
+                            trackDTOs = emptyList(),
+                            albumDTOs = it.result
+                        )
+                    }
             }
         }
     }
@@ -109,55 +114,56 @@ class SpotifyService @Autowired constructor(
     suspend fun enrich(event: EnrichEvent) {
         val enrichmentMetadata = event.metadata.copy(generation = event.metadata.generation + 1)
 
-        withContext(UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
-            coroutineScope {
-                when (event) {
-                    is EnrichArtistEvent -> {
-                        launch {
-                            spotifyApiClient.getSeveralArtists(artistIds = event.artistIds)
-                                .flowOn(Dispatchers.IO)
-                                .buffer(MULTI_FETCH_ARTISTS_FLOW_BUFFER_CAPACITY)
-                                .batchWithTimeout(MULTI_FETCH_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                                .collect {
-                                    processEnrichmentSpotifyData(
-                                        artistDTOs = it,
-                                        trackDTOs = emptyList(),
-                                        albumDTOs = emptyList()
-                                    )
-                                }
-                        }
+        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
+            when (event) {
+                is EnrichArtistEvent -> {
+                    launch {
+                        spotifyApiClient.getSeveralArtists(artistIds = event.artistIds)
+                            .flowOn(Dispatchers.IO)
+                            .buffer(MULTI_FETCH_ARTISTS_FLOW_BUFFER_CAPACITY)
+                            .batchWithTimeout(MULTI_FETCH_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                            .batchEmits(totalCounter = metrics.multiFetchArtistsTotalCounter, timeoutCounter = metrics.multiFetchArtistsTimeoutCounter)
+                            .collect {
+                                processEnrichmentSpotifyData(
+                                    artistDTOs = it.result,
+                                    trackDTOs = emptyList(),
+                                    albumDTOs = emptyList()
+                                )
+                            }
                     }
+                }
 
-                    is EnrichTrackEvent -> {
-                        launch {
-                            spotifyApiClient.getSeveralTracks(trackIds = event.trackIds)
-                                .flowOn(Dispatchers.IO)
-                                .buffer(MULTI_FETCH_TRACKS_FLOW_BUFFER_CAPACITY)
-                                .batchWithTimeout(MULTI_FETCH_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                                .collect {
-                                    processEnrichmentSpotifyData(
-                                        artistDTOs = emptyList(),
-                                        trackDTOs = it,
-                                        albumDTOs = emptyList()
-                                    )
-                                }
-                        }
+                is EnrichTrackEvent -> {
+                    launch {
+                        spotifyApiClient.getSeveralTracks(trackIds = event.trackIds)
+                            .flowOn(Dispatchers.IO)
+                            .buffer(MULTI_FETCH_TRACKS_FLOW_BUFFER_CAPACITY)
+                            .batchWithTimeout(MULTI_FETCH_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                            .batchEmits(totalCounter = metrics.multiFetchTracksTotalCounter, timeoutCounter = metrics.multiFetchTracksTimeoutCounter)
+                            .collect {
+                                processEnrichmentSpotifyData(
+                                    artistDTOs = emptyList(),
+                                    trackDTOs = it.result,
+                                    albumDTOs = emptyList()
+                                )
+                            }
                     }
+                }
 
-                    is EnrichAlbumEvent -> {
-                        launch {
-                            spotifyApiClient.getSeveralAlbums(albumIds = event.albumIds)
-                                .flowOn(Dispatchers.IO)
-                                .buffer(MULTI_FETCH_ALBUMS_FLOW_BUFFER_CAPACITY)
-                                .batchWithTimeout(MULTI_FETCH_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                                .collect {
-                                    processEnrichmentSpotifyData(
-                                        artistDTOs = emptyList(),
-                                        trackDTOs = emptyList(),
-                                        albumDTOs = it
-                                    )
-                                }
-                        }
+                is EnrichAlbumEvent -> {
+                    launch {
+                        spotifyApiClient.getSeveralAlbums(albumIds = event.albumIds)
+                            .flowOn(Dispatchers.IO)
+                            .buffer(MULTI_FETCH_ALBUMS_FLOW_BUFFER_CAPACITY)
+                            .batchWithTimeout(MULTI_FETCH_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                            .batchEmits(totalCounter = metrics.multiFetchAlbumsTotalCounter, timeoutCounter = metrics.multiFetchAlbumsTimeoutCounter)
+                            .collect {
+                                processEnrichmentSpotifyData(
+                                    artistDTOs = emptyList(),
+                                    trackDTOs = emptyList(),
+                                    albumDTOs = it.result
+                                )
+                            }
                     }
                 }
             }

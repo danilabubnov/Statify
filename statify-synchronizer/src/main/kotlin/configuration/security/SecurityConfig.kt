@@ -16,7 +16,7 @@ class SecurityConfig() {
             csrf.disable()
         }
         .authorizeHttpRequests { auth ->
-            auth.requestMatchers("/actuator/health").permitAll().anyRequest().denyAll()
+            auth.requestMatchers("/actuator/health", "/actuator/prometheus").permitAll().anyRequest().denyAll()
         }
         .build()
 

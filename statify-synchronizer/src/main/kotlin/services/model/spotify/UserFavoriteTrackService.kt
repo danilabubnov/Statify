@@ -1,34 +1,28 @@
 package org.danila.services.model.spotify
 
 import kotlinx.coroutines.reactor.awaitSingleOrNull
-import kotlinx.coroutines.sync.Semaphore
 import org.danila.MAX_SAVED_ENTITIES_CHUNK_SIZE
-import org.danila.awaitList
 import org.danila.model.spotify.track.UserFavoriteTrack
 import org.danila.repository.UserFavoriteTrackRepository
+import org.danila.util.reactive.awaitList
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
-import org.springframework.transaction.reactive.TransactionalOperator
 import java.util.*
 
 @Service
 class UserFavoriteTrackService @Autowired constructor(
-    @Qualifier("databaseWriteSemaphore") private val writeSemaphore: Semaphore,
-    @Qualifier("databaseReadSemaphore") private val readSemaphore: Semaphore,
-
     private val userFavoriteTrackRepository: UserFavoriteTrackRepository,
-    private val transactionalOperator: TransactionalOperator,
+    private val databaseExecutionContext: DatabaseExecutionContext,
 ) {
 
     suspend fun findExistingUserFavoriteTracks(userId: UUID): List<UserFavoriteTrack> =
-        DatabaseExecutionContext.withRead(readSemaphore = readSemaphore) {
+        databaseExecutionContext.withRead {
             userFavoriteTrackRepository.findUserFavoriteTracksByUserId(userId).awaitList()
         }
 
     suspend fun persistUserFavoriteTracks(userFavoriteTracks: Collection<UserFavoriteTrack>) {
         userFavoriteTracks.chunked(MAX_SAVED_ENTITIES_CHUNK_SIZE).forEach { chunk ->
-            DatabaseExecutionContext.withWriteTransactionRetry(writeSemaphore, transactionalOperator) {
+            databaseExecutionContext.withWriteTransactionRetry {
                 userFavoriteTrackRepository.insertBatch(chunk).awaitSingleOrNull()
             }
         }

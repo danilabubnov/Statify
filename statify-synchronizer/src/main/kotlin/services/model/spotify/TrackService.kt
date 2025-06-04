@@ -1,26 +1,20 @@
 package org.danila.services.model.spotify
 
-import kotlinx.coroutines.sync.Semaphore
 import org.danila.MAX_SAVED_TRACKS_CHUNK_SIZE
-import org.danila.awaitList
 import org.danila.model.spotify.track.Track
 import org.danila.repository.TrackRepository
+import org.danila.util.reactive.awaitList
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
-import org.springframework.transaction.reactive.TransactionalOperator
 
 @Service
 class TrackService @Autowired constructor(
-    @Qualifier("databaseWriteSemaphore") private val writeSemaphore: Semaphore,
-    @Qualifier("databaseReadSemaphore") private val readSemaphore: Semaphore,
-
-    private val transactionalOperator: TransactionalOperator,
+    private val databaseExecutionContext: DatabaseExecutionContext,
     private val trackRepository: TrackRepository
 ) {
 
     suspend fun findExistingTracks(ids: Set<String>): List<Track> =
-        DatabaseExecutionContext.withRead(readSemaphore = readSemaphore) {
+        databaseExecutionContext.withRead {
             trackRepository.findTracksBySpotifyIdIn(ids).awaitList()
         }
 
@@ -29,7 +23,7 @@ class TrackService @Autowired constructor(
             .sortedBy { it.spotifyId }
             .chunked(MAX_SAVED_TRACKS_CHUNK_SIZE)
             .flatMap { chunk ->
-                DatabaseExecutionContext.withWriteTransactionRetry(writeSemaphore, transactionalOperator) {
+                databaseExecutionContext.withWriteTransactionRetry {
                     trackRepository.upsertAndReturnSimpleTracks(chunk).awaitList()
                 }
             }

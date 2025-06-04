@@ -1,8 +1,10 @@
 package org.danila.services.spotify
 
 import event.TokenCredentials
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.awaitSingleOrNull
+import kotlinx.coroutines.withContext
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.stereotype.Service
@@ -24,15 +26,15 @@ class TokenStore @Autowired constructor(
      * Spring Cache annotations.
      */
 
-    suspend fun get(userId: UUID): TokenCredentials {
-        return redisTemplate.opsForValue().get(userId.toString()).awaitSingleOrNull()
+    suspend fun get(userId: UUID): TokenCredentials = withContext(Dispatchers.IO) {
+        redisTemplate.opsForValue().get(userId.toString()).awaitSingleOrNull()
             ?: throw NoSuchElementException("No creds for $userId")
     }
 
-    suspend fun put(userId: UUID, creds: TokenCredentials): TokenCredentials {
+    suspend fun put(userId: UUID, creds: TokenCredentials): TokenCredentials = withContext(Dispatchers.IO) {
         redisTemplate.opsForValue().set(userId.toString(), creds, Duration.ofMinutes(15)).awaitSingle()
 
-        return creds
+        creds
     }
 
 }

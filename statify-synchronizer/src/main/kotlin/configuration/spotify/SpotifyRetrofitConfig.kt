@@ -1,6 +1,7 @@
 package org.danila.configuration.spotify
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.danila.services.api.spotify.SpotifyAPI
@@ -14,15 +15,16 @@ import retrofit2.converter.jackson.JacksonConverterFactory
 import java.util.concurrent.TimeUnit
 
 @Configuration
-class SpotifyApiConfig(
+class SpotifyRetrofitConfig(
     @Qualifier("spotifyObjectMapper") private val objectMapper: ObjectMapper,
     @Value("\${spotify.api.base-url}") private val apiBaseUrl: String,
     @Value("\${spotify.auth.base-url}") private val authBaseUrl: String,
-    @Value("\${spotify.timeout.seconds}") private val timeoutSeconds: Int
+    @Value("\${spotify.timeout.seconds}") private val timeoutSeconds: Int,
+    private val spotifyMetricsInterceptor: Interceptor
 ) {
 
     @Bean
-    fun okHttpClient(): OkHttpClient {
+    fun spotifyOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .connectTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .readTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
@@ -30,23 +32,24 @@ class SpotifyApiConfig(
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BASIC
             })
+            .addInterceptor(spotifyMetricsInterceptor)
             .build()
     }
 
     @Bean
-    fun spotifyApi(okHttpClient: OkHttpClient): SpotifyAPI {
+    fun spotifyApi(spotifyOkHttpClient: OkHttpClient): SpotifyAPI {
         return createRetrofit(
             baseUrl = apiBaseUrl,
-            client = okHttpClient,
+            client = spotifyOkHttpClient,
             objectMapper = objectMapper
         ).create(SpotifyAPI::class.java)
     }
 
     @Bean
-    fun spotifyAuthApi(okHttpClient: OkHttpClient): SpotifyAuthAPI {
+    fun spotifyAuthApi(spotifyOkHttpClient: OkHttpClient): SpotifyAuthAPI {
         return createRetrofit(
             baseUrl = authBaseUrl,
-            client = okHttpClient,
+            client = spotifyOkHttpClient,
             objectMapper = objectMapper
         ).create(SpotifyAuthAPI::class.java)
     }
