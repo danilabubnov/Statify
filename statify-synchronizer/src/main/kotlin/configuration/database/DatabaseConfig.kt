@@ -12,7 +12,7 @@ import org.springframework.transaction.reactive.TransactionalOperator
 class DatabaseConfig(
     @Value("\${database.concurrent-write-permits}") private val writePermits: Int,
     @Value("\${database.concurrent-read-permits}") private val readPermits: Int
-){
+) {
 
     @Bean
     fun transactionalOperator(connectionFactory: ConnectionFactory): TransactionalOperator {

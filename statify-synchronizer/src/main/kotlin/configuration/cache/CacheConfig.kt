@@ -15,7 +15,10 @@ import org.springframework.data.redis.serializer.StringRedisSerializer
 class CacheConfig {
 
     @Bean
-    fun reactiveRedisTemplate(@Qualifier("redisObjectMapper") redisObjectMapper: ObjectMapper, factory: ReactiveRedisConnectionFactory): ReactiveRedisTemplate<String, TokenCredentials> {
+    fun reactiveRedisTemplate(
+        @Qualifier("redisObjectMapper") redisObjectMapper: ObjectMapper,
+        factory: ReactiveRedisConnectionFactory
+    ): ReactiveRedisTemplate<String, TokenCredentials> {
         val serializer = Jackson2JsonRedisSerializer(redisObjectMapper, TokenCredentials::class.java)
 
         val ctx = RedisSerializationContext

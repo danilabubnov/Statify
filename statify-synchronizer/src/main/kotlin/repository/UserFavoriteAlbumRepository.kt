@@ -49,7 +49,7 @@ class UserFavoriteAlbumRepository(val databaseClient: DatabaseClient) {
             .bind(0, userId)
             .map { row, _ ->
                 UserFavoriteAlbum(
-                    userId  = row.get("user_id",  UUID::class.java)!!,
+                    userId = row.get("user_id", UUID::class.java)!!,
                     albumId = row.get("album_id", String::class.java)!!,
                     addedAt = row.get("added_at", Instant::class.java)!!
                 )

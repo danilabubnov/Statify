@@ -77,9 +77,9 @@ class SpotifySyncConsumer @Autowired constructor(
                             .flatMap { (evt, rec) ->
                                 val functionName = when (evt) {
                                     is EnrichArtistEvent -> "enrich_artists"
-                                    is EnrichTrackEvent  -> "enrich_tracks"
-                                    is EnrichAlbumEvent  -> "enrich_albums"
-                                    else                 -> "enrich_unknown"
+                                    is EnrichTrackEvent -> "enrich_tracks"
+                                    is EnrichAlbumEvent -> "enrich_albums"
+                                    else -> "enrich_unknown"
                                 }
 
                                 mono(Dispatchers.Default + coroutineMetricsInterceptor + CoroutineName(functionName)) {

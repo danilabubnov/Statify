@@ -3,7 +3,7 @@ package org.danila.services.api.spotify.auth
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
-import java.util.Base64
+import java.util.*
 
 @Service
 class SpotifyAuthService @Autowired constructor(

@@ -47,7 +47,7 @@ class UserFavoriteTrackRepository(val databaseClient: DatabaseClient) {
             .bind(0, userId)
             .map { row, _ ->
                 UserFavoriteTrack(
-                    userId  = row.get("user_id",  UUID::class.java)!!,
+                    userId = row.get("user_id", UUID::class.java)!!,
                     trackId = row.get("track_id", String::class.java)!!,
                     addedAt = row.get("added_at", Instant::class.java)!!
                 )

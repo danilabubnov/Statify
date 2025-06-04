@@ -24,7 +24,7 @@ class KafkaConfig(
 
     @Value("\${spring.kafka.bootstrap-servers}") private val bootstrapServers: String,
 
-) {
+    ) {
 
     @Bean
     fun producerFactory(@Qualifier("kafkaObjectMapper") objectMapper: ObjectMapper): ProducerFactory<String, Any> {

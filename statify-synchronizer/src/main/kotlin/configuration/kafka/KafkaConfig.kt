@@ -95,10 +95,10 @@ class KafkaConfig(
     fun reactiveSenderOptions(@Qualifier("kafkaObjectMapper") objectMapper: ObjectMapper): SenderOptions<String, Any> =
         SenderOptions.create<String, Any>(
             mapOf(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG   to bootstrapServers,
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG   to StringSerializer::class.java,
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
-                JsonSerializer.TYPE_MAPPINGS                to """
+                JsonSerializer.TYPE_MAPPINGS to """
                     EnrichArtistEvent:org.danila.event.EnrichArtistEvent,
                     EnrichAlbumEvent:org.danila.event.EnrichAlbumEvent,
                     EnrichTrackEvent:org.danila.event.EnrichTrackEvent

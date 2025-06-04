@@ -11,7 +11,7 @@ import java.util.*
 @Component
 class CustomOAuth2AuthorizationRequestRepository(
     private val oAuth2LinkStateRepository: OAuth2LinkStateRepository
-): AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
+) : AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
 
     override fun loadAuthorizationRequest(request: HttpServletRequest?): OAuth2AuthorizationRequest? {
         val state = UUID.fromString(request?.getParameter("state"))
@@ -25,7 +25,8 @@ class CustomOAuth2AuthorizationRequestRepository(
         authorizationRequest: OAuth2AuthorizationRequest?,
         request: HttpServletRequest?,
         response: HttpServletResponse?
-    ) {}
+    ) {
+    }
 
     override fun removeAuthorizationRequest(
         request: HttpServletRequest,
