@@ -3,7 +3,7 @@ package org.danila.metrics.coroutine
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import org.danila.metrics.StatifySynchronizerMetrics
+import org.danila.metrics.Metrics
 import org.springframework.stereotype.Component
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.Continuation
@@ -12,7 +12,7 @@ import kotlin.coroutines.CoroutineContext
 
 @Component
 class CoroutineMetricsInterceptor(
-    private val metrics: StatifySynchronizerMetrics
+    private val metrics: Metrics
 ) : ContinuationInterceptor {
 
     override val key: CoroutineContext.Key<*>

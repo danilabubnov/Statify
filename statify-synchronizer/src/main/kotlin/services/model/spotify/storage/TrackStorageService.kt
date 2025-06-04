@@ -1,14 +1,15 @@
-package org.danila.services.model.spotify
+package org.danila.services.model.spotify.storage
 
-import org.danila.MAX_SAVED_TRACKS_CHUNK_SIZE
+import org.danila.configuration.variables.SpotifyChunkSizes.MAX_SAVED_TRACKS_CHUNK_SIZE
 import org.danila.model.spotify.track.Track
 import org.danila.repository.TrackRepository
+import org.danila.services.model.spotify.DatabaseExecutionContext
 import org.danila.util.reactive.awaitList
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
-class TrackService @Autowired constructor(
+class TrackStorageService @Autowired constructor(
     private val databaseExecutionContext: DatabaseExecutionContext,
     private val trackRepository: TrackRepository
 ) {

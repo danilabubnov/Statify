@@ -1,14 +1,15 @@
-package org.danila.services.model.spotify
+package org.danila.services.model.spotify.storage
 
-import org.danila.MAX_SAVED_ARTISTS_CHUNK_SIZE
+import org.danila.configuration.variables.SpotifyChunkSizes.MAX_SAVED_ARTISTS_CHUNK_SIZE
 import org.danila.model.spotify.artist.Artist
 import org.danila.repository.ArtistRepository
+import org.danila.services.model.spotify.DatabaseExecutionContext
 import org.danila.util.reactive.awaitList
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
-class ArtistService @Autowired constructor(
+class ArtistStorageService @Autowired constructor(
     private val databaseExecutionContext: DatabaseExecutionContext,
     private val artistRepository: ArtistRepository
 ) {

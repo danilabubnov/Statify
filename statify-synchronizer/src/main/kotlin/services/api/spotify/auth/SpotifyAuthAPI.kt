@@ -1,4 +1,4 @@
-package org.danila.services.api.spotify
+package org.danila.services.api.spotify.auth
 
 import org.danila.dto.auth.SpotifyAuthResponseDTO
 import retrofit2.http.Field

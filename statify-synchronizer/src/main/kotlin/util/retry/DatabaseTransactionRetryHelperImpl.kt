@@ -2,7 +2,7 @@ package org.danila.util.retry
 
 import io.r2dbc.spi.R2dbcException
 import kotlinx.coroutines.delay
-import org.danila.metrics.StatifySynchronizerMetrics
+import org.danila.metrics.Metrics
 import org.danila.metrics.recordSuspend
 import org.springframework.stereotype.Component
 import java.time.Duration
@@ -10,7 +10,7 @@ import java.util.concurrent.ThreadLocalRandom
 
 @Component
 class DatabaseTransactionRetryHelperImpl(
-    private val metrics: StatifySynchronizerMetrics
+    private val metrics: Metrics
 ) : DatabaseTransactionRetryHelper {
 
     override suspend fun <T> executeWithRetry(

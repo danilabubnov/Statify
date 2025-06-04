@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import org.danila.services.api.spotify.SpotifyAPI
-import org.danila.services.api.spotify.SpotifyAuthAPI
+import org.danila.services.api.spotify.auth.SpotifyAuthAPI
+import org.danila.services.api.spotify.client.SpotifyAPI
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean

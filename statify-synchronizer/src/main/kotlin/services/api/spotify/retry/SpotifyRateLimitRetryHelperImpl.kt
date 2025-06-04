@@ -1,14 +1,14 @@
-package org.danila.services.api.spotify
+package org.danila.services.api.spotify.retry
 
 import kotlinx.coroutines.delay
-import org.danila.metrics.StatifySynchronizerMetrics
+import org.danila.metrics.Metrics
 import org.springframework.stereotype.Component
 import retrofit2.HttpException
 import java.time.Duration
 
 @Component
 class SpotifyRateLimitRetryHelperImpl(
-    private val metrics: StatifySynchronizerMetrics
+    private val metrics: Metrics
 ) : SpotifyRateLimitRetryHelper {
 
     override suspend fun <T> withRetryAfter(block: suspend () -> T): T {

@@ -5,14 +5,29 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.reactor.awaitSingle
-import org.danila.*
+import org.danila.configuration.constants.kafka.KafkaTopics.ALBUM_ENRICH_TOPIC
+import org.danila.configuration.constants.kafka.KafkaTopics.ARTIST_ENRICH_TOPIC
+import org.danila.configuration.constants.kafka.KafkaTopics.TRACK_ENRICH_TOPIC
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.BATCH_TIMEOUT_MS
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_BATCH_SIZE
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.MULTI_FETCH_ALBUMS_BATCH_SIZE
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.MULTI_FETCH_ALBUMS_FLOW_BUFFER_CAPACITY
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.MULTI_FETCH_ARTISTS_BATCH_SIZE
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.MULTI_FETCH_ARTISTS_FLOW_BUFFER_CAPACITY
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.MULTI_FETCH_TRACKS_BATCH_SIZE
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.MULTI_FETCH_TRACKS_FLOW_BUFFER_CAPACITY
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.SAVED_ALBUMS_BATCH_SIZE
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.SAVED_ALBUMS_FLOW_BUFFER_CAPACITY
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.SAVED_TRACKS_BATCH_SIZE
+import org.danila.configuration.constants.spotify.SpotifyBatchConfig.SAVED_TRACKS_FLOW_BUFFER_CAPACITY
 import org.danila.dto.album.AlbumDTO
 import org.danila.dto.album.SavedAlbumItemDTO
 import org.danila.dto.artist.ArtistDTO
 import org.danila.dto.track.SavedTrackItemDTO
 import org.danila.dto.track.TrackDTO
 import org.danila.event.*
-import org.danila.metrics.StatifySynchronizerMetrics
+import org.danila.metrics.Metrics
 import org.danila.metrics.batchEmits
 import org.danila.model.spotify.AlbumArtist
 import org.danila.model.spotify.TrackArtist
@@ -24,8 +39,10 @@ import org.danila.model.spotify.artist.ArtistGenre
 import org.danila.model.spotify.artist.ArtistImage
 import org.danila.model.spotify.track.Track
 import org.danila.model.spotify.track.UserFavoriteTrack
-import org.danila.services.api.spotify.SpotifyApiClient
-import org.danila.services.model.spotify.*
+import org.danila.services.api.spotify.client.SpotifyAlbumsClient
+import org.danila.services.api.spotify.client.SpotifyArtistsClient
+import org.danila.services.api.spotify.client.SpotifyTracksClient
+import org.danila.services.model.spotify.storage.*
 import org.danila.util.EnrichmentMetadataElement
 import org.danila.util.EnrichmentMetadataKey
 import org.danila.util.UserIdElement
@@ -39,20 +56,23 @@ import kotlin.coroutines.coroutineContext
 
 @Service
 class SpotifyService @Autowired constructor(
-    private val userFavoriteAlbumService: UserFavoriteAlbumService,
-    private val userFavoriteTrackService: UserFavoriteTrackService,
-    private val trackArtistService: TrackArtistService,
-    private val albumArtistService: AlbumArtistService,
-    private val artistGenreService: ArtistGenreService,
-    private val artistImageService: ArtistImageService,
-    private val albumImageService: AlbumImageService,
-    private val artistService: ArtistService,
-    private val albumService: AlbumService,
-    private val trackService: TrackService,
+    private val userFavoriteAlbumStorageService: UserFavoriteAlbumStorageService,
+    private val userFavoriteTrackStorageService: UserFavoriteTrackStorageService,
+    private val trackArtistStorageService: TrackArtistStorageService,
+    private val albumArtistStorageService: AlbumArtistStorageService,
+    private val artistGenreStorageService: ArtistGenreStorageService,
+    private val artistImageStorageService: ArtistImageStorageService,
+    private val albumImageStorageService: AlbumImageStorageService,
+    private val artistStorageService: ArtistStorageService,
+    private val albumStorageService: AlbumStorageService,
+    private val trackStorageService: TrackStorageService,
+
+    private val spotifyAlbumsClient: SpotifyAlbumsClient,
+    private val spotifyArtistsClient: SpotifyArtistsClient,
+    private val spotifyTracksClient: SpotifyTracksClient,
 
     private val spotifyDataProcessor: SpotifyDataProcessor,
-    private val metrics: StatifySynchronizerMetrics,
-    private val spotifyApiClient: SpotifyApiClient,
+    private val metrics: Metrics,
     private val tokenStore: TokenStore,
 
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>
@@ -65,7 +85,7 @@ class SpotifyService @Autowired constructor(
 
         withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
             launch {
-                spotifyApiClient.getAllFollowedArtists()
+                spotifyArtistsClient.getAllFollowedArtists()
                     .flowOn(Dispatchers.IO)
                     .buffer(FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY)
                     .batchWithTimeout(FOLLOWED_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
@@ -80,7 +100,7 @@ class SpotifyService @Autowired constructor(
             }
 
             launch {
-                spotifyApiClient.getAllSavedTracks()
+                spotifyTracksClient.getAllSavedTracks()
                     .flowOn(Dispatchers.IO)
                     .buffer(SAVED_TRACKS_FLOW_BUFFER_CAPACITY)
                     .batchWithTimeout(SAVED_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
@@ -95,7 +115,7 @@ class SpotifyService @Autowired constructor(
             }
 
             launch {
-                spotifyApiClient.getAllSavedAlbums()
+                spotifyAlbumsClient.getAllSavedAlbums()
                     .flowOn(Dispatchers.IO)
                     .buffer(SAVED_ALBUMS_FLOW_BUFFER_CAPACITY)
                     .batchWithTimeout(SAVED_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
@@ -118,7 +138,7 @@ class SpotifyService @Autowired constructor(
             when (event) {
                 is EnrichArtistEvent -> {
                     launch {
-                        spotifyApiClient.getSeveralArtists(artistIds = event.artistIds)
+                        spotifyArtistsClient.getSeveralArtists(artistIds = event.artistIds)
                             .flowOn(Dispatchers.IO)
                             .buffer(MULTI_FETCH_ARTISTS_FLOW_BUFFER_CAPACITY)
                             .batchWithTimeout(MULTI_FETCH_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
@@ -135,7 +155,7 @@ class SpotifyService @Autowired constructor(
 
                 is EnrichTrackEvent -> {
                     launch {
-                        spotifyApiClient.getSeveralTracks(trackIds = event.trackIds)
+                        spotifyTracksClient.getSeveralTracks(trackIds = event.trackIds)
                             .flowOn(Dispatchers.IO)
                             .buffer(MULTI_FETCH_TRACKS_FLOW_BUFFER_CAPACITY)
                             .batchWithTimeout(MULTI_FETCH_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
@@ -152,7 +172,7 @@ class SpotifyService @Autowired constructor(
 
                 is EnrichAlbumEvent -> {
                     launch {
-                        spotifyApiClient.getSeveralAlbums(albumIds = event.albumIds)
+                        spotifyAlbumsClient.getSeveralAlbums(albumIds = event.albumIds)
                             .flowOn(Dispatchers.IO)
                             .buffer(MULTI_FETCH_ALBUMS_FLOW_BUFFER_CAPACITY)
                             .batchWithTimeout(MULTI_FETCH_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
@@ -196,43 +216,43 @@ class SpotifyService @Autowired constructor(
 
     private suspend fun fetchExistingData(userId: UUID?, artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>): ExistingData = coroutineScope {
         val artistsDeferred = async {
-            artistService.findExistingArtists(
+            artistStorageService.findExistingArtists(
                 artistDTOs.map { it.id }.toSet() +
                         albumDTOs.flatMap { it.artists.map { it.id } + it.tracks.items.flatMap { it.artists.map { it.id } } }.toSet() +
                         trackDTOs.flatMap { it.album.artists.map { it.id } + it.artists.map { it.id } }.toSet()
             )
         }
         val tracksDeferred = async {
-            trackService.findExistingTracks(trackDTOs.map { it.id }.toSet() + albumDTOs.flatMap { it.tracks.items.map { it.id } }.toSet())
+            trackStorageService.findExistingTracks(trackDTOs.map { it.id }.toSet() + albumDTOs.flatMap { it.tracks.items.map { it.id } }.toSet())
         }
         val albumsDeferred = async {
-            albumService.findExistingAlbum(albumDTOs.map { it.id }.toSet() + trackDTOs.map { it.album.id }.toSet())
+            albumStorageService.findExistingAlbum(albumDTOs.map { it.id }.toSet() + trackDTOs.map { it.album.id }.toSet())
         }
         val albumArtistsDeferred = async {
-            albumArtistService.findExistingAlbumArtists(
+            albumArtistStorageService.findExistingAlbumArtists(
                 albumDTOs.flatMap { album -> album.artists.map { artist -> album.id to artist.id } }.toSet() +
                         trackDTOs.flatMap { trackDTO -> trackDTO.album.artists.map { artist -> trackDTO.album.id to artist.id } }.toSet()
             )
         }
         val trackArtistsDeferred = async {
-            trackArtistService.findExistingTrackArtists(
+            trackArtistStorageService.findExistingTrackArtists(
                 trackDTOs.flatMap { track -> track.artists.map { artist -> track.id to artist.id } }.toSet() +
                         albumDTOs.flatMap { album -> album.tracks.items.flatMap { track -> track.artists.map { artist -> track.id to artist.id } } }.toSet()
             )
         }
         val artistImagesDeferred = async {
-            artistImageService.findExistingArtistImages(artistDTOs.map { it.id to it.images }.toSet())
+            artistImageStorageService.findExistingArtistImages(artistDTOs.map { it.id to it.images }.toSet())
         }
         val artistGenresDeferred = async {
-            artistGenreService.findExistingArtistGenres(artistDTOs.map { it.id to it.genres }.toSet())
+            artistGenreStorageService.findExistingArtistGenres(artistDTOs.map { it.id to it.genres }.toSet())
         }
         val albumImagesDeferred = async {
-            albumImageService.findExistingAlbumImages(
+            albumImageStorageService.findExistingAlbumImages(
                 albumDTOs.map { it.id to it.images }.toSet() + trackDTOs.map { track -> track.album.id to track.album.images }.toSet()
             )
         }
-        val userFavoriteTracksDeferred = async { if (userId != null) userFavoriteTrackService.findExistingUserFavoriteTracks(userId) else emptyList() }
-        val userFavoriteAlbumsDeferred = async { if (userId != null) userFavoriteAlbumService.findExistingUserFavoriteAlbums(userId) else emptyList() }
+        val userFavoriteTracksDeferred = async { if (userId != null) userFavoriteTrackStorageService.findExistingUserFavoriteTracks(userId) else emptyList() }
+        val userFavoriteAlbumsDeferred = async { if (userId != null) userFavoriteAlbumStorageService.findExistingUserFavoriteAlbums(userId) else emptyList() }
 
         ExistingData(
             artists = artistsDeferred.await().toSet(),
@@ -251,20 +271,20 @@ class SpotifyService @Autowired constructor(
     private suspend fun saveData(saveCollections: ConcurrentSaveCollections) {
         coroutineScope {
             val (albums, artists) = awaitAll(
-                async { albumService.upsertAndReturnSimpleAlbums(saveCollections.albums) },
-                async { artistService.upsertAndReturnSimpleArtists(saveCollections.artists) }
+                async { albumStorageService.upsertAndReturnSimpleAlbums(saveCollections.albums) },
+                async { artistStorageService.upsertAndReturnSimpleArtists(saveCollections.artists) }
             )
 
-            val tracks = trackService.upsertAndReturnSimpleTracks(saveCollections.tracks)
+            val tracks = trackStorageService.upsertAndReturnSimpleTracks(saveCollections.tracks)
 
             val jobs = listOf(
-                launch { albumImageService.persistAlbumImages(saveCollections.albumImages) },
-                launch { artistImageService.persistArtistImage(saveCollections.artistImages) },
-                launch { artistGenreService.persistArtistGenres(saveCollections.artistGenres) },
-                launch { albumArtistService.persistAlbumArtists(saveCollections.albumArtists) },
-                launch { trackArtistService.persistTrackArtists(saveCollections.trackArtists) },
-                launch { userFavoriteTrackService.persistUserFavoriteTracks(saveCollections.userFavoriteTracks) },
-                launch { userFavoriteAlbumService.persistUserFavoriteAlbums(saveCollections.userFavoriteAlbums) }
+                launch { albumImageStorageService.persistAlbumImages(saveCollections.albumImages) },
+                launch { artistImageStorageService.persistArtistImage(saveCollections.artistImages) },
+                launch { artistGenreStorageService.persistArtistGenres(saveCollections.artistGenres) },
+                launch { albumArtistStorageService.persistAlbumArtists(saveCollections.albumArtists) },
+                launch { trackArtistStorageService.persistTrackArtists(saveCollections.trackArtists) },
+                launch { userFavoriteTrackStorageService.persistUserFavoriteTracks(saveCollections.userFavoriteTracks) },
+                launch { userFavoriteAlbumStorageService.persistUserFavoriteAlbums(saveCollections.userFavoriteAlbums) }
             )
 
             jobs.joinAll()

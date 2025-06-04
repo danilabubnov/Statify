@@ -1,14 +1,15 @@
-package org.danila.services.model.spotify
+package org.danila.services.model.spotify.storage
 
-import org.danila.MAX_SAVED_ALBUMS_CHUNK_SIZE
+import org.danila.configuration.variables.SpotifyChunkSizes.MAX_SAVED_ALBUMS_CHUNK_SIZE
 import org.danila.model.spotify.album.Album
 import org.danila.repository.AlbumRepository
+import org.danila.services.model.spotify.DatabaseExecutionContext
 import org.danila.util.reactive.awaitList
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 
 @Service
-class AlbumService @Autowired constructor(
+class AlbumStorageService @Autowired constructor(
     private val databaseExecutionContext: DatabaseExecutionContext,
     private val albumRepository: AlbumRepository,
 ) {

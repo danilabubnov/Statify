@@ -1,8 +1,8 @@
-package org.danila.services.api.spotify
+package org.danila.services.api.spotify.client
 
-import org.danila.MAX_FOLLOWED_ARTISTS_PAGE_SIZE
-import org.danila.MAX_SAVED_ALBUMS_PAGE_SIZE
-import org.danila.MAX_SAVED_TRACKS_PAGE_SIZE
+import org.danila.configuration.constants.spotify.SpotifyApiConstants.MAX_FOLLOWED_ARTISTS_PAGE_SIZE
+import org.danila.configuration.constants.spotify.SpotifyApiConstants.MAX_SAVED_ALBUMS_PAGE_SIZE
+import org.danila.configuration.constants.spotify.SpotifyApiConstants.MAX_SAVED_TRACKS_PAGE_SIZE
 import org.danila.dto.album.FullAlbumsResponseDTO
 import org.danila.dto.album.SavedAlbumsResponseDTO
 import org.danila.dto.artist.FollowingArtistsResponseDTO

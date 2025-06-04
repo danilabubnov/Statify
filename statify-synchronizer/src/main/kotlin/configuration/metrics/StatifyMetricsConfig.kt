@@ -1,7 +1,7 @@
 package org.danila.configuration.metrics
 
 import okhttp3.Interceptor
-import org.danila.metrics.StatifySynchronizerMetrics
+import org.danila.metrics.Metrics
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.util.concurrent.TimeUnit
@@ -11,7 +11,7 @@ class StatifyMetricsConfig {
 
     @Bean
     fun spotifyMetricsInterceptor(
-        metrics: StatifySynchronizerMetrics
+        metrics: Metrics
     ): Interceptor {
         return Interceptor { chain ->
             metrics.spotifyApiRequestsTotal.increment()

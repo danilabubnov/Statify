@@ -1,4 +1,4 @@
-package org.danila.services.api.spotify
+package org.danila.services.api.spotify.retry
 
 interface SpotifyRateLimitRetryHelper {
 

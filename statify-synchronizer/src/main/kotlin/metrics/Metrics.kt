@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 @Component
-class StatifySynchronizerMetrics(private val meterRegistry: MeterRegistry) {
+class Metrics(private val meterRegistry: MeterRegistry) {
 
     val followedArtistsTotalCounter: Counter = meterRegistry.counter(
         "spotify.batch.emit.followed_artists.total",
