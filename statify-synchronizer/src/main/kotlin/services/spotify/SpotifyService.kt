@@ -1,6 +1,8 @@
 package org.danila.services.spotify
 
 import event.UserConnectedEvent
+import event.UserLibraryStatus
+import event.UserSpotifyLibraryStatusUpdatedEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flowOn
@@ -8,6 +10,7 @@ import kotlinx.coroutines.reactor.awaitSingle
 import org.danila.configuration.constants.kafka.KafkaTopics.ALBUM_ENRICH_TOPIC
 import org.danila.configuration.constants.kafka.KafkaTopics.ARTIST_ENRICH_TOPIC
 import org.danila.configuration.constants.kafka.KafkaTopics.TRACK_ENRICH_TOPIC
+import org.danila.configuration.constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.BATCH_TIMEOUT_MS
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_BATCH_SIZE
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY
@@ -43,10 +46,7 @@ import org.danila.services.api.spotify.client.SpotifyAlbumsClient
 import org.danila.services.api.spotify.client.SpotifyArtistsClient
 import org.danila.services.api.spotify.client.SpotifyTracksClient
 import org.danila.services.model.spotify.storage.*
-import org.danila.util.EnrichmentMetadataElement
-import org.danila.util.EnrichmentMetadataKey
-import org.danila.util.UserIdElement
-import org.danila.util.UserIdKey
+import org.danila.util.*
 import org.danila.util.reactive.batchWithTimeout
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate
@@ -81,52 +81,52 @@ class SpotifyService @Autowired constructor(
     suspend fun fetchSpotifyData(event: UserConnectedEvent) {
         val enrichmentMetadata = EnrichMetadata(tokenCredentials = event.tokenCredentials, correlationId = event.eventId.toString(), generation = 0)
 
-        tokenStore.put(userId = event.userId, creds = event.tokenCredentials)
+        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata) + UserSpotifyLibraryElement(event.userSpotifyLibraryId)) {
+            coroutineScope {
+                launch {
+                    spotifyArtistsClient.getAllFollowedArtists()
+                        .flowOn(Dispatchers.IO)
+                        .buffer(FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY)
+                        .batchWithTimeout(FOLLOWED_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                        .batchEmits(totalCounter = metrics.followedArtistsTotalCounter, timeoutCounter = metrics.followedArtistsTimeoutCounter)
+                        .collect {
+                            processInitialSpotifyData(
+                                artistDTOs = it.result,
+                                trackDTOs = emptyList(),
+                                albumDTOs = emptyList()
+                            )
+                        }
+                }
 
-        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
-            launch {
-                spotifyArtistsClient.getAllFollowedArtists()
-                    .flowOn(Dispatchers.IO)
-                    .buffer(FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY)
-                    .batchWithTimeout(FOLLOWED_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                    .batchEmits(totalCounter = metrics.followedArtistsTotalCounter, timeoutCounter = metrics.followedArtistsTimeoutCounter)
-                    .collect {
-                        processInitialSpotifyData(
-                            artistDTOs = it.result,
-                            trackDTOs = emptyList(),
-                            albumDTOs = emptyList()
-                        )
-                    }
-            }
+                launch {
+                    spotifyTracksClient.getAllSavedTracks()
+                        .flowOn(Dispatchers.IO)
+                        .buffer(SAVED_TRACKS_FLOW_BUFFER_CAPACITY)
+                        .batchWithTimeout(SAVED_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                        .batchEmits(totalCounter = metrics.savedTracksTotalCounter, timeoutCounter = metrics.savedTracksTimeoutCounter)
+                        .collect {
+                            processInitialSpotifyData(
+                                artistDTOs = emptyList(),
+                                trackDTOs = it.result,
+                                albumDTOs = emptyList()
+                            )
+                        }
+                }
 
-            launch {
-                spotifyTracksClient.getAllSavedTracks()
-                    .flowOn(Dispatchers.IO)
-                    .buffer(SAVED_TRACKS_FLOW_BUFFER_CAPACITY)
-                    .batchWithTimeout(SAVED_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                    .batchEmits(totalCounter = metrics.savedTracksTotalCounter, timeoutCounter = metrics.savedTracksTimeoutCounter)
-                    .collect {
-                        processInitialSpotifyData(
-                            artistDTOs = emptyList(),
-                            trackDTOs = it.result,
-                            albumDTOs = emptyList()
-                        )
-                    }
-            }
-
-            launch {
-                spotifyAlbumsClient.getAllSavedAlbums()
-                    .flowOn(Dispatchers.IO)
-                    .buffer(SAVED_ALBUMS_FLOW_BUFFER_CAPACITY)
-                    .batchWithTimeout(SAVED_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                    .batchEmits(totalCounter = metrics.savedAlbumsTotalCounter, timeoutCounter = metrics.savedAlbumsTimeoutCounter)
-                    .collect {
-                        processInitialSpotifyData(
-                            artistDTOs = emptyList(),
-                            trackDTOs = emptyList(),
-                            albumDTOs = it.result
-                        )
-                    }
+                launch {
+                    spotifyAlbumsClient.getAllSavedAlbums()
+                        .flowOn(Dispatchers.IO)
+                        .buffer(SAVED_ALBUMS_FLOW_BUFFER_CAPACITY)
+                        .batchWithTimeout(SAVED_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                        .batchEmits(totalCounter = metrics.savedAlbumsTotalCounter, timeoutCounter = metrics.savedAlbumsTimeoutCounter)
+                        .collect {
+                            processInitialSpotifyData(
+                                artistDTOs = emptyList(),
+                                trackDTOs = emptyList(),
+                                albumDTOs = it.result
+                            )
+                        }
+                }
             }
         }
     }
@@ -302,8 +302,8 @@ class SpotifyService @Autowired constructor(
         simpleArtists: Collection<String>,
         simpleTracks: Collection<String>
     ) {
-        val userId = coroutineContext[UserIdKey]?.userId ?: throw IllegalStateException("No userId found")
-        val enrichmentMetadata = coroutineContext[EnrichmentMetadataKey]?.metadata ?: throw IllegalStateException("No enrichment metadata found")
+        val userId by lazy { suspend { requireNotNull(coroutineContext[UserIdKey]).userId } }
+        val enrichmentMetadata by lazy { suspend { requireNotNull(coroutineContext[EnrichmentMetadataKey]).metadata } }
 
         val jobs = mutableListOf<Deferred<Any>>()
 
@@ -313,7 +313,7 @@ class SpotifyService @Autowired constructor(
                     jobs += async {
                         kafkaTemplate.send(
                             ALBUM_ENRICH_TOPIC,
-                            EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = simpleAlbums.toSet(), metadata = enrichmentMetadata, userId = userId)
+                            EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = simpleAlbums.toSet(), metadata = enrichmentMetadata(), userId = userId())
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
                             .awaitSingle()
                     }
@@ -322,7 +322,7 @@ class SpotifyService @Autowired constructor(
                     jobs += async {
                         kafkaTemplate.send(
                             ARTIST_ENRICH_TOPIC,
-                            EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = simpleArtists.toSet(), metadata = enrichmentMetadata, userId = userId)
+                            EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = simpleArtists.toSet(), metadata = enrichmentMetadata(), userId = userId())
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
                             .awaitSingle()
                     }
@@ -331,7 +331,34 @@ class SpotifyService @Autowired constructor(
                     jobs += async {
                         kafkaTemplate.send(
                             TRACK_ENRICH_TOPIC,
-                            EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = simpleTracks.toSet(), metadata = enrichmentMetadata, userId = userId)
+                            EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = simpleTracks.toSet(), metadata = enrichmentMetadata(), userId = userId())
+                        ).doOnError { println("Failed to send enrich event ${it.message}") }
+                            .awaitSingle()
+                    }
+
+                if (simpleArtists.isNotEmpty() || simpleTracks.isNotEmpty() || simpleAlbums.isNotEmpty()) {
+                    jobs += if (enrichmentMetadata().generation == 0) {
+                        async {
+                            kafkaTemplate.send(
+                                USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
+                                UserSpotifyLibraryStatusUpdatedEvent(
+                                    id = requireNotNull(coroutineContext[UserSpotifyLibraryKey]).id,
+                                    status = UserLibraryStatus.PARTIALLY_SYNCED
+                                )
+                            ).doOnError { println("Failed to send enrich event ${it.message}") }
+                                .awaitSingle()
+
+                            tokenStore.incrementInFlight(correlationId = enrichmentMetadata().correlationId)
+                        }
+                    } else async { tokenStore.incrementInFlight(correlationId = enrichmentMetadata().correlationId) }
+                } else if (tokenStore.getInFlight(enrichmentMetadata().correlationId) == 0L)
+                    jobs += async {
+                        kafkaTemplate.send(
+                            USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
+                            UserSpotifyLibraryStatusUpdatedEvent(
+                                id = requireNotNull(coroutineContext[UserSpotifyLibraryKey]).id,
+                                status = UserLibraryStatus.COMPLETED
+                            )
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
                             .awaitSingle()
                     }

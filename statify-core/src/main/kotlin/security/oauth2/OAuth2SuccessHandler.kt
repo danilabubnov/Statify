@@ -5,8 +5,10 @@ import event.UserConnectedEvent
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.danila.configuration.USER_SPOTIFY_CONNECTED_TOPIC
+import org.danila.model.OAuth2LinkState
 import org.danila.repository.OAuth2LinkStateRepository
-import org.danila.service.SpotifyInfoService
+import org.danila.service.model.spotify.SpotifyInfoService
+import org.danila.service.model.spotify.UserSpotifyLibraryService
 import org.springframework.http.HttpStatus
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.security.core.Authentication
@@ -22,6 +24,7 @@ import java.util.*
 class OAuth2SuccessHandler(
     private val authorizedClientService: OAuth2AuthorizedClientService,
     private val oAuth2LinkStateRepository: OAuth2LinkStateRepository,
+    private val userSpotifyLibraryService: UserSpotifyLibraryService,
     private val kafkaTemplate: KafkaTemplate<String, Any>,
     private val spotifyInfoService: SpotifyInfoService
 ) : AuthenticationSuccessHandler {
@@ -31,53 +34,58 @@ class OAuth2SuccessHandler(
         response: HttpServletResponse?,
         authentication: Authentication?
     ) {
-        val httpRequest = request ?: throw IllegalStateException("HttpServletRequest is null")
-        val httpResponse = response ?: throw IllegalStateException("HttpServletResponse is null")
-        val auth = authentication ?: throw IllegalStateException("Authentication is null")
+        val httpRequest = requireNotNull(request) { "HttpServletRequest is null" }
+        val httpResponse = requireNotNull(response) { "HttpServletResponse is null" }
+        val auth = requireNotNull(authentication) { "Authentication is null" }
 
-        val stateParam = httpRequest.getParameter("state") ?: throw IllegalStateException("Missing state parameter")
-        val oAuth2LinkState = oAuth2LinkStateRepository.findById(UUID.fromString(stateParam)).orElse(null) ?: throw IllegalArgumentException("Unknown state")
+        val stateId = httpRequest.getParameter("state") ?: error("Missing state parameter")
+        val oAuth2LinkState = oAuth2LinkStateRepository.findById(UUID.fromString(stateId))
+            .orElseThrow { IllegalArgumentException("Unknown state") }
 
-        if (auth is OAuth2AuthenticationToken) {
-            val authorizedClient: OAuth2AuthorizedClient = authorizedClientService.loadAuthorizedClient(auth.authorizedClientRegistrationId, auth.name)
-                ?: throw IllegalStateException("Authorized client not found")
-
-            val accessToken = authorizedClient.accessToken.tokenValue
-            val refreshToken = authorizedClient.refreshToken?.tokenValue ?: throw IllegalArgumentException("Refresh token not set")
-
-            val spotifyUser = auth.principal as? SpotifyOAuth2User ?: throw IllegalStateException("Principal is not a SpotifyOAuth2User")
-            val spotifyId = spotifyUser.name
-
-            val user = oAuth2LinkState.user
-
-            val spotifyInfo = spotifyInfoService.findBySpotifyIdOrNull(spotifyId) ?: throw IllegalArgumentException("Unknown spotifyId")
-
-            spotifyInfoService.update(
-                spotifyInfo.copy(
-                    user = user,
-                    refreshToken = refreshToken
-                )
+        if (auth is OAuth2AuthenticationToken && auth.principal is SpotifyOAuth2User) {
+            handleSpotifyAuthenticationSuccess(
+                spotifyUser = auth.principal as SpotifyOAuth2User,
+                state = oAuth2LinkState,
+                authorizedClient = authorizedClientService.loadAuthorizedClient(
+                    auth.authorizedClientRegistrationId,
+                    auth.name
+                ) ?: error("Authorized client not found")
             )
-
-            kafkaTemplate.send(
-                USER_SPOTIFY_CONNECTED_TOPIC, UserConnectedEvent(
-                    eventId = UUID.randomUUID(),
-                    userId = user.id,
-                    timestamp = Instant.now(),
-                    tokenCredentials = TokenCredentials(
-                        accessToken = accessToken,
-                        refreshToken = refreshToken
-                    )
-                )
-            )
-        } else {
-            throw IllegalStateException("Authentication is not of type OAuth2AuthenticationToken")
-        }
+        } else error("Unsupported authentication type")
 
         oAuth2LinkStateRepository.delete(oAuth2LinkState)
-
-        httpResponse.writer.write("Spotify account linked successfully")
         httpResponse.status = HttpStatus.OK.value()
+        httpResponse.writer.write("Spotify account linked successfully")
+    }
+
+    fun handleSpotifyAuthenticationSuccess(spotifyUser: SpotifyOAuth2User, state: OAuth2LinkState, authorizedClient: OAuth2AuthorizedClient) {
+        val user = state.user
+        val spotifyId = spotifyUser.name
+        val refreshToken = authorizedClient.refreshToken?.tokenValue ?: error("Refresh token not set")
+        val spotifyInfo = spotifyInfoService.findBySpotifyIdOrNull(spotifyId) ?: error("Unknown spotifyId")
+
+        spotifyInfoService.update(
+            spotifyInfo.copy(
+                user = user,
+                refreshToken = refreshToken
+            )
+        )
+
+        val userSpotifyLibraryService = userSpotifyLibraryService.create(user)
+
+        kafkaTemplate.send(
+            USER_SPOTIFY_CONNECTED_TOPIC,
+            UserConnectedEvent(
+                eventId = UUID.randomUUID(),
+                userId = user.id,
+                timestamp = Instant.now(),
+                tokenCredentials = TokenCredentials(
+                    accessToken = authorizedClient.accessToken.tokenValue,
+                    refreshToken = refreshToken
+                ),
+                userSpotifyLibraryId = userSpotifyLibraryService.id
+            )
+        )
     }
 
 }

@@ -101,7 +101,8 @@ class KafkaConfig(
                 JsonSerializer.TYPE_MAPPINGS to """
                     EnrichArtistEvent:org.danila.event.EnrichArtistEvent,
                     EnrichAlbumEvent:org.danila.event.EnrichAlbumEvent,
-                    EnrichTrackEvent:org.danila.event.EnrichTrackEvent
+                    EnrichTrackEvent:org.danila.event.EnrichTrackEvent,
+                    UserSpotifyLibraryStatusUpdatedEvent:event.UserSpotifyLibraryStatusUpdatedEvent
                 """.trimIndent()
             )
         )

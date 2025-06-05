@@ -11,7 +11,7 @@ import org.danila.model.users.User
 import org.danila.repository.OAuth2LinkStateRepository
 import org.danila.security.jwt.JwtUtils
 import org.danila.security.user.UserDetailsImpl
-import org.danila.service.UserService
+import org.danila.service.model.user.UserService
 import org.danila.service.utils.IdGeneratorService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value

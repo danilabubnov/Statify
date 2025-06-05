@@ -1,7 +1,7 @@
-package org.danila.service
+package org.danila.service.model.spotify
 
 import jakarta.transaction.Transactional
-import org.danila.model.SpotifyInfo
+import org.danila.model.spotify.SpotifyInfo
 import org.danila.model.users.User
 import org.danila.repository.SpotifyInfoRepository
 import org.springframework.beans.factory.annotation.Autowired

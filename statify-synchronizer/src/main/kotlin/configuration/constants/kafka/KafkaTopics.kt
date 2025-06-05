@@ -8,6 +8,11 @@ object KafkaTopics {
     const val USER_SPOTIFY_CONNECTED_TOPIC = "user.spotify.connected.v1"
 
     /**
+     * Kafka topic for updating the synchronization status of a user's Spotify library.
+     */
+    const val USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC = "user.spotify.library.status.updated.v1"
+
+    /**
      * Kafka topic for requesting enrichment of artist data.
      */
     const val ARTIST_ENRICH_TOPIC = "statify.artist.enrich.v1"

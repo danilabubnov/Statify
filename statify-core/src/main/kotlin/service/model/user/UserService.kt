@@ -1,4 +1,4 @@
-package org.danila.service
+package org.danila.service.model.user
 
 import jakarta.transaction.Transactional
 import org.danila.model.users.User

@@ -1,7 +1,7 @@
 package org.danila.security.oauth2
 
-import org.danila.model.SpotifyInfo
-import org.danila.service.SpotifyInfoService
+import org.danila.model.spotify.SpotifyInfo
+import org.danila.service.model.spotify.SpotifyInfoService
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest
@@ -9,7 +9,9 @@ import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.stereotype.Service
 
 @Service
-class SpotifyOAuth2UserService(private val spotifyInfoService: SpotifyInfoService) : DefaultOAuth2UserService() {
+class SpotifyOAuth2UserService(
+    private val spotifyInfoService: SpotifyInfoService,
+) : DefaultOAuth2UserService() {
 
     override fun loadUser(oauth2UserRequest: OAuth2UserRequest?): OAuth2User? {
         val oAuth2User = super.loadUser(oauth2UserRequest)

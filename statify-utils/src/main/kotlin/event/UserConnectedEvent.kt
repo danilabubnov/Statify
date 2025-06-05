@@ -7,5 +7,6 @@ data class UserConnectedEvent(
     val eventId: UUID,
     val userId: UUID,
     val timestamp: Instant,
-    val tokenCredentials: TokenCredentials
+    val tokenCredentials: TokenCredentials,
+    val userSpotifyLibraryId: UUID,
 )
