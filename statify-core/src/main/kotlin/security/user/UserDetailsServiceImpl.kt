@@ -14,7 +14,7 @@ class UserDetailsServiceImpl(
 
     override fun loadUserByUsername(username: String?): UserDetails? = UserDetailsImpl(
         user = userRepository.findByUsername(
-            username?.trimToNull() ?: throw IllegalArgumentException("Username is null")
+            username?.trimToNull() ?: error("Username is null")
         ) ?: throw UsernameNotFoundException()
     )
 

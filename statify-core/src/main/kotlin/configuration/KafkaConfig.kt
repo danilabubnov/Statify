@@ -1,30 +1,27 @@
 package org.danila.configuration
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import constants.CommonDurations.FOURTEEN_DAYS_IN_MS
+import constants.CommonDurations.SEVEN_DAYS_IN_MS
 import event.UserSpotifyLibraryStatusUpdatedEvent
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.config.TopicConfig
+import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.kafka.config.TopicBuilder
-import org.springframework.kafka.core.ConsumerFactory
-import org.springframework.kafka.core.DefaultKafkaProducerFactory
-import org.springframework.kafka.core.KafkaAdmin
-import org.springframework.kafka.core.KafkaTemplate
-import org.springframework.kafka.core.ProducerFactory
-import org.springframework.kafka.support.serializer.JsonSerializer
-import org.apache.kafka.common.serialization.StringDeserializer
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory
+import org.springframework.kafka.config.TopicBuilder
+import org.springframework.kafka.core.*
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer
 import org.springframework.kafka.listener.DefaultErrorHandler
 import org.springframework.kafka.support.serializer.JsonDeserializer
+import org.springframework.kafka.support.serializer.JsonSerializer
 import org.springframework.util.backoff.FixedBackOff
 
 const val USER_SPOTIFY_CONNECTED_TOPIC = "user.spotify.connected.v1"
@@ -120,22 +117,22 @@ class KafkaConfig(
         TopicBuilder.name(USER_SPOTIFY_CONNECTED_TOPIC)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "604800000") // 7 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, SEVEN_DAYS_IN_MS.toString())
             .build(),
         TopicBuilder.name(USER_SPOTIFY_CONNECTED_DLT)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "1209600000") // 14 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())
             .build(),
         TopicBuilder.name(USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "604800000") // 7 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, SEVEN_DAYS_IN_MS.toString())
             .build(),
         TopicBuilder.name(USER_SPOTIFY_LIBRARY_STATUS_UPDATED_DLT)
             .partitions(1)
             .replicas(1)
-            .config(TopicConfig.RETENTION_MS_CONFIG, "1209600000") // 14 days
+            .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())
             .build(),
     )
 

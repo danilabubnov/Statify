@@ -1,4 +1,4 @@
-package org.danila.configuration.constants
+package constants
 
 object CommonDurations {
 

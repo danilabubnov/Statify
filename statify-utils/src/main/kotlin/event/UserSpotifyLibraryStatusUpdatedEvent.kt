@@ -1,6 +1,6 @@
 package event
 
-import java.util.UUID
+import java.util.*
 
 data class UserSpotifyLibraryStatusUpdatedEvent(
     val id: UUID,

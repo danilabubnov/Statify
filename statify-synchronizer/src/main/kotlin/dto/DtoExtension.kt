@@ -106,7 +106,7 @@ private fun parsePrecision(releaseDate: String): String {
             when (releaseDate.count { it == '-' }) {
                 1 -> "MONTH"
                 2 -> "DAY"
-                else -> throw IllegalArgumentException("Некорректный формат даты")
+                else -> error("Invalid date format")
             }
         }
 

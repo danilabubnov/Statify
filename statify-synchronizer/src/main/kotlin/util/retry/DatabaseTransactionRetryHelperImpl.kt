@@ -51,7 +51,7 @@ class DatabaseTransactionRetryHelperImpl(
                 }
             }
 
-            throw IllegalStateException("Unreachable code")
+            error("Unreachable code")
         }
     }
 

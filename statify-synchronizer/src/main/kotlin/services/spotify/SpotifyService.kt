@@ -1,5 +1,9 @@
 package org.danila.services.spotify
 
+import constants.kafka.KafkaTopics.ALBUM_ENRICH_TOPIC
+import constants.kafka.KafkaTopics.ARTIST_ENRICH_TOPIC
+import constants.kafka.KafkaTopics.TRACK_ENRICH_TOPIC
+import constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import event.UserConnectedEvent
 import event.UserLibraryStatus
 import event.UserSpotifyLibraryStatusUpdatedEvent
@@ -7,10 +11,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.reactor.awaitSingle
-import org.danila.configuration.constants.kafka.KafkaTopics.ALBUM_ENRICH_TOPIC
-import org.danila.configuration.constants.kafka.KafkaTopics.ARTIST_ENRICH_TOPIC
-import org.danila.configuration.constants.kafka.KafkaTopics.TRACK_ENRICH_TOPIC
-import org.danila.configuration.constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.BATCH_TIMEOUT_MS
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_BATCH_SIZE
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY
@@ -195,7 +195,7 @@ class SpotifyService @Autowired constructor(
         trackDTOs: List<SavedTrackItemDTO>,
         albumDTOs: List<SavedAlbumItemDTO>
     ) {
-        val userId = coroutineContext[UserIdKey]?.userId ?: throw IllegalStateException("No userId found")
+        val userId = coroutineContext[UserIdKey]?.userId ?: error("No userId found")
 
         val existingData = fetchExistingData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs.map { it.track }, albumDTOs = albumDTOs.map { it.album })
         val saveCollections = spotifyDataProcessor.processData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)

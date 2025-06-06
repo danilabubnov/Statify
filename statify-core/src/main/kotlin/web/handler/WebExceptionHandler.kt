@@ -24,6 +24,13 @@ class WebExceptionHandler {
             .body(ErrorResponse("Invalid authorization header format"))
     }
 
+    @ExceptionHandler(Exception::class)
+    fun handleException(ex: Exception): ResponseEntity<ErrorResponse> {
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(ex.message ?: ex.localizedMessage))
+    }
+
 }
 
 data class ErrorResponse(val message: String)

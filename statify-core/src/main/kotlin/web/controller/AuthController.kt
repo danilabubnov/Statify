@@ -48,11 +48,11 @@ class AuthController @Autowired constructor(
 
     @PostMapping("/register")
     fun register(@Valid @RequestBody request: RegistrationRequest): UserResponse {
-        val sanitizedFirstName = request.firstName.trimToNull() ?: throw IllegalArgumentException("First name must not be blank")
-        val sanitizedLastName = request.lastName.trimToNull() ?: throw IllegalArgumentException("Last name must not be blank")
-        val sanitizedEmail = request.email.trimToNull() ?: throw IllegalArgumentException("Email must not be blank")
-        val sanitizedUsername = request.username.trimToNull() ?: throw IllegalArgumentException("Username must not be blank")
-        val sanitizedPassword = request.password.trimToNull() ?: throw IllegalArgumentException("Password must not be blank")
+        val sanitizedFirstName = request.firstName.trimToNull() ?: error("First name must not be blank")
+        val sanitizedLastName = request.lastName.trimToNull() ?: error("Last name must not be blank")
+        val sanitizedEmail = request.email.trimToNull() ?: error("Email must not be blank")
+        val sanitizedUsername = request.username.trimToNull() ?: error("Username must not be blank")
+        val sanitizedPassword = request.password.trimToNull() ?: error("Password must not be blank")
 
         val createdUser = userService.create(sanitizedFirstName, sanitizedLastName, sanitizedEmail, sanitizedUsername, sanitizedPassword)
 
@@ -61,15 +61,15 @@ class AuthController @Autowired constructor(
 
     @PostMapping("/login")
     fun authenticate(@Valid @RequestBody request: LoginRequest): AuthResponse {
-        val sanitizedUsername = request.username.trimToNull() ?: throw IllegalArgumentException("Username must not be blank")
-        val sanitizedPassword = request.password.trimToNull() ?: throw IllegalArgumentException("Password must not be blank")
+        val sanitizedUsername = request.username.trimToNull() ?: error("Username must not be blank")
+        val sanitizedPassword = request.password.trimToNull() ?: error("Password must not be blank")
 
         val authentication = authenticationManager.authenticate(UsernamePasswordAuthenticationToken(sanitizedUsername, sanitizedPassword))
 
         SecurityContextHolder.getContext().authentication = authentication
         val userDetails = authentication.principal as UserDetailsImpl
 
-        val jwt = jwtUtils.generateToken(userDetails.username ?: throw IllegalArgumentException("Username must not be blank"))
+        val jwt = jwtUtils.generateToken(userDetails.username ?: error("Username must not be blank"))
 
         return AuthResponse(token = jwt)
     }

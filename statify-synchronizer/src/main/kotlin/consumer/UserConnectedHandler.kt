@@ -1,12 +1,14 @@
 package org.danila.consumer
 
+import constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import event.UserConnectedEvent
 import event.UserLibraryStatus
 import event.UserSpotifyLibraryStatusUpdatedEvent
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.mono
-import org.danila.configuration.constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
+import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
 import org.danila.services.spotify.SpotifyService
 import org.danila.services.spotify.TokenStore
 import org.danila.util.reactive.kafka.defaultRetry
@@ -21,6 +23,7 @@ import reactor.kafka.receiver.ReceiverRecord
 @Component
 class UserConnectedHandler @Autowired constructor(
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>,
+    private val metricsInterceptor: CoroutineMetricsInterceptor,
     private val spotifyService: SpotifyService,
     private val tokenStore: TokenStore,
 ){
@@ -28,7 +31,7 @@ class UserConnectedHandler @Autowired constructor(
     fun handle(rec: ReceiverRecord<String, UserConnectedEvent>): Mono<Void> {
         val evt = rec.value()
 
-        return mono(Dispatchers.IO) {
+        return mono(Dispatchers.IO + metricsInterceptor + CoroutineName("fetch_spotify_data")) {
             tokenStore.initInFlightCounter(evt.eventId.toString())
             tokenStore.put(evt.userId, evt.tokenCredentials)
             kafkaTemplate.send(

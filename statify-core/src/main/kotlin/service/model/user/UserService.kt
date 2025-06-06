@@ -17,8 +17,8 @@ class UserService @Autowired constructor(
 
     @Transactional
     fun create(firstName: String, lastName: String, email: String, username: String, password: String): User {
-        if (userRepository.existsByUsername(username)) throw IllegalArgumentException("Username already exists")
-        if (userRepository.existsByEmail(email)) throw IllegalArgumentException("Email already exists")
+        if (userRepository.existsByUsername(username)) error("Username already exists")
+        if (userRepository.existsByEmail(email)) error("Email already exists")
 
         return userRepository.save(
             User(

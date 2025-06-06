@@ -16,7 +16,6 @@ import java.util.*
 class TokenStore @Autowired constructor(
     private val redisTemplate: ReactiveRedisTemplate<String, TokenCredentials>,
     @Qualifier("inFlightCounterRedisTemplate") private val counterRedisTemplate: ReactiveRedisTemplate<String, Long>,
-    @Qualifier("initFlagRedisTemplate") private val initFlagRedisTemplate: ReactiveRedisTemplate<String, Long>
 ) {
 
     /**

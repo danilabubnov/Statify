@@ -1,8 +1,11 @@
 package org.danila.consumer
 
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
 import org.danila.event.EnrichEvent
+import org.danila.event.EnrichExtensions.functionName
+import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
 import org.danila.services.spotify.SpotifyService
 import org.danila.services.spotify.TokenStore
 import org.danila.util.reactive.kafka.defaultRetry
@@ -15,13 +18,14 @@ import reactor.kafka.receiver.ReceiverRecord
 
 @Component
 class EnrichHandler @Autowired constructor(
+    private val metricsInterceptor: CoroutineMetricsInterceptor,
     private val spotifyService: SpotifyService,
     private val tokenStore: TokenStore,
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>,
 ) {
 
     fun handle(evt: EnrichEvent, rec: ReceiverRecord<String, *>): Mono<Void> {
-        return mono(Dispatchers.Default) {
+        return mono(Dispatchers.Default + metricsInterceptor + CoroutineName(evt.functionName())) {
             spotifyService.enrich(evt)
         }.retryWhen(defaultRetry())
             .onErrorResume { kafkaTemplate.sendToDlt(rec) }

@@ -40,7 +40,7 @@ class OAuth2SuccessHandler(
 
         val stateId = httpRequest.getParameter("state") ?: error("Missing state parameter")
         val oAuth2LinkState = oAuth2LinkStateRepository.findById(UUID.fromString(stateId))
-            .orElseThrow { IllegalArgumentException("Unknown state") }
+            .orElseThrow { error("Unknown state") }
 
         if (auth is OAuth2AuthenticationToken && auth.principal is SpotifyOAuth2User) {
             handleSpotifyAuthenticationSuccess(

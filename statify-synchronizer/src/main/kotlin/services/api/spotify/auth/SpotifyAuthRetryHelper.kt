@@ -26,7 +26,7 @@ class SpotifyAuthRetryHelper(
     suspend fun <T> withAuthRetry(
         block: suspend (authHeader: String) -> T
     ): T {
-        val userId = coroutineContext[UserIdKey]?.userId ?: throw IllegalStateException("No userId found")
+        val userId = coroutineContext[UserIdKey]?.userId ?: error("No userId found")
         var creds = tokenStore.get(userId)
         val initial = creds.accessToken
 

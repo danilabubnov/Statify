@@ -21,12 +21,12 @@ class SpotifyOAuth2UserService(
 
     private fun processOAuth2User(oAuth2User: OAuth2User): SpotifyOAuth2User {
         val attributes = oAuth2User.attributes
-        val spotifyId = attributes["id"] as? String ?: throw IllegalArgumentException("SpotifyId not found")
-        val email = attributes["email"] as? String ?: throw IllegalStateException("Email not found")
+        val spotifyId = attributes["id"] as? String ?: error("SpotifyId not found")
+        val email = attributes["email"] as? String ?: error("Email not found")
 
         val spotifyInfo = spotifyInfoService.findBySpotifyIdOrNull(spotifyId)
 
-        if (spotifyInfo != null && spotifyInfo.user != null) throw IllegalStateException("Spotify account already linked")
+        if (spotifyInfo != null && spotifyInfo.user != null) error("Spotify account already linked")
 
         return SpotifyOAuth2User(
             spotifyInfo = spotifyInfo ?: spotifyInfoService.create(spotifyId = spotifyId, email = email, user = null),

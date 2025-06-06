@@ -59,18 +59,4 @@ class CacheConfig {
         return ReactiveRedisTemplate(factory, ctx)
     }
 
-    @Bean(name = ["initFlagRedisTemplate"])
-    fun reactiveInitFlagRedisTemplate(
-        factory: ReactiveRedisConnectionFactory
-    ): ReactiveRedisTemplate<String, Long> {
-        val keySerializer = StringRedisSerializer()
-        val valueSerializer = GenericToStringSerializer(Long::class.java)
-        val ctx = RedisSerializationContext
-            .newSerializationContext<String, Long>(keySerializer)
-            .value(valueSerializer)
-            .build()
-
-        return ReactiveRedisTemplate(factory, ctx)
-    }
-
 }

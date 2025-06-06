@@ -1,6 +1,15 @@
 package org.danila.configuration.kafka
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import constants.CommonDurations.FOURTEEN_DAYS_IN_MS
+import constants.CommonDurations.SEVEN_DAYS_IN_MS
+import constants.kafka.KafkaTopics.ALBUM_ENRICH_DLT
+import constants.kafka.KafkaTopics.ALBUM_ENRICH_TOPIC
+import constants.kafka.KafkaTopics.ARTIST_ENRICH_DLT
+import constants.kafka.KafkaTopics.ARTIST_ENRICH_TOPIC
+import constants.kafka.KafkaTopics.TRACK_ENRICH_DLT
+import constants.kafka.KafkaTopics.TRACK_ENRICH_TOPIC
+import constants.kafka.KafkaTopics.USER_SPOTIFY_CONNECTED_TOPIC
 import event.UserConnectedEvent
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -8,15 +17,6 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.config.TopicConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
-import org.danila.configuration.constants.CommonDurations.FOURTEEN_DAYS_IN_MS
-import org.danila.configuration.constants.CommonDurations.SEVEN_DAYS_IN_MS
-import org.danila.configuration.constants.kafka.KafkaTopics.ALBUM_ENRICH_DLT
-import org.danila.configuration.constants.kafka.KafkaTopics.ALBUM_ENRICH_TOPIC
-import org.danila.configuration.constants.kafka.KafkaTopics.ARTIST_ENRICH_DLT
-import org.danila.configuration.constants.kafka.KafkaTopics.ARTIST_ENRICH_TOPIC
-import org.danila.configuration.constants.kafka.KafkaTopics.TRACK_ENRICH_DLT
-import org.danila.configuration.constants.kafka.KafkaTopics.TRACK_ENRICH_TOPIC
-import org.danila.configuration.constants.kafka.KafkaTopics.USER_SPOTIFY_CONNECTED_TOPIC
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean

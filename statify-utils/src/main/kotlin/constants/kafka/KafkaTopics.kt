@@ -1,4 +1,4 @@
-package org.danila.configuration.constants.kafka
+package constants.kafka
 
 object KafkaTopics {
 
