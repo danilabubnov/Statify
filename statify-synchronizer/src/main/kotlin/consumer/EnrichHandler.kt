@@ -7,7 +7,6 @@ import org.danila.event.EnrichEvent
 import org.danila.event.EnrichExtensions.functionName
 import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
 import org.danila.services.spotify.SpotifyService
-import org.danila.services.spotify.TokenStore
 import org.danila.util.reactive.kafka.defaultRetry
 import org.danila.util.reactive.kafka.sendToDlt
 import org.springframework.beans.factory.annotation.Autowired
@@ -20,7 +19,6 @@ import reactor.kafka.receiver.ReceiverRecord
 class EnrichHandler @Autowired constructor(
     private val metricsInterceptor: CoroutineMetricsInterceptor,
     private val spotifyService: SpotifyService,
-    private val tokenStore: TokenStore,
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>,
 ) {
 
@@ -29,11 +27,7 @@ class EnrichHandler @Autowired constructor(
             spotifyService.enrich(evt)
         }.retryWhen(defaultRetry())
             .onErrorResume { kafkaTemplate.sendToDlt(rec) }
-            .flatMap {
-                mono(Dispatchers.IO) {
-                    tokenStore.decrementInFlight(evt.metadata.correlationId)
-                }
-            }.doOnSuccess { rec.receiverOffset().acknowledge() }
+            .doOnSuccess { rec.receiverOffset().acknowledge() }
             .then()
     }
 

@@ -9,8 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.mono
 import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
+import org.danila.services.RedisStateService
 import org.danila.services.spotify.SpotifyService
-import org.danila.services.spotify.TokenStore
 import org.danila.util.reactive.kafka.defaultRetry
 import org.danila.util.reactive.kafka.sendToDlt
 import org.danila.util.reactive.kafka.sendToDltOnError
@@ -25,15 +25,14 @@ class UserConnectedHandler @Autowired constructor(
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>,
     private val metricsInterceptor: CoroutineMetricsInterceptor,
     private val spotifyService: SpotifyService,
-    private val tokenStore: TokenStore,
+    private val redisStateService: RedisStateService,
 ){
 
     fun handle(rec: ReceiverRecord<String, UserConnectedEvent>): Mono<Void> {
         val evt = rec.value()
 
         return mono(Dispatchers.IO + metricsInterceptor + CoroutineName("fetch_spotify_data")) {
-            tokenStore.initInFlightCounter(evt.eventId.toString())
-            tokenStore.put(evt.userId, evt.tokenCredentials)
+            redisStateService.putTokenCredentials(evt.userId, evt.tokenCredentials)
             kafkaTemplate.send(
                 USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
                 UserSpotifyLibraryStatusUpdatedEvent(
@@ -48,8 +47,7 @@ class UserConnectedHandler @Autowired constructor(
                 .onErrorResume { kafkaTemplate.sendToDlt(rec) }
         ).onErrorResume {
             mono {
-                tokenStore.delete(evt.userId)
-                tokenStore.deleteInFlightCounter(evt.eventId.toString())
+                redisStateService.deleteTokenCredentials(evt.userId)
             }.then(kafkaTemplate.sendToDlt(rec))
         }.doOnSuccess { rec.receiverOffset().acknowledge() }
             .then()

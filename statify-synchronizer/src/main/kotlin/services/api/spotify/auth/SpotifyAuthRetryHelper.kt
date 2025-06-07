@@ -5,7 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import event.TokenCredentials
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.danila.services.spotify.TokenStore
+import org.danila.services.RedisStateService
 import org.danila.util.UserIdKey
 import org.springframework.stereotype.Component
 import retrofit2.HttpException
@@ -16,7 +16,7 @@ import kotlin.coroutines.coroutineContext
 @Component
 class SpotifyAuthRetryHelper(
     private val spotifyAuthService: SpotifyAuthService,
-    private val tokenStore: TokenStore
+    private val redisStateService: RedisStateService
 ) {
 
     private val userTokenMutexCache: Cache<UUID, Mutex> = Caffeine.newBuilder()
@@ -27,7 +27,7 @@ class SpotifyAuthRetryHelper(
         block: suspend (authHeader: String) -> T
     ): T {
         val userId = coroutineContext[UserIdKey]?.userId ?: error("No userId found")
-        var creds = tokenStore.get(userId)
+        var creds = redisStateService.getTokenCredentials(userId)
         val initial = creds.accessToken
 
         return try {
@@ -38,12 +38,12 @@ class SpotifyAuthRetryHelper(
             val userTokenMutex = userTokenMutexCache.get(userId) { Mutex() }
 
             val newToken = userTokenMutex.withLock {
-                creds = tokenStore.get(userId)
+                creds = redisStateService.getTokenCredentials(userId)
 
                 if (creds.accessToken == initial) {
                     val fresh = spotifyAuthService.refreshAccessToken(creds.refreshToken)
 
-                    tokenStore.put(userId, TokenCredentials(fresh, creds.refreshToken))
+                    redisStateService.putTokenCredentials(userId, TokenCredentials(fresh, creds.refreshToken))
 
                     fresh
                 } else creds.accessToken

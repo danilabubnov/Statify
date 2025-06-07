@@ -42,6 +42,7 @@ import org.danila.model.spotify.artist.ArtistGenre
 import org.danila.model.spotify.artist.ArtistImage
 import org.danila.model.spotify.track.Track
 import org.danila.model.spotify.track.UserFavoriteTrack
+import org.danila.services.RedisStateService
 import org.danila.services.api.spotify.client.SpotifyAlbumsClient
 import org.danila.services.api.spotify.client.SpotifyArtistsClient
 import org.danila.services.api.spotify.client.SpotifyTracksClient
@@ -52,6 +53,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate
 import org.springframework.stereotype.Service
 import java.util.*
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
 
 @Service
@@ -73,7 +75,7 @@ class SpotifyService @Autowired constructor(
 
     private val spotifyDataProcessor: SpotifyDataProcessor,
     private val metrics: Metrics,
-    private val tokenStore: TokenStore,
+    private val redisStateService: RedisStateService,
 
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>
 ) {
@@ -200,7 +202,14 @@ class SpotifyService @Autowired constructor(
         val existingData = fetchExistingData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs.map { it.track }, albumDTOs = albumDTOs.map { it.album })
         val saveCollections = spotifyDataProcessor.processData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
 
-        saveData(saveCollections = saveCollections)
+        val simpleEntities = saveDataAndReturnSimpleEntities(saveCollections = saveCollections)
+
+        if (simpleEntities.artists.isEmpty() && simpleEntities.tracks.isEmpty() && simpleEntities.albums.isEmpty())
+            updateUserLibraryStatus(isFurtherEnrichmentRequired = false)
+        else {
+            sendEnrichEvents(simpleAlbums = simpleEntities.albums, simpleArtists = simpleEntities.artists, simpleTracks = simpleEntities.tracks)
+            updateUserLibraryStatus(isFurtherEnrichmentRequired = true)
+        }
     }
 
     private suspend fun processEnrichmentSpotifyData(
@@ -208,10 +217,22 @@ class SpotifyService @Autowired constructor(
         trackDTOs: List<TrackDTO>,
         albumDTOs: List<AlbumDTO>
     ) {
+        val enrichment = requireNotNull(coroutineContext[EnrichmentMetadataKey])
         val existingData = fetchExistingData(userId = null, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs)
         val saveCollections = spotifyDataProcessor.processData(artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
 
-        saveData(saveCollections = saveCollections)
+        val simpleEntities = saveDataAndReturnSimpleEntities(saveCollections = saveCollections)
+
+        if (enrichment.metadata.generation == 1)
+            redisStateService.decrementCounterAndCheckIfDeleted(correlationId = enrichment.metadata.correlationId)
+
+        if (simpleEntities.artists.isEmpty() && simpleEntities.tracks.isEmpty() && simpleEntities.albums.isEmpty() && enrichment.metadata.generation <= 1) {
+            updateUserLibraryStatus(isFurtherEnrichmentRequired = false)
+        }
+        else {
+            sendEnrichEvents(simpleAlbums = simpleEntities.albums, simpleArtists = simpleEntities.artists, simpleTracks = simpleEntities.tracks)
+            if (enrichment.metadata.generation <= 1) updateUserLibraryStatus(isFurtherEnrichmentRequired = true)
+        }
     }
 
     private suspend fun fetchExistingData(userId: UUID?, artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>): ExistingData = coroutineScope {
@@ -268,8 +289,8 @@ class SpotifyService @Autowired constructor(
         )
     }
 
-    private suspend fun saveData(saveCollections: ConcurrentSaveCollections) {
-        coroutineScope {
+    private suspend fun saveDataAndReturnSimpleEntities(saveCollections: ConcurrentSaveCollections): SimplePersistedEntities {
+        return coroutineScope {
             val (albums, artists) = awaitAll(
                 async { albumStorageService.upsertAndReturnSimpleAlbums(saveCollections.albums) },
                 async { artistStorageService.upsertAndReturnSimpleArtists(saveCollections.artists) }
@@ -289,10 +310,10 @@ class SpotifyService @Autowired constructor(
 
             jobs.joinAll()
 
-            sendEnrichEvents(
-                simpleAlbums = albums,
-                simpleArtists = artists,
-                simpleTracks = tracks
+            SimplePersistedEntities(
+                albums = albums,
+                artists = artists,
+                tracks = tracks
             )
         }
     }
@@ -302,70 +323,81 @@ class SpotifyService @Autowired constructor(
         simpleArtists: Collection<String>,
         simpleTracks: Collection<String>
     ) {
-        val userId by lazy { suspend { requireNotNull(coroutineContext[UserIdKey]).userId } }
+        val userId = requireNotNull(coroutineContext[UserIdKey]).userId
         val enrichmentMetadata by lazy { suspend { requireNotNull(coroutineContext[EnrichmentMetadataKey]).metadata } }
 
         val jobs = mutableListOf<Deferred<Any>>()
 
         supervisorScope {
             withContext(Dispatchers.IO) {
-                if (simpleAlbums.isNotEmpty())
+                val initialGenEventsCount = AtomicLong(0)
+
+                if (simpleAlbums.isNotEmpty()) {
+                    val enrichmentMetadata = enrichmentMetadata()
+
                     jobs += async {
                         kafkaTemplate.send(
                             ALBUM_ENRICH_TOPIC,
-                            EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = simpleAlbums.toSet(), metadata = enrichmentMetadata(), userId = userId())
+                            EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = simpleAlbums.toSet(), metadata = enrichmentMetadata, userId = userId)
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
+                            .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
                             .awaitSingle()
                     }
+                }
 
-                if (simpleArtists.isNotEmpty())
+                if (simpleArtists.isNotEmpty()) {
+                    val enrichmentMetadata = enrichmentMetadata()
+
                     jobs += async {
                         kafkaTemplate.send(
                             ARTIST_ENRICH_TOPIC,
-                            EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = simpleArtists.toSet(), metadata = enrichmentMetadata(), userId = userId())
+                            EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = simpleArtists.toSet(), metadata = enrichmentMetadata, userId = userId)
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
+                            .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
                             .awaitSingle()
                     }
+                }
 
-                if (simpleTracks.isNotEmpty())
+                if (simpleTracks.isNotEmpty()) {
+                    val enrichmentMetadata = enrichmentMetadata()
+
                     jobs += async {
                         kafkaTemplate.send(
                             TRACK_ENRICH_TOPIC,
-                            EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = simpleTracks.toSet(), metadata = enrichmentMetadata(), userId = userId())
+                            EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = simpleTracks.toSet(), metadata = enrichmentMetadata, userId = userId)
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
+                            .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
                             .awaitSingle()
                     }
-
-                if (simpleArtists.isNotEmpty() || simpleTracks.isNotEmpty() || simpleAlbums.isNotEmpty()) {
-                    jobs += if (enrichmentMetadata().generation == 0) {
-                        async {
-                            kafkaTemplate.send(
-                                USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
-                                UserSpotifyLibraryStatusUpdatedEvent(
-                                    id = requireNotNull(coroutineContext[UserSpotifyLibraryKey]).id,
-                                    status = UserLibraryStatus.PARTIALLY_SYNCED
-                                )
-                            ).doOnError { println("Failed to send enrich event ${it.message}") }
-                                .awaitSingle()
-
-                            tokenStore.incrementInFlight(correlationId = enrichmentMetadata().correlationId)
-                        }
-                    } else async { tokenStore.incrementInFlight(correlationId = enrichmentMetadata().correlationId) }
-                } else if (tokenStore.getInFlight(enrichmentMetadata().correlationId) == 0L)
-                    jobs += async {
-                        kafkaTemplate.send(
-                            USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
-                            UserSpotifyLibraryStatusUpdatedEvent(
-                                id = requireNotNull(coroutineContext[UserSpotifyLibraryKey]).id,
-                                status = UserLibraryStatus.COMPLETED
-                            )
-                        ).doOnError { println("Failed to send enrich event ${it.message}") }
-                            .awaitSingle()
-                    }
+                }
 
                 jobs.awaitAll()
+
+                redisStateService.incrementPendingGen1(correlationId = enrichmentMetadata().correlationId, delta = initialGenEventsCount.get())
             }
         }
+    }
+
+    private suspend fun updateUserLibraryStatus(isFurtherEnrichmentRequired: Boolean) {
+        val metadata = requireNotNull(coroutineContext[EnrichmentMetadataKey]).metadata
+
+        if (metadata.generation > 1) return
+
+        val libraryId = requireNotNull(coroutineContext[UserSpotifyLibraryKey]).id
+
+        val status = when {
+            isFurtherEnrichmentRequired && metadata.generation == 0 -> UserLibraryStatus.PARTIALLY_SYNCED
+            !isFurtherEnrichmentRequired && metadata.generation == 0 -> UserLibraryStatus.COMPLETED
+            metadata.generation == 1 && redisStateService.getPendingGen1(metadata.correlationId) == 0L -> UserLibraryStatus.COMPLETED
+            else -> null
+        }
+
+        if (status != null)
+            kafkaTemplate.send(
+                USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
+                UserSpotifyLibraryStatusUpdatedEvent(id = libraryId, status = status)
+            ).doOnError { println("Failed to send enrich event ${it.message}") }
+                .awaitSingle()
     }
 
 }
@@ -381,4 +413,10 @@ data class ExistingData(
     val albumImages: Set<AlbumImage>,
     val userFavoriteTracks: Set<UserFavoriteTrack>,
     val userFavoriteAlbums: Set<UserFavoriteAlbum>
+)
+
+data class SimplePersistedEntities(
+    val albums: Collection<String>,
+    val artists: Collection<String>,
+    val tracks: Collection<String>
 )
