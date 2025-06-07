@@ -3,6 +3,10 @@ package org.danila.configuration
 import com.fasterxml.jackson.databind.ObjectMapper
 import constants.CommonDurations.FOURTEEN_DAYS_IN_MS
 import constants.CommonDurations.SEVEN_DAYS_IN_MS
+import constants.kafka.KafkaTopics.USER_SPOTIFY_CONNECTED_DLT
+import constants.kafka.KafkaTopics.USER_SPOTIFY_CONNECTED_TOPIC
+import constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_DLT
+import constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import event.UserSpotifyLibraryStatusUpdatedEvent
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -15,6 +19,7 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.DependsOn
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
 import org.springframework.kafka.config.TopicBuilder
 import org.springframework.kafka.core.*
@@ -23,11 +28,6 @@ import org.springframework.kafka.listener.DefaultErrorHandler
 import org.springframework.kafka.support.serializer.JsonDeserializer
 import org.springframework.kafka.support.serializer.JsonSerializer
 import org.springframework.util.backoff.FixedBackOff
-
-const val USER_SPOTIFY_CONNECTED_TOPIC = "user.spotify.connected.v1"
-const val USER_SPOTIFY_CONNECTED_DLT = "$USER_SPOTIFY_CONNECTED_TOPIC.DLT"
-const val USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC = "user.spotify.library.status.updated.v1"
-const val USER_SPOTIFY_LIBRARY_STATUS_UPDATED_DLT = "$USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC.DLT"
 
 @Configuration
 class KafkaConfig(
@@ -40,6 +40,7 @@ class KafkaConfig(
     // ------------------ CONSUMER CONFIG ------------------
 
     @Bean
+    @DependsOn("kafkaAdmin")
     fun consumerFactory(): ConsumerFactory<String, UserSpotifyLibraryStatusUpdatedEvent> {
         val props = mapOf(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
@@ -54,6 +55,7 @@ class KafkaConfig(
     }
 
     @Bean
+    @DependsOn("kafkaAdmin")
     fun deadLetterPublishingRecoverer(kafkaTemplate: KafkaTemplate<String, Any>): DeadLetterPublishingRecoverer {
         return DeadLetterPublishingRecoverer(kafkaTemplate) { consumerRecord, exception ->
             TopicPartition("${consumerRecord.topic()}.DLT", consumerRecord.partition())
@@ -61,6 +63,7 @@ class KafkaConfig(
     }
 
     @Bean
+    @DependsOn("kafkaAdmin")
     fun kafkaListenerContainerFactory(
         consumerFactory: ConsumerFactory<String, UserSpotifyLibraryStatusUpdatedEvent>,
         kafkaTemplate: KafkaTemplate<String, Any>

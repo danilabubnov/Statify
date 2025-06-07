@@ -13,13 +13,12 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate
 import org.springframework.data.redis.core.script.DefaultRedisScript
 import org.springframework.stereotype.Service
 import java.time.Duration
-import java.util.NoSuchElementException
-import java.util.UUID
+import java.util.*
 
 @Service
 class RedisStateService @Autowired constructor(
-    @Qualifier("inFlightCounterRedisTemplate") private val counterRedisTemplate: ReactiveRedisTemplate<String, Long>,
-    @Qualifier("reactiveRedisTemplate") private val redisTemplate: ReactiveRedisTemplate<String, TokenCredentials>,
+    @Qualifier("tokenCredentialsRedisTemplate") private val tokenCredentialsRedisTemplate: ReactiveRedisTemplate<String, TokenCredentials>,
+    @Qualifier("counterRedisTemplate") private val counterRedisTemplate: ReactiveRedisTemplate<String, Long>,
     private val resourceLoader: ResourceLoader
 ) {
 
@@ -34,18 +33,18 @@ class RedisStateService @Autowired constructor(
      */
 
     suspend fun getTokenCredentials(userId: UUID): TokenCredentials = withContext(Dispatchers.IO) {
-        redisTemplate.opsForValue().get(userId.toString()).awaitSingleOrNull()
+        tokenCredentialsRedisTemplate.opsForValue().get(userId.toString()).awaitSingleOrNull()
             ?: throw NoSuchElementException("No creds for $userId")
     }
 
     suspend fun putTokenCredentials(userId: UUID, creds: TokenCredentials): TokenCredentials = withContext(Dispatchers.IO) {
-        redisTemplate.opsForValue().set(userId.toString(), creds, Duration.ofMinutes(15)).awaitSingle()
+        tokenCredentialsRedisTemplate.opsForValue().set(userId.toString(), creds, Duration.ofMinutes(15)).awaitSingle()
 
         creds
     }
 
     suspend fun deleteTokenCredentials(userId: UUID): Unit = withContext(Dispatchers.IO) {
-        redisTemplate.opsForValue().delete(userId.toString()).awaitSingleOrNull() ?: Unit
+        tokenCredentialsRedisTemplate.opsForValue().delete(userId.toString()).awaitSingleOrNull() ?: Unit
     }
 
     private fun pendingGen1Key(correlationId: String) = "pendingGen1:$correlationId"

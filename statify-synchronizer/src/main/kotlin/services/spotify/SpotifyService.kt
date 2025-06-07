@@ -10,7 +10,7 @@ import event.UserSpotifyLibraryStatusUpdatedEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.BATCH_TIMEOUT_MS
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_BATCH_SIZE
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY
@@ -81,7 +81,12 @@ class SpotifyService @Autowired constructor(
 ) {
 
     suspend fun fetchSpotifyData(event: UserConnectedEvent) {
-        val enrichmentMetadata = EnrichMetadata(tokenCredentials = event.tokenCredentials, correlationId = event.eventId.toString(), generation = 0)
+        val enrichmentMetadata = EnrichMetadata(
+            tokenCredentials = event.tokenCredentials,
+            correlationId = event.eventId.toString(),
+            generation = 0,
+            userSpotifyLibraryId = event.userSpotifyLibraryId
+        )
 
         withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata) + UserSpotifyLibraryElement(event.userSpotifyLibraryId)) {
             coroutineScope {
@@ -136,7 +141,7 @@ class SpotifyService @Autowired constructor(
     suspend fun enrich(event: EnrichEvent) {
         val enrichmentMetadata = event.metadata.copy(generation = event.metadata.generation + 1)
 
-        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
+        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata) + UserSpotifyLibraryElement(event.metadata.userSpotifyLibraryId)) {
             when (event) {
                 is EnrichArtistEvent -> {
                     launch {
@@ -228,8 +233,7 @@ class SpotifyService @Autowired constructor(
 
         if (simpleEntities.artists.isEmpty() && simpleEntities.tracks.isEmpty() && simpleEntities.albums.isEmpty() && enrichment.metadata.generation <= 1) {
             updateUserLibraryStatus(isFurtherEnrichmentRequired = false)
-        }
-        else {
+        } else {
             sendEnrichEvents(simpleAlbums = simpleEntities.albums, simpleArtists = simpleEntities.artists, simpleTracks = simpleEntities.tracks)
             if (enrichment.metadata.generation <= 1) updateUserLibraryStatus(isFurtherEnrichmentRequired = true)
         }
@@ -326,7 +330,7 @@ class SpotifyService @Autowired constructor(
         val userId = requireNotNull(coroutineContext[UserIdKey]).userId
         val enrichmentMetadata by lazy { suspend { requireNotNull(coroutineContext[EnrichmentMetadataKey]).metadata } }
 
-        val jobs = mutableListOf<Deferred<Any>>()
+        val jobs = mutableListOf<Deferred<Any?>>()
 
         supervisorScope {
             withContext(Dispatchers.IO) {
@@ -341,7 +345,7 @@ class SpotifyService @Autowired constructor(
                             EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = simpleAlbums.toSet(), metadata = enrichmentMetadata, userId = userId)
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
                             .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
-                            .awaitSingle()
+                            .awaitSingleOrNull()
                     }
                 }
 
@@ -354,7 +358,7 @@ class SpotifyService @Autowired constructor(
                             EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = simpleArtists.toSet(), metadata = enrichmentMetadata, userId = userId)
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
                             .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
-                            .awaitSingle()
+                            .awaitSingleOrNull()
                     }
                 }
 
@@ -367,7 +371,7 @@ class SpotifyService @Autowired constructor(
                             EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = simpleTracks.toSet(), metadata = enrichmentMetadata, userId = userId)
                         ).doOnError { println("Failed to send enrich event ${it.message}") }
                             .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
-                            .awaitSingle()
+                            .awaitSingleOrNull()
                     }
                 }
 
@@ -397,7 +401,7 @@ class SpotifyService @Autowired constructor(
                 USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
                 UserSpotifyLibraryStatusUpdatedEvent(id = libraryId, status = status)
             ).doOnError { println("Failed to send enrich event ${it.message}") }
-                .awaitSingle()
+                .awaitSingleOrNull()
     }
 
 }

@@ -8,9 +8,19 @@ object KafkaTopics {
     const val USER_SPOTIFY_CONNECTED_TOPIC = "user.spotify.connected.v1"
 
     /**
+     * Dead-letter topic for user spotify connected errors.
+     */
+    const val USER_SPOTIFY_CONNECTED_DLT = "$USER_SPOTIFY_CONNECTED_TOPIC.DLT"
+
+    /**
      * Kafka topic for updating the synchronization status of a user's Spotify library.
      */
     const val USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC = "user.spotify.library.status.updated.v1"
+
+    /**
+     * Dead-letter topic for user spotify library status errors.
+     */
+    const val USER_SPOTIFY_LIBRARY_STATUS_UPDATED_DLT = "$USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC.DLT"
 
     /**
      * Kafka topic for requesting enrichment of artist data.

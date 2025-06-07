@@ -6,7 +6,7 @@ import event.UserLibraryStatus
 import event.UserSpotifyLibraryStatusUpdatedEvent
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.reactor.awaitSingle
+import kotlinx.coroutines.reactor.awaitSingleOrNull
 import kotlinx.coroutines.reactor.mono
 import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
 import org.danila.services.RedisStateService
@@ -26,7 +26,7 @@ class UserConnectedHandler @Autowired constructor(
     private val metricsInterceptor: CoroutineMetricsInterceptor,
     private val spotifyService: SpotifyService,
     private val redisStateService: RedisStateService,
-){
+) {
 
     fun handle(rec: ReceiverRecord<String, UserConnectedEvent>): Mono<Void> {
         val evt = rec.value()
@@ -39,18 +39,18 @@ class UserConnectedHandler @Autowired constructor(
                     id = evt.userSpotifyLibraryId,
                     status = UserLibraryStatus.IN_PROGRESS
                 )
-            ).sendToDltOnError(rec, kafkaTemplate).awaitSingle()
+            ).sendToDltOnError(rec, kafkaTemplate).awaitSingleOrNull()
         }.then(
             mono(Dispatchers.Default) {
                 spotifyService.fetchSpotifyData(evt)
+                rec.receiverOffset().acknowledge()
             }.retryWhen(defaultRetry())
                 .onErrorResume { kafkaTemplate.sendToDlt(rec) }
         ).onErrorResume {
             mono {
                 redisStateService.deleteTokenCredentials(evt.userId)
             }.then(kafkaTemplate.sendToDlt(rec))
-        }.doOnSuccess { rec.receiverOffset().acknowledge() }
-            .then()
+        }.then()
     }
 
 }

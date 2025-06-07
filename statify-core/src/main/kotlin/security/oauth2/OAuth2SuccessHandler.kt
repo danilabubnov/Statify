@@ -1,10 +1,10 @@
 package org.danila.security.oauth2
 
+import constants.kafka.KafkaTopics.USER_SPOTIFY_CONNECTED_TOPIC
 import event.TokenCredentials
 import event.UserConnectedEvent
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.danila.configuration.USER_SPOTIFY_CONNECTED_TOPIC
 import org.danila.model.OAuth2LinkState
 import org.danila.repository.OAuth2LinkStateRepository
 import org.danila.service.model.spotify.SpotifyInfoService

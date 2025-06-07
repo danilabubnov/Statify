@@ -15,7 +15,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer
 @Configuration
 class CacheConfig {
 
-    @Bean(name = ["reactiveRedisTemplate"])
+    @Bean(name = ["tokenCredentialsRedisTemplate"])
     fun reactiveRedisTemplate(
         @Qualifier("redisObjectMapper") redisObjectMapper: ObjectMapper,
         factory: ReactiveRedisConnectionFactory
@@ -30,7 +30,7 @@ class CacheConfig {
         return ReactiveRedisTemplate(factory, ctx)
     }
 
-    @Bean(name = ["reactiveCounterRedisTemplate"])
+    @Bean(name = ["counterRedisTemplate"])
     fun reactiveCounterRedisTemplate(
         factory: ReactiveRedisConnectionFactory
     ): ReactiveRedisTemplate<String, Long> {

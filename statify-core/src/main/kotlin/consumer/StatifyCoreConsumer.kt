@@ -1,7 +1,7 @@
 package org.danila.consumer
 
+import constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import event.UserSpotifyLibraryStatusUpdatedEvent
-import org.danila.configuration.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import org.danila.service.model.spotify.UserSpotifyLibraryService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.annotation.KafkaListener
