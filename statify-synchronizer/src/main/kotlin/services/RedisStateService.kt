@@ -75,12 +75,19 @@ class RedisStateService @Autowired constructor(
         val result = counterRedisTemplate
             .execute(
                 cleanupCounterScript,
-                listOf(correlationId),
-                1
+                listOf(pendingGen1Key(correlationId)),
+                1L
             )
             .awaitSingle()
 
         result == 1L
+    }
+
+    suspend fun deletePendingGen1(correlationId: String): Boolean = withContext(Dispatchers.IO) {
+        counterRedisTemplate
+            .opsForValue()
+            .delete(pendingGen1Key(correlationId))
+            .awaitSingle()
     }
 
 }

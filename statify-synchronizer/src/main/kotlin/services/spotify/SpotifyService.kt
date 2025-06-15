@@ -3,13 +3,9 @@ package org.danila.services.spotify
 import constants.kafka.KafkaTopics.ALBUM_ENRICH_TOPIC
 import constants.kafka.KafkaTopics.ARTIST_ENRICH_TOPIC
 import constants.kafka.KafkaTopics.TRACK_ENRICH_TOPIC
-import constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import event.UserConnectedEvent
-import event.UserLibraryStatus
-import event.UserSpotifyLibraryStatusUpdatedEvent
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.BATCH_TIMEOUT_MS
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_BATCH_SIZE
@@ -29,7 +25,10 @@ import org.danila.dto.album.SavedAlbumItemDTO
 import org.danila.dto.artist.ArtistDTO
 import org.danila.dto.track.SavedTrackItemDTO
 import org.danila.dto.track.TrackDTO
-import org.danila.event.*
+import org.danila.event.enrich.*
+import org.danila.event.spotifyfetch.SpotifyFetchCompletedEvent
+import org.danila.event.spotifyfetch.SpotifyFetchContext
+import org.danila.event.spotifyfetch.SpotifyFetchFailedEvent
 import org.danila.metrics.Metrics
 import org.danila.metrics.batchEmits
 import org.danila.model.spotify.AlbumArtist
@@ -47,12 +46,17 @@ import org.danila.services.api.spotify.client.SpotifyAlbumsClient
 import org.danila.services.api.spotify.client.SpotifyArtistsClient
 import org.danila.services.api.spotify.client.SpotifyTracksClient
 import org.danila.services.model.spotify.storage.*
-import org.danila.util.*
+import org.danila.util.EnrichmentMetadataElement
+import org.danila.util.EnrichmentMetadataKey
+import org.danila.util.UserIdElement
+import org.danila.util.UserIdKey
 import org.danila.util.reactive.batchWithTimeout
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate
 import org.springframework.stereotype.Service
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
 
@@ -74,12 +78,14 @@ class SpotifyService @Autowired constructor(
     private val spotifyTracksClient: SpotifyTracksClient,
 
     private val spotifyDataProcessor: SpotifyDataProcessor,
+    private val eventPublisher: ApplicationEventPublisher,
     private val metrics: Metrics,
     private val redisStateService: RedisStateService,
 
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>
 ) {
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun fetchSpotifyData(event: UserConnectedEvent) {
         val enrichmentMetadata = EnrichMetadata(
             tokenCredentials = event.tokenCredentials,
@@ -88,69 +94,129 @@ class SpotifyService @Autowired constructor(
             userSpotifyLibraryId = event.userSpotifyLibraryId
         )
 
-        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata) + UserSpotifyLibraryElement(event.userSpotifyLibraryId)) {
-            coroutineScope {
-                launch {
-                    spotifyArtistsClient.getAllFollowedArtists()
-                        .flowOn(Dispatchers.IO)
-                        .buffer(FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY)
-                        .batchWithTimeout(FOLLOWED_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                        .batchEmits(totalCounter = metrics.followedArtistsTotalCounter, timeoutCounter = metrics.followedArtistsTimeoutCounter)
-                        .collect {
-                            processInitialSpotifyData(
-                                artistDTOs = it.result,
-                                trackDTOs = emptyList(),
-                                albumDTOs = emptyList()
-                            )
-                        }
-                }
+        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
+            val failed = AtomicBoolean(false)
 
-                launch {
-                    spotifyTracksClient.getAllSavedTracks()
-                        .flowOn(Dispatchers.IO)
-                        .buffer(SAVED_TRACKS_FLOW_BUFFER_CAPACITY)
-                        .batchWithTimeout(SAVED_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                        .batchEmits(totalCounter = metrics.savedTracksTotalCounter, timeoutCounter = metrics.savedTracksTimeoutCounter)
-                        .collect {
-                            processInitialSpotifyData(
-                                artistDTOs = emptyList(),
-                                trackDTOs = it.result,
-                                albumDTOs = emptyList()
-                            )
-                        }
-                }
+            val enrichmentRequired = try {
+                coroutineScope {
+                    val artistsResultDeferred = async {
+                        spotifyArtistsClient.getAllFollowedArtists()
+                            .flowOn(Dispatchers.IO)
+                            .catch {
+                                it.printStackTrace()
+                                metrics.spotifyFetchErrorCounter.increment()
+                                failed.set(true)
+                            }
+                            .buffer(FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY)
+                            .batchWithTimeout(FOLLOWED_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                            .batchEmits(totalCounter = metrics.followedArtistsTotalCounter, timeoutCounter = metrics.followedArtistsTimeoutCounter)
+                            .map {
+                                processInitialSpotifyData(
+                                    artistDTOs = it.result,
+                                    trackDTOs = emptyList(),
+                                    albumDTOs = emptyList()
+                                )
+                            }
+                            .toList()
+                    }
 
-                launch {
-                    spotifyAlbumsClient.getAllSavedAlbums()
-                        .flowOn(Dispatchers.IO)
-                        .buffer(SAVED_ALBUMS_FLOW_BUFFER_CAPACITY)
-                        .batchWithTimeout(SAVED_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
-                        .batchEmits(totalCounter = metrics.savedAlbumsTotalCounter, timeoutCounter = metrics.savedAlbumsTimeoutCounter)
-                        .collect {
-                            processInitialSpotifyData(
-                                artistDTOs = emptyList(),
-                                trackDTOs = emptyList(),
-                                albumDTOs = it.result
-                            )
-                        }
+                    val tracksResultDeferred = async {
+                        spotifyTracksClient.getAllSavedTracks()
+                            .flowOn(Dispatchers.IO)
+                            .catch {
+                                it.printStackTrace()
+                                metrics.spotifyFetchErrorCounter.increment()
+                                failed.set(true)
+                            }
+                            .buffer(SAVED_TRACKS_FLOW_BUFFER_CAPACITY)
+                            .batchWithTimeout(SAVED_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                            .batchEmits(totalCounter = metrics.savedTracksTotalCounter, timeoutCounter = metrics.savedTracksTimeoutCounter)
+                            .map {
+                                processInitialSpotifyData(
+                                    artistDTOs = emptyList(),
+                                    trackDTOs = it.result,
+                                    albumDTOs = emptyList()
+                                )
+                            }
+                            .toList()
+                    }
+
+                    val albumsResultDeferred = async {
+                        spotifyAlbumsClient.getAllSavedAlbums()
+                            .flowOn(Dispatchers.IO)
+                            .catch {
+                                it.printStackTrace()
+                                metrics.spotifyFetchErrorCounter.increment()
+                                failed.set(true)
+                            }
+                            .buffer(SAVED_ALBUMS_FLOW_BUFFER_CAPACITY)
+                            .batchWithTimeout(SAVED_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
+                            .batchEmits(totalCounter = metrics.savedAlbumsTotalCounter, timeoutCounter = metrics.savedAlbumsTimeoutCounter)
+                            .map {
+                                processInitialSpotifyData(
+                                    artistDTOs = emptyList(),
+                                    trackDTOs = emptyList(),
+                                    albumDTOs = it.result
+                                )
+                            }
+                            .toList()
+                    }
+
+                    val isEnrichmentRequired = awaitAll(artistsResultDeferred, tracksResultDeferred, albumsResultDeferred)
+                        .flatten()
+                        .any { it.isFurtherEnrichmentRequired }
+
+                    return@coroutineScope isEnrichmentRequired
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                failed.set(true)
+                false
             }
+
+            if (failed.get())
+                eventPublisher.publishEvent(
+                    SpotifyFetchFailedEvent(
+                        spotifyFetchContext = SpotifyFetchContext(
+                            libraryId = enrichmentMetadata.userSpotifyLibraryId,
+                            correlationId = enrichmentMetadata.correlationId,
+                            generation = enrichmentMetadata.generation,
+                        )
+                    )
+                )
+            else
+                eventPublisher.publishEvent(
+                    SpotifyFetchCompletedEvent(
+                        enrichmentRequired = enrichmentRequired,
+                        spotifyFetchContext = SpotifyFetchContext(
+                            libraryId = enrichmentMetadata.userSpotifyLibraryId,
+                            correlationId = enrichmentMetadata.correlationId,
+                            generation = enrichmentMetadata.generation,
+                        )
+                    )
+                )
         }
     }
 
     suspend fun enrich(event: EnrichEvent) {
         val enrichmentMetadata = event.metadata.copy(generation = event.metadata.generation + 1)
 
-        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata) + UserSpotifyLibraryElement(event.metadata.userSpotifyLibraryId)) {
-            when (event) {
-                is EnrichArtistEvent -> {
-                    launch {
+        withContext(Dispatchers.Default + UserIdElement(event.userId) + EnrichmentMetadataElement(enrichmentMetadata)) {
+            var failed = false
+
+            val enrichmentRequired = try {
+                when (event) {
+                    is EnrichArtistEvent -> {
                         spotifyArtistsClient.getSeveralArtists(artistIds = event.artistIds)
                             .flowOn(Dispatchers.IO)
+                            .catch {
+                                it.printStackTrace()
+                                metrics.spotifyFetchErrorCounter.increment()
+                            }
                             .buffer(MULTI_FETCH_ARTISTS_FLOW_BUFFER_CAPACITY)
                             .batchWithTimeout(MULTI_FETCH_ARTISTS_BATCH_SIZE, BATCH_TIMEOUT_MS)
                             .batchEmits(totalCounter = metrics.multiFetchArtistsTotalCounter, timeoutCounter = metrics.multiFetchArtistsTimeoutCounter)
-                            .collect {
+                            .map {
                                 processEnrichmentSpotifyData(
                                     artistDTOs = it.result,
                                     trackDTOs = emptyList(),
@@ -158,16 +224,18 @@ class SpotifyService @Autowired constructor(
                                 )
                             }
                     }
-                }
 
-                is EnrichTrackEvent -> {
-                    launch {
+                    is EnrichTrackEvent -> {
                         spotifyTracksClient.getSeveralTracks(trackIds = event.trackIds)
                             .flowOn(Dispatchers.IO)
+                            .catch {
+                                it.printStackTrace()
+                                metrics.spotifyFetchErrorCounter.increment()
+                            }
                             .buffer(MULTI_FETCH_TRACKS_FLOW_BUFFER_CAPACITY)
                             .batchWithTimeout(MULTI_FETCH_TRACKS_BATCH_SIZE, BATCH_TIMEOUT_MS)
                             .batchEmits(totalCounter = metrics.multiFetchTracksTotalCounter, timeoutCounter = metrics.multiFetchTracksTimeoutCounter)
-                            .collect {
+                            .map {
                                 processEnrichmentSpotifyData(
                                     artistDTOs = emptyList(),
                                     trackDTOs = it.result,
@@ -175,16 +243,18 @@ class SpotifyService @Autowired constructor(
                                 )
                             }
                     }
-                }
 
-                is EnrichAlbumEvent -> {
-                    launch {
+                    is EnrichAlbumEvent -> {
                         spotifyAlbumsClient.getSeveralAlbums(albumIds = event.albumIds)
                             .flowOn(Dispatchers.IO)
+                            .catch {
+                                it.printStackTrace()
+                                metrics.spotifyFetchErrorCounter.increment()
+                            }
                             .buffer(MULTI_FETCH_ALBUMS_FLOW_BUFFER_CAPACITY)
                             .batchWithTimeout(MULTI_FETCH_ALBUMS_BATCH_SIZE, BATCH_TIMEOUT_MS)
                             .batchEmits(totalCounter = metrics.multiFetchAlbumsTotalCounter, timeoutCounter = metrics.multiFetchAlbumsTimeoutCounter)
-                            .collect {
+                            .map {
                                 processEnrichmentSpotifyData(
                                     artistDTOs = emptyList(),
                                     trackDTOs = emptyList(),
@@ -192,8 +262,38 @@ class SpotifyService @Autowired constructor(
                                 )
                             }
                     }
-                }
+
+                    else -> error("unsupported event: $event")
+                }.onCompletion {
+                    if (enrichmentMetadata.generation == 1) redisStateService.decrementCounterAndCheckIfDeleted(correlationId = enrichmentMetadata.correlationId)
+                }.toList().any { it.isFurtherEnrichmentRequired }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                failed = true
+                false
             }
+
+            if (failed)
+                eventPublisher.publishEvent(
+                    SpotifyFetchFailedEvent(
+                        spotifyFetchContext = SpotifyFetchContext(
+                            libraryId = enrichmentMetadata.userSpotifyLibraryId,
+                            correlationId = enrichmentMetadata.correlationId,
+                            generation = enrichmentMetadata.generation,
+                        )
+                    )
+                )
+            else
+                eventPublisher.publishEvent(
+                    SpotifyFetchCompletedEvent(
+                        enrichmentRequired = enrichmentRequired,
+                        spotifyFetchContext = SpotifyFetchContext(
+                            libraryId = enrichmentMetadata.userSpotifyLibraryId,
+                            correlationId = enrichmentMetadata.correlationId,
+                            generation = enrichmentMetadata.generation,
+                        )
+                    )
+                )
         }
     }
 
@@ -201,42 +301,52 @@ class SpotifyService @Autowired constructor(
         artistDTOs: List<ArtistDTO>,
         trackDTOs: List<SavedTrackItemDTO>,
         albumDTOs: List<SavedAlbumItemDTO>
-    ) {
+    ): ProcessSpotifyDataResult {
         val userId = coroutineContext[UserIdKey]?.userId ?: error("No userId found")
 
         val existingData = fetchExistingData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs.map { it.track }, albumDTOs = albumDTOs.map { it.album })
         val saveCollections = spotifyDataProcessor.processData(userId = userId, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
-
         val simpleEntities = saveDataAndReturnSimpleEntities(saveCollections = saveCollections)
 
-        if (simpleEntities.artists.isEmpty() && simpleEntities.tracks.isEmpty() && simpleEntities.albums.isEmpty())
-            updateUserLibraryStatus(isFurtherEnrichmentRequired = false)
-        else {
-            sendEnrichEvents(simpleAlbums = simpleEntities.albums, simpleArtists = simpleEntities.artists, simpleTracks = simpleEntities.tracks)
-            updateUserLibraryStatus(isFurtherEnrichmentRequired = true)
-        }
+        val hasEntities = simpleEntities.artists.isNotEmpty() ||
+                simpleEntities.tracks.isNotEmpty() ||
+                simpleEntities.albums.isNotEmpty()
+
+        if (hasEntities)
+            sendEnrichEvents(
+                simpleAlbums = simpleEntities.albums,
+                simpleArtists = simpleEntities.artists,
+                simpleTracks = simpleEntities.tracks
+            )
+
+        return ProcessSpotifyDataResult(
+            isFurtherEnrichmentRequired = hasEntities
+        )
     }
 
     private suspend fun processEnrichmentSpotifyData(
         artistDTOs: List<ArtistDTO>,
         trackDTOs: List<TrackDTO>,
         albumDTOs: List<AlbumDTO>
-    ) {
-        val enrichment = requireNotNull(coroutineContext[EnrichmentMetadataKey])
+    ): ProcessSpotifyDataResult {
         val existingData = fetchExistingData(userId = null, artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs)
         val saveCollections = spotifyDataProcessor.processData(artistDTOs = artistDTOs, trackDTOs = trackDTOs, albumDTOs = albumDTOs, existingData = existingData)
-
         val simpleEntities = saveDataAndReturnSimpleEntities(saveCollections = saveCollections)
 
-        if (enrichment.metadata.generation == 1)
-            redisStateService.decrementCounterAndCheckIfDeleted(correlationId = enrichment.metadata.correlationId)
+        val hasEntities = simpleEntities.artists.isNotEmpty() ||
+                simpleEntities.tracks.isNotEmpty() ||
+                simpleEntities.albums.isNotEmpty()
 
-        if (simpleEntities.artists.isEmpty() && simpleEntities.tracks.isEmpty() && simpleEntities.albums.isEmpty() && enrichment.metadata.generation <= 1) {
-            updateUserLibraryStatus(isFurtherEnrichmentRequired = false)
-        } else {
-            sendEnrichEvents(simpleAlbums = simpleEntities.albums, simpleArtists = simpleEntities.artists, simpleTracks = simpleEntities.tracks)
-            if (enrichment.metadata.generation <= 1) updateUserLibraryStatus(isFurtherEnrichmentRequired = true)
-        }
+        if (hasEntities)
+            sendEnrichEvents(
+                simpleAlbums = simpleEntities.albums,
+                simpleArtists = simpleEntities.artists,
+                simpleTracks = simpleEntities.tracks
+            )
+
+        return ProcessSpotifyDataResult(
+            isFurtherEnrichmentRequired = hasEntities
+        )
     }
 
     private suspend fun fetchExistingData(userId: UUID?, artistDTOs: List<ArtistDTO>, trackDTOs: List<TrackDTO>, albumDTOs: List<AlbumDTO>): ExistingData = coroutineScope {
@@ -327,8 +437,8 @@ class SpotifyService @Autowired constructor(
         simpleArtists: Collection<String>,
         simpleTracks: Collection<String>
     ) {
-        val userId = requireNotNull(coroutineContext[UserIdKey]).userId
-        val enrichmentMetadata by lazy { suspend { requireNotNull(coroutineContext[EnrichmentMetadataKey]).metadata } }
+        val userId = requireNotNull(coroutineContext[UserIdKey]) { "UserIdKey is not set" }.userId
+        val enrichmentMetadata by lazy { suspend { requireNotNull(coroutineContext[EnrichmentMetadataKey]) { "EnrichmentMetadataKey is not set" }.metadata } }
 
         val jobs = mutableListOf<Deferred<Any?>>()
 
@@ -377,31 +487,9 @@ class SpotifyService @Autowired constructor(
 
                 jobs.awaitAll()
 
-                redisStateService.incrementPendingGen1(correlationId = enrichmentMetadata().correlationId, delta = initialGenEventsCount.get())
+                if (initialGenEventsCount.get() > 0) redisStateService.incrementPendingGen1(correlationId = enrichmentMetadata().correlationId, delta = initialGenEventsCount.get())
             }
         }
-    }
-
-    private suspend fun updateUserLibraryStatus(isFurtherEnrichmentRequired: Boolean) {
-        val metadata = requireNotNull(coroutineContext[EnrichmentMetadataKey]).metadata
-
-        if (metadata.generation > 1) return
-
-        val libraryId = requireNotNull(coroutineContext[UserSpotifyLibraryKey]).id
-
-        val status = when {
-            isFurtherEnrichmentRequired && metadata.generation == 0 -> UserLibraryStatus.PARTIALLY_SYNCED
-            !isFurtherEnrichmentRequired && metadata.generation == 0 -> UserLibraryStatus.COMPLETED
-            metadata.generation == 1 && redisStateService.getPendingGen1(metadata.correlationId) == 0L -> UserLibraryStatus.COMPLETED
-            else -> null
-        }
-
-        if (status != null)
-            kafkaTemplate.send(
-                USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
-                UserSpotifyLibraryStatusUpdatedEvent(id = libraryId, status = status)
-            ).doOnError { println("Failed to send enrich event ${it.message}") }
-                .awaitSingleOrNull()
     }
 
 }
@@ -423,4 +511,8 @@ data class SimplePersistedEntities(
     val albums: Collection<String>,
     val artists: Collection<String>,
     val tracks: Collection<String>
+)
+
+data class ProcessSpotifyDataResult(
+    val isFurtherEnrichmentRequired: Boolean
 )

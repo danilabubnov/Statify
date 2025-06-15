@@ -1,6 +1,6 @@
 package org.danila.util
 
-import org.danila.event.EnrichMetadata
+import org.danila.event.enrich.EnrichMetadata
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 

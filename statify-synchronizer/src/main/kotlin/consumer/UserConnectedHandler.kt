@@ -45,8 +45,9 @@ class UserConnectedHandler @Autowired constructor(
                 spotifyService.fetchSpotifyData(evt)
                 rec.receiverOffset().acknowledge()
             }.retryWhen(defaultRetry())
-                .onErrorResume { kafkaTemplate.sendToDlt(rec) }
+                .onErrorResume { it.printStackTrace(); kafkaTemplate.sendToDlt(rec) }
         ).onErrorResume {
+            it.printStackTrace()
             mono {
                 redisStateService.deleteTokenCredentials(evt.userId)
             }.then(kafkaTemplate.sendToDlt(rec))

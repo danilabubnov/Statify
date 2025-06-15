@@ -1,4 +1,4 @@
-package org.danila.event
+package org.danila.event.enrich
 
 import java.util.*
 

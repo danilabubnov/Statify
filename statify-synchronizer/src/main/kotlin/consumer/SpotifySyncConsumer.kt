@@ -2,11 +2,10 @@ package org.danila.consumer
 
 import event.UserConnectedEvent
 import jakarta.annotation.PostConstruct
-import org.danila.event.EnrichEvent
+import org.danila.event.enrich.EnrichEvent
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
 import org.springframework.stereotype.Component
-import java.time.Duration
 
 @Component
 class SpotifySyncConsumer @Autowired constructor(
@@ -25,7 +24,10 @@ class SpotifySyncConsumer @Autowired constructor(
     private fun consumeUserConnected() {
         userConnectedConsumer
             .receive()
-            .flatMap({ rec -> userConnectedHandler.handle(rec) }, 3)
+            .flatMap({ rec ->
+                println("event consumed: ${rec.value().eventId}")
+                userConnectedHandler.handle(rec)
+            }, 3)
             .subscribe()
     }
 
@@ -36,7 +38,6 @@ class SpotifySyncConsumer @Autowired constructor(
             .groupBy { (evt, _) -> evt.metadata.correlationId }
             .flatMapSequential({ group ->
                 group
-                    .timeout(Duration.ofSeconds(60))
                     .windowUntilChanged { (evt, _) -> evt.metadata.generation }
                     .concatMap { wave ->
                         wave.flatMap { (evt, rec) ->

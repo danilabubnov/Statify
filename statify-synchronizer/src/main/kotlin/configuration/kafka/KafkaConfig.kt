@@ -71,9 +71,9 @@ class KafkaConfig(
             ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to JsonDeserializer::class.java,
             JsonDeserializer.TRUSTED_PACKAGES to "*",
             JsonDeserializer.TYPE_MAPPINGS to """
-                EnrichArtistEvent:org.danila.event.EnrichArtistEvent,
-                EnrichAlbumEvent:org.danila.event.EnrichAlbumEvent,
-                EnrichTrackEvent:org.danila.event.EnrichTrackEvent
+                EnrichArtistEvent:org.danila.event.enrich.EnrichArtistEvent,
+                EnrichAlbumEvent:org.danila.event.enrich.EnrichAlbumEvent,
+                EnrichTrackEvent:org.danila.event.enrich.EnrichTrackEvent
             """.trimIndent()
         )
 
@@ -99,9 +99,9 @@ class KafkaConfig(
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
                 JsonSerializer.TYPE_MAPPINGS to """
-                    EnrichArtistEvent:org.danila.event.EnrichArtistEvent,
-                    EnrichAlbumEvent:org.danila.event.EnrichAlbumEvent,
-                    EnrichTrackEvent:org.danila.event.EnrichTrackEvent,
+                    EnrichArtistEvent:org.danila.event.enrich.EnrichArtistEvent,
+                    EnrichAlbumEvent:org.danila.event.enrich.EnrichAlbumEvent,
+                    EnrichTrackEvent:org.danila.event.enrich.EnrichTrackEvent,
                     UserSpotifyLibraryStatusUpdatedEvent:event.UserSpotifyLibraryStatusUpdatedEvent
                 """.trimIndent()
             )

@@ -3,8 +3,8 @@ package org.danila.consumer
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
-import org.danila.event.EnrichEvent
-import org.danila.event.EnrichExtensions.functionName
+import org.danila.event.enrich.EnrichEvent
+import org.danila.event.enrich.EnrichExtensions.functionName
 import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
 import org.danila.services.spotify.SpotifyService
 import org.danila.util.reactive.kafka.defaultRetry
@@ -26,7 +26,7 @@ class EnrichHandler @Autowired constructor(
         return mono(Dispatchers.Default + metricsInterceptor + CoroutineName(evt.functionName())) {
             spotifyService.enrich(evt)
         }.retryWhen(defaultRetry())
-            .onErrorResume { kafkaTemplate.sendToDlt(rec) }
+            .onErrorResume { it.printStackTrace(); kafkaTemplate.sendToDlt(rec) }
             .doOnSuccess { rec.receiverOffset().acknowledge() }
             .then()
     }

@@ -11,6 +11,8 @@ import org.danila.dto.track.FullTracksResponseDTO
 import org.danila.dto.track.SavedTrackItemDTO
 import org.danila.dto.track.SavedTracksResponseDTO
 import org.danila.dto.track.TrackDTO
+import org.danila.exception.spotifyApi.SpotifyCircuitBreakerOpenException
+import org.danila.exception.spotifyApi.SpotifyServerErrorException
 import org.danila.services.api.spotify.auth.SpotifyAuthRetryHelper
 import org.danila.services.api.spotify.retry.SpotifyRateLimitRetryHelper
 import org.springframework.beans.factory.annotation.Autowired
@@ -36,9 +38,10 @@ class SpotifyTracksClient @Autowired constructor(
                 }
             }
 
-            tracks?.items?.forEach { emit(it.normalized()) }
-            if (tracks?.limit != null) offset += tracks.limit
-        } while (tracks?.next != null)
+            tracks.items.forEach { emit(it.normalized()) }
+
+            offset += tracks.limit
+        } while (tracks.next != null)
     }
 
     /**
@@ -47,7 +50,7 @@ class SpotifyTracksClient @Autowired constructor(
      */
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetrySavedTracksResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownSavedTracksResponseDTO")
-    suspend fun getSavedTracksPage(authHeader: String, offset: Int): SavedTracksResponseDTO? {
+    suspend fun getSavedTracksPage(authHeader: String, offset: Int): SavedTracksResponseDTO {
         return withContext(Dispatchers.IO) {
             spotifyApi.getSavedTracks(
                 authHeader = authHeader,
@@ -56,14 +59,12 @@ class SpotifyTracksClient @Autowired constructor(
         }
     }
 
-    private suspend fun spotifyServerErrorRetrySavedTracksResponseDTO(throwable: Throwable): SavedTracksResponseDTO? {
-        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
-        return null
+    private suspend fun spotifyServerErrorRetrySavedTracksResponseDTO(throwable: Throwable): SavedTracksResponseDTO {
+        throw SpotifyServerErrorException(message = "", cause = throwable)
     }
 
-    private suspend fun onSpotifyServiceDownSavedTracksResponseDTO(throwable: Throwable): SavedTracksResponseDTO? {
-        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
-        return null
+    private suspend fun onSpotifyServiceDownSavedTracksResponseDTO(throwable: Throwable): SavedTracksResponseDTO {
+        throw SpotifyCircuitBreakerOpenException(message = "", cause = throwable)
     }
 
     suspend fun getSeveralTracks(
@@ -75,11 +76,11 @@ class SpotifyTracksClient @Autowired constructor(
                     getSeveralTracksPage(
                         authHeader = auth,
                         tracksIds = chunk
-                    )?.tracks
+                    ).tracks
                 }
             }
 
-            tracks?.forEach { emit(it.normalized()) }
+            tracks.forEach { emit(it.normalized()) }
         }
     }
 
@@ -89,20 +90,18 @@ class SpotifyTracksClient @Autowired constructor(
      */
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFullTracksResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFullTracksResponseDTO")
-    suspend fun getSeveralTracksPage(authHeader: String, tracksIds: List<String>): FullTracksResponseDTO? {
+    suspend fun getSeveralTracksPage(authHeader: String, tracksIds: List<String>): FullTracksResponseDTO {
         return withContext(Dispatchers.IO) {
             spotifyApi.getSeveralTracks(authHeader = authHeader, ids = tracksIds.joinToString(","))
         }
     }
 
-    private suspend fun spotifyServerErrorRetryFullTracksResponseDTO(throwable: Throwable): FullTracksResponseDTO? {
-        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
-        return null
+    private suspend fun spotifyServerErrorRetryFullTracksResponseDTO(throwable: Throwable): FullTracksResponseDTO {
+        throw SpotifyServerErrorException(message = "", cause = throwable)
     }
 
-    private suspend fun onSpotifyServiceDownFullTracksResponseDTO(throwable: Throwable): FullTracksResponseDTO? {
-        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
-        return null
+    private suspend fun onSpotifyServiceDownFullTracksResponseDTO(throwable: Throwable): FullTracksResponseDTO {
+        throw SpotifyCircuitBreakerOpenException(message = "", cause = throwable)
     }
 
 }

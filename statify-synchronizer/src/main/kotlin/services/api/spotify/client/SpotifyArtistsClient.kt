@@ -10,6 +10,8 @@ import org.danila.configuration.constants.spotify.SpotifyApiConstants.MAX_ARTIST
 import org.danila.dto.artist.ArtistDTO
 import org.danila.dto.artist.FollowingArtistsResponseDTO
 import org.danila.dto.artist.FullArtistsResponseDTO
+import org.danila.exception.spotifyApi.SpotifyCircuitBreakerOpenException
+import org.danila.exception.spotifyApi.SpotifyServerErrorException
 import org.danila.services.api.spotify.auth.SpotifyAuthRetryHelper
 import org.danila.services.api.spotify.retry.SpotifyRateLimitRetryHelper
 import org.springframework.beans.factory.annotation.Autowired
@@ -28,14 +30,14 @@ class SpotifyArtistsClient @Autowired constructor(
         do {
             val artists = spotifyRateLimitRetryHelper.withRetryAfter {
                 spotifyAuthRetryHelper.withAuthRetry { authHeader ->
-                    getFollowedArtistsPage(authHeader = authHeader, after = after)?.artists
+                    getFollowedArtistsPage(authHeader = authHeader, after = after).artists
                 }
             }
 
-            artists?.items?.forEach { emit(it) }
+            artists.items.forEach { emit(it) }
 
-            after = artists?.cursors?.after
-        } while (artists?.next != null)
+            after = artists.cursors.after
+        } while (artists.next != null)
     }
 
     /**
@@ -44,7 +46,7 @@ class SpotifyArtistsClient @Autowired constructor(
      */
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFollowingArtistsResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFollowingArtistsResponseDTO")
-    suspend fun getFollowedArtistsPage(authHeader: String, after: String?): FollowingArtistsResponseDTO? {
+    suspend fun getFollowedArtistsPage(authHeader: String, after: String?): FollowingArtistsResponseDTO {
         return withContext(Dispatchers.IO) {
             spotifyApi.getFollowedArtists(
                 authHeader = authHeader,
@@ -53,14 +55,12 @@ class SpotifyArtistsClient @Autowired constructor(
         }
     }
 
-    private suspend fun spotifyServerErrorRetryFollowingArtistsResponseDTO(throwable: Throwable): FollowingArtistsResponseDTO? {
-        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
-        return null
+    private suspend fun spotifyServerErrorRetryFollowingArtistsResponseDTO(throwable: Throwable): FollowingArtistsResponseDTO {
+        throw SpotifyServerErrorException(message = "", cause = throwable)
     }
 
-    private suspend fun onSpotifyServiceDownFollowingArtistsResponseDTO(throwable: Throwable): FollowingArtistsResponseDTO? {
-        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
-        return null
+    private suspend fun onSpotifyServiceDownFollowingArtistsResponseDTO(throwable: Throwable): FollowingArtistsResponseDTO {
+        throw SpotifyCircuitBreakerOpenException(message = "", cause = throwable)
     }
 
     suspend fun getSeveralArtists(
@@ -72,11 +72,11 @@ class SpotifyArtistsClient @Autowired constructor(
                     getSeveralArtistsPage(
                         authHeader = auth,
                         artistIds = chunk
-                    )?.artists
+                    ).artists
                 }
             }
 
-            artists?.forEach { emit(it) }
+            artists.forEach { emit(it) }
         }
     }
 
@@ -86,7 +86,7 @@ class SpotifyArtistsClient @Autowired constructor(
      */
     @Retry(name = "spotifyServerErrorRetry", fallbackMethod = "spotifyServerErrorRetryFullArtistsResponseDTO")
     @CircuitBreaker(name = "spotifyCircuitBreaker", fallbackMethod = "onSpotifyServiceDownFullArtistsResponseDTO")
-    suspend fun getSeveralArtistsPage(authHeader: String, artistIds: List<String>): FullArtistsResponseDTO? {
+    suspend fun getSeveralArtistsPage(authHeader: String, artistIds: List<String>): FullArtistsResponseDTO {
         return withContext(Dispatchers.IO) {
             spotifyApi.getSeveralArtists(
                 authHeader = authHeader,
@@ -95,14 +95,12 @@ class SpotifyArtistsClient @Autowired constructor(
         }
     }
 
-    private suspend fun spotifyServerErrorRetryFullArtistsResponseDTO(throwable: Throwable): FullArtistsResponseDTO? {
-        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
-        return null
+    private suspend fun spotifyServerErrorRetryFullArtistsResponseDTO(throwable: Throwable): FullArtistsResponseDTO {
+        throw SpotifyServerErrorException(message = "", cause = throwable)
     }
 
-    private suspend fun onSpotifyServiceDownFullArtistsResponseDTO(throwable: Throwable): FullArtistsResponseDTO? {
-        // TODO: implement logging and sending to kafka and set userLibrary.sync = ERROR_IN_PROCESS
-        return null
+    private suspend fun onSpotifyServiceDownFullArtistsResponseDTO(throwable: Throwable): FullArtistsResponseDTO {
+        throw SpotifyCircuitBreakerOpenException(message = "", cause = throwable)
     }
 
 }
