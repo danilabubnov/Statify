@@ -11,8 +11,8 @@ import org.danila.dto.track.FullTracksResponseDTO
 import org.danila.dto.track.SavedTrackItemDTO
 import org.danila.dto.track.SavedTracksResponseDTO
 import org.danila.dto.track.TrackDTO
-import org.danila.exception.spotifyApi.SpotifyCircuitBreakerOpenException
-import org.danila.exception.spotifyApi.SpotifyServerErrorException
+import exception.spotifyapi.SpotifyCircuitBreakerOpenException
+import exception.spotifyapi.SpotifyServerErrorException
 import org.danila.services.api.spotify.auth.SpotifyAuthRetryHelper
 import org.danila.services.api.spotify.retry.SpotifyRateLimitRetryHelper
 import org.springframework.beans.factory.annotation.Autowired

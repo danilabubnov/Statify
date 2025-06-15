@@ -10,8 +10,8 @@ import org.danila.configuration.constants.spotify.SpotifyApiConstants.MAX_ARTIST
 import org.danila.dto.artist.ArtistDTO
 import org.danila.dto.artist.FollowingArtistsResponseDTO
 import org.danila.dto.artist.FullArtistsResponseDTO
-import org.danila.exception.spotifyApi.SpotifyCircuitBreakerOpenException
-import org.danila.exception.spotifyApi.SpotifyServerErrorException
+import exception.spotifyapi.SpotifyCircuitBreakerOpenException
+import exception.spotifyapi.SpotifyServerErrorException
 import org.danila.services.api.spotify.auth.SpotifyAuthRetryHelper
 import org.danila.services.api.spotify.retry.SpotifyRateLimitRetryHelper
 import org.springframework.beans.factory.annotation.Autowired

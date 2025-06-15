@@ -1,4 +1,4 @@
-package org.danila.exception.spotifyApi
+package exception.spotifyapi
 
 class SpotifyServerErrorException(
     message: String,

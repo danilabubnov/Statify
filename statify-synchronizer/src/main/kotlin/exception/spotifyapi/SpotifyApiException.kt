@@ -1,4 +1,4 @@
-package org.danila.exception.spotifyApi
+package exception.spotifyapi
 
 sealed class SpotifyApiException(
     message: String,
