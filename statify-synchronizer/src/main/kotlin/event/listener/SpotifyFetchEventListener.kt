@@ -4,14 +4,11 @@ import constants.kafka.KafkaTopics.USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC
 import event.UserLibraryStatus
 import event.UserSpotifyLibraryStatusUpdatedEvent
 import jakarta.annotation.PreDestroy
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import kotlinx.coroutines.reactor.awaitSingleOrNull
-import org.danila.event.spotifyfetch.SpotifyFetchFailedEvent
+import logging.logger
 import org.danila.event.spotifyfetch.SpotifyFetchCompletedEvent
+import org.danila.event.spotifyfetch.SpotifyFetchFailedEvent
 import org.danila.services.RedisStateService
 import org.springframework.context.event.EventListener
 import org.springframework.kafka.core.reactive.ReactiveKafkaProducerTemplate
@@ -24,6 +21,7 @@ class SpotifyFetchEventListener(
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>
 ) {
 
+    private val logger by logger()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @PreDestroy
@@ -33,6 +31,12 @@ class SpotifyFetchEventListener(
 
     @EventListener
     fun onSpotifyFetchCompleted(event: SpotifyFetchCompletedEvent) {
+        logger.debug {
+            "Spotify fetch completed: libraryId=${event.spotifyFetchContext.libraryId}, " +
+                    "correlationId=${event.spotifyFetchContext.correlationId}, " +
+                    "enrichmentRequired=${event.enrichmentRequired}, generation=${event.spotifyFetchContext.generation}"
+        }
+
         scope.launch {
             updateLibraryStatusOnSuccess(
                 enrichmentRequired = event.enrichmentRequired,
@@ -45,6 +49,12 @@ class SpotifyFetchEventListener(
 
     @EventListener
     fun onSpotifyFetchFailed(event: SpotifyFetchFailedEvent) {
+        logger.debug {
+            "Spotify fetch failed: libraryId=${event.spotifyFetchContext.libraryId}, " +
+                    "correlationId=${event.spotifyFetchContext.correlationId}, " +
+                    "generation=${event.spotifyFetchContext.generation}"
+        }
+
         scope.launch {
             updateLibraryStatusOnFailure(
                 generation = event.spotifyFetchContext.generation,
@@ -64,22 +74,42 @@ class SpotifyFetchEventListener(
             else -> null
         }
 
-        if (status != null)
+        if (status != null) {
+            logger.info { "Updating library status to $status for libraryId=$libraryId, correlationId=$correlationId" }
+
             kafkaTemplate.send(
                 USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
                 UserSpotifyLibraryStatusUpdatedEvent(id = libraryId, status = status)
-            ).doOnError { println("Failed to send enrich event ${it.message}") }
+            )
+                .doOnError { ex ->
+                    logger.error(ex) {
+                        "Failed to send library status update (success) for " +
+                                "libraryId=$libraryId, correlationId=$correlationId"
+                    }
+                }
                 .awaitSingleOrNull()
+        } else logger.debug { "No status update needed for libraryId=$libraryId, generation=$generation" }
     }
 
     private suspend fun updateLibraryStatusOnFailure(generation: Int, libraryId: UUID, correlationId: String) {
         if (generation > 1) return
-        if (generation == 1) redisStateService.deletePendingGen1(correlationId)
+        if (generation == 1) {
+            logger.debug { "Clearing pending gen1 counter for correlationId=$correlationId due to failure" }
+            redisStateService.deletePendingGen1(correlationId)
+        }
+
+        logger.info { "Updating library status to FAILED for libraryId=$libraryId, correlationId=$correlationId" }
 
         kafkaTemplate.send(
             USER_SPOTIFY_LIBRARY_STATUS_UPDATED_TOPIC,
             UserSpotifyLibraryStatusUpdatedEvent(id = libraryId, status = UserLibraryStatus.FAILED)
-        ).doOnError { println("Failed to send enrich event ${it.message}") }
+        )
+            .doOnError { ex ->
+                logger.error(ex) {
+                    "Failed to send library status update (failure) for " +
+                            "libraryId=$libraryId, correlationId=$correlationId"
+                }
+            }
             .awaitSingleOrNull()
     }
 

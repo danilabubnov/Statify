@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.reactor.mono
+import logging.logger
 import org.danila.event.enrich.EnrichEvent
 import org.danila.event.enrich.EnrichExtensions.functionName
 import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
@@ -25,33 +26,45 @@ class SpotifySyncConsumer @Autowired constructor(
     private val enrichHandler: EnrichHandler
 ) {
 
+    private val logger by logger()
+
     @PostConstruct
     fun startConsumers() {
+        logger.info { "Starting consumers..." }
         consumeUserConnected()
         consumeEnrichWaves()
     }
 
     private fun consumeUserConnected() {
+        logger.info { "consumeUserConnected(): subscribing to UserConnectedEvent stream" }
+
         userConnectedConsumer
             .receive()
             .flatMap(
                 { rec ->
+                    logger.debug { "Received UserConnectedEvent: userId=${rec.value().userId}" }
+
                     mono(Dispatchers.Default + metricsInterceptor + CoroutineName("consume_user_connected")) {
                         userConnectedHandler.handle(rec.value())
                     }
                         .retryWhen(defaultRetry())
                         .onErrorResume { ex ->
-                            ex.printStackTrace()
+                            logger.error(ex) { "Failed to process UserConnectedEvent: userId=${rec.value().userId}" }
                             kafkaTemplate.sendToDlt(rec)
                         }
                         .then(rec.receiverOffset().commit())
                 },
                 3
             )
-            .subscribe()
+            .subscribe(
+                {},
+                { ex -> logger.error(ex) { "Fatal error in consumer stream" } }
+            )
     }
 
     private fun consumeEnrichWaves() {
+        logger.info { "consumeEnrichWaves(): subscribing to EnrichEvent stream" }
+
         enrichConsumer
             .receive()
             .map { rec -> rec.value() as EnrichEvent to rec }
@@ -62,12 +75,14 @@ class SpotifySyncConsumer @Autowired constructor(
                         .windowUntilChanged { (evt, _) -> evt.metadata.generation }
                         .concatMap { wave ->
                             wave.flatMap { (evt, rec) ->
+                                logger.debug { "Received EnrichEvent: correlationId=${evt.metadata.correlationId}, generation=${evt.metadata.generation}" }
+
                                 mono(Dispatchers.Default + metricsInterceptor + CoroutineName(evt.functionName())) {
                                     enrichHandler.handle(rec.value() as EnrichEvent)
                                 }
                                     .retryWhen(defaultRetry())
                                     .onErrorResume { ex ->
-                                        ex.printStackTrace()
+                                        logger.error(ex) { "Failed to process EnrichEvent: correlationId=${evt.metadata.correlationId}" }
                                         kafkaTemplate.sendToDlt(rec)
                                     }
                                     .then(rec.receiverOffset().commit())
@@ -76,7 +91,10 @@ class SpotifySyncConsumer @Autowired constructor(
                 },
                 4
             )
-            .subscribe()
+            .subscribe(
+                {},
+                { ex -> logger.error(ex) { "Fatal error in consumer stream" } }
+            )
     }
 
 }

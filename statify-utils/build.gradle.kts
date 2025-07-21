@@ -24,12 +24,15 @@ repositories {
 
 val assertkVersion = providers.gradleProperty("assertkVersion").get()
 val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
+val kotlinLoggingJVMVersion = providers.gradleProperty("kotlinLoggingJVMVersion").get()
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
 
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    api("com.fasterxml.jackson.module:jackson-module-kotlin")
+    api("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+
+    api("io.github.oshai:kotlin-logging-jvm:${kotlinLoggingJVMVersion}")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")

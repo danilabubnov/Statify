@@ -19,6 +19,7 @@ pluginManagement {
     val resilience4jVersion: String by settings
     val caffeineVersion: String by settings
     val prometheusVersion: String by settings
+    val kotlinLoggingJVMVersion: String by settings
 
     plugins {
         kotlin("jvm") version kotlinVersion

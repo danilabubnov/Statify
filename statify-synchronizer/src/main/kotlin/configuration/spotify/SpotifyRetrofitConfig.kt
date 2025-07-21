@@ -30,7 +30,7 @@ class SpotifyRetrofitConfig(
             .readTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .writeTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BASIC
+                level = HttpLoggingInterceptor.Level.NONE
             })
             .addInterceptor(spotifyMetricsInterceptor)
             .build()

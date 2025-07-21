@@ -7,6 +7,7 @@ import event.UserConnectedEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.reactor.awaitSingleOrNull
+import logging.logger
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.BATCH_TIMEOUT_MS
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_BATCH_SIZE
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.FOLLOWED_ARTISTS_FLOW_BUFFER_CAPACITY
@@ -85,6 +86,8 @@ class SpotifyService @Autowired constructor(
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>
 ) {
 
+    private val logger by logger()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun fetchSpotifyData(event: UserConnectedEvent) {
         val enrichmentMetadata = EnrichMetadata(
@@ -102,8 +105,13 @@ class SpotifyService @Autowired constructor(
                     val artistsResultDeferred = async {
                         spotifyArtistsClient.getAllFollowedArtists()
                             .flowOn(Dispatchers.IO)
-                            .catch {
-                                it.printStackTrace()
+                            .catch { ex ->
+                                logger.error(ex) {
+                                    "Failed to fetch followed artists for " +
+                                            "userId=${event.userId}, " +
+                                            "spotifyLibraryId=${event.userSpotifyLibraryId}, " +
+                                            "correlationId=${enrichmentMetadata.correlationId}"
+                                }
                                 metrics.spotifyFetchErrorCounter.increment()
                                 failed.set(true)
                             }
@@ -123,8 +131,13 @@ class SpotifyService @Autowired constructor(
                     val tracksResultDeferred = async {
                         spotifyTracksClient.getAllSavedTracks()
                             .flowOn(Dispatchers.IO)
-                            .catch {
-                                it.printStackTrace()
+                            .catch { ex ->
+                                logger.error(ex) {
+                                    "Failed to fetch saved tracks for " +
+                                            "userId=${event.userId}, " +
+                                            "spotifyLibraryId=${event.userSpotifyLibraryId}, " +
+                                            "correlationId=${enrichmentMetadata.correlationId}"
+                                }
                                 metrics.spotifyFetchErrorCounter.increment()
                                 failed.set(true)
                             }
@@ -144,8 +157,13 @@ class SpotifyService @Autowired constructor(
                     val albumsResultDeferred = async {
                         spotifyAlbumsClient.getAllSavedAlbums()
                             .flowOn(Dispatchers.IO)
-                            .catch {
-                                it.printStackTrace()
+                            .catch { ex ->
+                                logger.error(ex) {
+                                    "Failed to fetch saved albums for " +
+                                            "userId=${event.userId}, " +
+                                            "spotifyLibraryId=${event.userSpotifyLibraryId}, " +
+                                            "correlationId=${enrichmentMetadata.correlationId}"
+                                }
                                 metrics.spotifyFetchErrorCounter.increment()
                                 failed.set(true)
                             }
@@ -168,8 +186,13 @@ class SpotifyService @Autowired constructor(
 
                     return@coroutineScope isEnrichmentRequired
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } catch (ex: Exception) {
+                logger.error(ex) {
+                    "Unhandled exception in fetchSpotifyData for " +
+                            "userId=${event.userId}, " +
+                            "spotifyLibraryId=${event.userSpotifyLibraryId}, " +
+                            "correlationId=${enrichmentMetadata.correlationId}"
+                }
                 failed.set(true)
                 false
             }
@@ -209,8 +232,13 @@ class SpotifyService @Autowired constructor(
                     is EnrichArtistEvent -> {
                         spotifyArtistsClient.getSeveralArtists(artistIds = event.artistIds)
                             .flowOn(Dispatchers.IO)
-                            .catch {
-                                it.printStackTrace()
+                            .catch { ex ->
+                                logger.error(ex) {
+                                    "Error enriching artists for " +
+                                            "userId=${event.userId}, " +
+                                            "correlationId=${enrichmentMetadata.correlationId}, " +
+                                            "generation=${enrichmentMetadata.generation}"
+                                }
                                 metrics.spotifyFetchErrorCounter.increment()
                             }
                             .buffer(MULTI_FETCH_ARTISTS_FLOW_BUFFER_CAPACITY)
@@ -228,8 +256,13 @@ class SpotifyService @Autowired constructor(
                     is EnrichTrackEvent -> {
                         spotifyTracksClient.getSeveralTracks(trackIds = event.trackIds)
                             .flowOn(Dispatchers.IO)
-                            .catch {
-                                it.printStackTrace()
+                            .catch { ex ->
+                                logger.error(ex) {
+                                    "Error enriching tracks for " +
+                                            "userId=${event.userId}, " +
+                                            "correlationId=${enrichmentMetadata.correlationId}, " +
+                                            "generation=${enrichmentMetadata.generation}"
+                                }
                                 metrics.spotifyFetchErrorCounter.increment()
                             }
                             .buffer(MULTI_FETCH_TRACKS_FLOW_BUFFER_CAPACITY)
@@ -247,8 +280,13 @@ class SpotifyService @Autowired constructor(
                     is EnrichAlbumEvent -> {
                         spotifyAlbumsClient.getSeveralAlbums(albumIds = event.albumIds)
                             .flowOn(Dispatchers.IO)
-                            .catch {
-                                it.printStackTrace()
+                            .catch { ex ->
+                                logger.error(ex) {
+                                    "Error enriching albums for " +
+                                            "userId=${event.userId}, " +
+                                            "correlationId=${enrichmentMetadata.correlationId}, " +
+                                            "generation=${enrichmentMetadata.generation}"
+                                }
                                 metrics.spotifyFetchErrorCounter.increment()
                             }
                             .buffer(MULTI_FETCH_ALBUMS_FLOW_BUFFER_CAPACITY)
@@ -267,8 +305,13 @@ class SpotifyService @Autowired constructor(
                 }.onCompletion {
                     if (enrichmentMetadata.generation == 1) redisStateService.decrementCounterAndCheckIfDeleted(correlationId = enrichmentMetadata.correlationId)
                 }.toList().any { it.isFurtherEnrichmentRequired }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } catch (ex: Exception) {
+                logger.error(ex) {
+                    "Unhandled exception in enrich for " +
+                            "userId=${event.userId}, " +
+                            "correlationId=${enrichmentMetadata.correlationId}, " +
+                            "generation=${enrichmentMetadata.generation}"
+                }
                 failed = true
                 false
             }
@@ -449,11 +492,22 @@ class SpotifyService @Autowired constructor(
                 if (simpleAlbums.isNotEmpty()) {
                     val enrichmentMetadata = enrichmentMetadata()
 
+                    logger.debug {
+                        "Sending album‐enrich events for ${simpleAlbums.size} albums, " +
+                                "userId=$userId, correlationId=${enrichmentMetadata.correlationId}, generation=${enrichmentMetadata.generation}"
+                    }
+
                     jobs += async {
                         kafkaTemplate.send(
                             ALBUM_ENRICH_TOPIC,
                             EnrichAlbumEvent(eventId = UUID.randomUUID(), albumIds = simpleAlbums.toSet(), metadata = enrichmentMetadata, userId = userId)
-                        ).doOnError { println("Failed to send enrich event ${it.message}") }
+                        )
+                            .doOnError { ex ->
+                                logger.error(ex) {
+                                    "Failed to send album enrich event for " +
+                                            "userId=$userId, correlationId=${enrichmentMetadata.correlationId}"
+                                }
+                            }
                             .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
                             .awaitSingleOrNull()
                     }
@@ -462,11 +516,22 @@ class SpotifyService @Autowired constructor(
                 if (simpleArtists.isNotEmpty()) {
                     val enrichmentMetadata = enrichmentMetadata()
 
+                    logger.debug {
+                        "Sending artist‐enrich events for ${simpleArtists.size} artists, " +
+                                "userId=$userId, correlationId=${enrichmentMetadata.correlationId}, generation=${enrichmentMetadata.generation}"
+                    }
+
                     jobs += async {
                         kafkaTemplate.send(
                             ARTIST_ENRICH_TOPIC,
                             EnrichArtistEvent(eventId = UUID.randomUUID(), artistIds = simpleArtists.toSet(), metadata = enrichmentMetadata, userId = userId)
-                        ).doOnError { println("Failed to send enrich event ${it.message}") }
+                        )
+                            .doOnError { ex ->
+                                logger.error(ex) {
+                                    "Failed to send artist enrich event for " +
+                                            "userId=$userId, correlationId=${enrichmentMetadata.correlationId}"
+                                }
+                            }
                             .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
                             .awaitSingleOrNull()
                     }
@@ -475,17 +540,42 @@ class SpotifyService @Autowired constructor(
                 if (simpleTracks.isNotEmpty()) {
                     val enrichmentMetadata = enrichmentMetadata()
 
+                    logger.debug {
+                        "Sending track‐enrich events for ${simpleTracks.size} tracks, " +
+                                "userId=$userId, correlationId=${enrichmentMetadata.correlationId}, generation=${enrichmentMetadata.generation}"
+                    }
+
                     jobs += async {
                         kafkaTemplate.send(
                             TRACK_ENRICH_TOPIC,
                             EnrichTrackEvent(eventId = UUID.randomUUID(), trackIds = simpleTracks.toSet(), metadata = enrichmentMetadata, userId = userId)
-                        ).doOnError { println("Failed to send enrich event ${it.message}") }
+                        )
+                            .doOnError { ex ->
+                                logger.error(ex) {
+                                    "Failed to send track enrich event for " +
+                                            "userId=$userId, correlationId=${enrichmentMetadata.correlationId}"
+                                }
+                            }
                             .doOnSuccess { if (enrichmentMetadata.generation == 0) initialGenEventsCount.incrementAndGet() }
                             .awaitSingleOrNull()
                     }
                 }
 
                 jobs.awaitAll()
+
+                if (initialGenEventsCount.get() > 0) {
+                    val metadata = enrichmentMetadata()
+
+                    logger.debug {
+                        "Incrementing pending gen1 counter by ${initialGenEventsCount.get()} for " +
+                                "correlationId=${metadata.correlationId}"
+                    }
+
+                    redisStateService.incrementPendingGen1(
+                        correlationId = metadata.correlationId,
+                        delta = initialGenEventsCount.get()
+                    )
+                }
 
                 if (initialGenEventsCount.get() > 0) redisStateService.incrementPendingGen1(correlationId = enrichmentMetadata().correlationId, delta = initialGenEventsCount.get())
             }

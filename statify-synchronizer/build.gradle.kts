@@ -65,9 +65,7 @@ dependencies {
 
     implementation("com.github.ben-manes.caffeine:caffeine:$caffeineVersion")
 
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")

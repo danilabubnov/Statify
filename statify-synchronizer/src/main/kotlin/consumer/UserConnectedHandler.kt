@@ -6,6 +6,7 @@ import event.UserLibraryStatus
 import event.UserSpotifyLibraryStatusUpdatedEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.reactor.awaitSingleOrNull
+import logging.logger
 import org.danila.services.RedisStateService
 import org.danila.services.spotify.SpotifyService
 import org.springframework.beans.factory.annotation.Autowired
@@ -19,7 +20,11 @@ class UserConnectedHandler @Autowired constructor(
     private val redisStateService: RedisStateService,
 ) {
 
+    private val logger by logger()
+
     suspend fun handle(evt: UserConnectedEvent) {
+        logger.info { "Handling UserConnectedEvent: userId=${evt.userId}, spotifyLibraryId=${evt.userSpotifyLibraryId}" }
+
         try {
             withContext(Dispatchers.IO) {
                 coroutineScope {
@@ -41,7 +46,11 @@ class UserConnectedHandler @Autowired constructor(
                 }
             }
 
+            logger.debug { "Stored credentials and published IN_PROGRESS event for userId=${evt.userId}" }
+
             spotifyService.fetchSpotifyData(evt)
+
+            logger.info { "Completed UserConnectedEvent for userId=${evt.userId}" }
         } catch (ex: Exception) {
             withContext(Dispatchers.IO) {
                 redisStateService.deleteTokenCredentials(evt.userId)

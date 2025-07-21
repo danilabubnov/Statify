@@ -57,8 +57,6 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:${jjwtVersion}")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:${jjwtVersion}")
 
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
     }
