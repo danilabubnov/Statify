@@ -1,0 +1,41 @@
+extend type Query {
+
+    topArtistsByPopularity(
+        page: Int = 0
+        size: Int = 50
+    ): [ArtistSimple!]!
+
+    topArtistsByFollowers(
+        page: Int = 0
+        size: Int = 50
+    ): [ArtistSimple!]!
+
+    artist(
+        id: ID!
+    ): ArtistDTO!
+
+    artistAlbums(
+        id: ID!
+    ): [AlbumSimple!]!
+
+    artistTopTracks(
+        id: ID!
+    ): [TrackSimple!]!
+
+}
+
+type ArtistSimple {
+    id: ID!
+    name: String!
+    popularity: Int
+    followersTotal: Int
+}
+
+type ArtistDTO {
+    id: ID!
+    name: String!
+    popularity: Int
+    followersTotal: Int
+    topTracks: [TrackSimple!]!
+    albums: [AlbumSimple!]!
+}

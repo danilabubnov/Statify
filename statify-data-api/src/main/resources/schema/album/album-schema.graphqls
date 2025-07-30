@@ -1,0 +1,53 @@
+extend type Query {
+
+    topAlbumsByPopularity(
+        page: Int!
+        size: Int = 25
+        year: Int
+        albumType: AlbumType = ALBUM
+    ): [AlbumSimple!]!
+
+    album(
+        id: ID!
+    ): AlbumDTO!
+
+    albumTracks(
+        id: ID!
+    ): [TrackSimple!]!
+
+    searchAlbums(
+        query: String!
+        page: Int!
+        size: Int = 10
+    ): [AlbumSimple!]!
+
+    albumsByYear(
+        year: Int!
+    ): [AlbumSimple!]!
+
+}
+
+enum AlbumType {
+    ALBUM
+    SINGLE
+    COMPILATION
+}
+
+type AlbumSimple {
+    id: ID!
+    name: String!
+    albumType: AlbumType!
+    totalTracks: Int!
+    popularity: Int
+    releaseDate: String!
+}
+
+type AlbumDTO {
+    id: ID!
+    name: String!
+    albumType: AlbumType!
+    totalTracks: Int!
+    popularity: Int
+    releaseDate: String!
+    label: String
+}

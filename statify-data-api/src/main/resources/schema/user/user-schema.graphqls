@@ -1,0 +1,64 @@
+extend type Query {
+
+    getFavoriteTracks(
+        userId: ID!,
+        size: Int = 10,
+        after: ID
+    ): FavTrackConnection!
+
+    getFavoriteAlbums(
+        userId: ID!,
+        size: Int = 10,
+        after: ID
+    ): FavAlbumConnection!
+
+}
+
+type FavTrack {
+    id: ID!
+    durationMs: Int!
+    explicit: Boolean!
+    name: String!
+    popularity: Int
+    trackNumber: Int!
+    albumId: ID!
+    addedAt: String!
+}
+
+type FavAlbum {
+    id: ID!
+    albumType: String!
+    totalTracks: Int!
+    name: String!
+    label: String
+    popularity: Int
+    releaseDate: String!
+    addedAt: String!
+}
+
+type FavTrackConnection {
+    edges: [FavTrackEdge!]!
+    pageInfo: PageInfo!
+}
+
+type FavTrackEdge {
+    node: FavTrack!
+    cursor: ID!
+}
+
+type FavAlbumConnection {
+    edges: [FavAlbumEdge!]!
+    pageInfo: PageInfo!
+}
+
+type FavAlbumEdge {
+    node: FavAlbum!
+    cursor: ID!
+}
+
+type PageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+}

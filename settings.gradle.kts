@@ -20,6 +20,7 @@ pluginManagement {
     val caffeineVersion: String by settings
     val prometheusVersion: String by settings
     val kotlinLoggingJVMVersion: String by settings
+    val netflixDGSCodegenVersion: String by settings
 
     plugins {
         kotlin("jvm") version kotlinVersion
@@ -28,6 +29,7 @@ pluginManagement {
         id("org.jetbrains.kotlin.plugin.allopen") version kotlinVersion
         id("org.springframework.boot") version springBootVersion
         id("io.spring.dependency-management") version springDepMgmtVersion
+        id("com.netflix.dgs.codegen") version netflixDGSCodegenVersion
     }
 }
 
@@ -40,3 +42,4 @@ rootProject.name = "statify"
 include("statify-core")
 include("statify-utils")
 include("statify-synchronizer")
+include("statify-data-api")

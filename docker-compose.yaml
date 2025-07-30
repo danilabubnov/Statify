@@ -150,6 +150,25 @@ services:
     networks:
       - app-network
 
+  statify-data-api:
+    build: ./statify-data-api
+    environment:
+      SPRING_DATASOURCE_URL: ${STATIFY_DATA_STORAGE_POSTGRES_DOCKER_JDBC_URL}
+      POSTGRES_USER: ${STATIFY_DATA_STORAGE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${STATIFY_DATA_STORAGE_POSTGRES_PASSWORD}
+      SERVER_PORT: ${STATIFY_DATA_API_PORT}
+      SERVER_URL: ${STATIFY_DATA_API_URL}
+    depends_on:
+      postgres-data-storage:
+        condition: service_healthy
+#    healthcheck:
+#      test: [ "CMD-SHELL", "curl -f http://localhost:$${STATIFY_DATA_API_PORT}/actuator/health || exit 1" ]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge

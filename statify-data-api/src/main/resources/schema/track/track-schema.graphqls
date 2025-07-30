@@ -1,0 +1,38 @@
+extend type Query {
+
+    topTracksByPopularity(
+        year: Int
+        page: Int = 0
+        size: Int = 25
+    ): [TrackSimple!]!
+
+    track(
+        id: ID!
+    ): TrackDTO!
+
+    searchTracks(
+        query: String!
+        page: Int = 0
+        size: Int = 10
+    ): [TrackSimple!]!
+
+}
+
+type TrackSimple {
+    id: ID!
+    name: String!
+    durationMs: Int!
+    explicit: Boolean!
+    popularity: Int
+    trackNumber: Int!
+}
+
+type TrackDTO {
+    id: ID!
+    name: String!
+    durationMs: Int!
+    explicit: Boolean!
+    popularity: Int
+    trackNumber: Int!
+    albumId: ID!
+}
