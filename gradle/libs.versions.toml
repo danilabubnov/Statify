@@ -1,0 +1,113 @@
+[versions]
+kotlin                 = "2.1.10"
+spring-boot            = "3.4.2"
+
+kafka                  = "6.4.1"
+reactor-kafka          = "1.3.23"
+
+retrofit               = "2.9.0"
+retrofit-logging       = "4.12.0"
+
+r2dbc-postgresql       = "1.0.7.RELEASE"
+lettuce                = "6.5.5.RELEASE"
+
+resilience4j           = "2.3.0"
+caffeine               = "3.1.8"
+prometheus             = "1.15.0"
+
+springdoc-openapi      = "2.8.4"
+jjwt                   = "0.12.6"
+spring-security-crypto = "6.4.4"
+
+postgresql             = "42.7.5"
+h2                     = "2.3.232"
+
+kotlin-logging-jvm     = "7.0.7"
+assertk                = "0.28.1"
+mockito-kotlin         = "5.4.0"
+datafaker              = "1.8.0"
+
+kotlinx-coroutines     = "1.9.0"
+
+netflix-dgs            = "10.1.2"
+
+[plugins]
+kotlin-jvm     = { id = "org.jetbrains.kotlin.jvm",            version.ref = "kotlin" }
+kotlin-spring  = { id = "org.jetbrains.kotlin.plugin.spring",  version.ref = "kotlin" }
+kotlin-jpa     = { id = "org.jetbrains.kotlin.plugin.jpa",     version.ref = "kotlin" }
+kotlin-allopen = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
+
+spring-boot     = { id = "org.springframework.boot",        version.ref = "spring-boot" }
+spring-dep-mgmt = { id = "io.spring.dependency-management", version = "1.1.7" }
+dgs-codegen     = { id = "com.netflix.dgs.codegen",         version = "7.0.3" }
+
+[libraries]
+spring-boot-dependencies          = { group = "org.springframework.boot", name = "spring-boot-dependencies",          version.ref = "spring-boot" }
+graphql-dgs-platform-dependencies = { group = "com.netflix.graphql.dgs",  name = "graphql-dgs-platform-dependencies", version.ref = "netflix-dgs" }
+
+# --- Spring Boot starters
+spring-boot-starter                     = { group = "org.springframework.boot", name = "spring-boot-starter" }
+spring-boot-starter-web                 = { group = "org.springframework.boot", name = "spring-boot-starter-web" }
+spring-boot-starter-data-jpa            = { group = "org.springframework.boot", name = "spring-boot-starter-data-jpa" }
+spring-boot-starter-validation          = { group = "org.springframework.boot", name = "spring-boot-starter-validation" }
+spring-boot-starter-security            = { group = "org.springframework.boot", name = "spring-boot-starter-security" }
+spring-boot-starter-oauth2-client       = { group = "org.springframework.boot", name = "spring-boot-starter-oauth2-client" }
+spring-boot-starter-actuator            = { group = "org.springframework.boot", name = "spring-boot-starter-actuator" }
+spring-boot-starter-data-r2dbc          = { group = "org.springframework.boot", name = "spring-boot-starter-data-r2dbc" }
+spring-boot-starter-data-redis-reactive = { group = "org.springframework.boot", name = "spring-boot-starter-data-redis-reactive" }
+spring-boot-starter-test                = { group = "org.springframework.boot", name = "spring-boot-starter-test" }
+
+# --- Spring Security & Tests
+spring-security-test   = { group = "org.springframework.security", name = "spring-security-test" }
+spring-security-crypto = { group = "org.springframework.security", name = "spring-security-crypto", version.ref = "spring-security-crypto" }
+
+# --- DB / JPA
+postgresql       = { group = "org.postgresql", name = "postgresql",       version.ref = "postgresql" }
+r2dbc-postgresql = { group = "org.postgresql", name = "r2dbc-postgresql", version.ref = "r2dbc-postgresql" }
+h2               = { group = "com.h2database", name = "h2",               version.ref = "h2" }
+
+# --- Kafka
+spring-integration-kafka = { group = "org.springframework.integration", name = "spring-integration-kafka", version.ref = "kafka" }
+reactor-kafka            = { group = "io.projectreactor.kafka",         name = "reactor-kafka",            version.ref = "reactor-kafka" }
+
+# --- HTTP client
+retrofit                   = { group = "com.squareup.retrofit2", name = "retrofit",            version.ref = "retrofit" }
+retrofit-converter-jackson = { group = "com.squareup.retrofit2", name = "converter-jackson",   version.ref = "retrofit" }
+okhttp-logging-interceptor = { group = "com.squareup.okhttp3",   name = "logging-interceptor", version.ref = "retrofit-logging" }
+
+# --- Resilience4j / Caffeine / Prometheus
+resilience4j-springboot3       = { group = "io.github.resilience4j",        name = "resilience4j-spring-boot3",      version.ref = "resilience4j" }
+resilience4j-kotlin            = { group = "io.github.resilience4j",        name = "resilience4j-kotlin",            version.ref = "resilience4j" }
+resilience4j-retry             = { group = "io.github.resilience4j",        name = "resilience4j-retry",             version.ref = "resilience4j" }
+resilience4j-circuitbreaker    = { group = "io.github.resilience4j",        name = "resilience4j-circuitbreaker",    version.ref = "resilience4j" }
+caffeine                       = { group = "com.github.ben-manes.caffeine", name = "caffeine",                       version.ref = "caffeine" }
+micrometer-registry-prometheus = { group = "io.micrometer",                 name = "micrometer-registry-prometheus", version.ref = "prometheus" }
+
+# --- Jackson / Kotlin-Logging
+jackson-module-kotlin               = { group = "com.fasterxml.jackson.module",   name = "jackson-module-kotlin" }
+jackson-datatype-jsr310             = { group = "com.fasterxml.jackson.datatype", name = "jackson-datatype-jsr310" }
+jackson-datatype-hibernate5-jakarta = { group = "com.fasterxml.jackson.datatype", name = "jackson-datatype-hibernate5-jakarta" }
+kotlin-logging-jvm                  = { group = "io.github.oshai",                name = "kotlin-logging-jvm", version.ref = "kotlin-logging-jvm" }
+
+# --- Redis client (Lettuce) ---
+lettuce-core = { group = "io.lettuce", name = "lettuce-core", version.ref = "lettuce" }
+
+# --- JJWT
+jjwt-api     = { group = "io.jsonwebtoken", name = "jjwt-api",     version.ref = "jjwt" }
+jjwt-impl    = { group = "io.jsonwebtoken", name = "jjwt-impl",    version.ref = "jjwt" }
+jjwt-jackson = { group = "io.jsonwebtoken", name = "jjwt-jackson", version.ref = "jjwt" }
+
+# --- Coroutines
+kotlinx-coroutines-core    = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core",    version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-reactor = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactor", version.ref = "kotlinx-coroutines" }
+
+# --- Spring Doc / OpenAPI
+springdoc-openapi-starter-webmvc-ui = { group = "org.springdoc", name = "springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc-openapi" }
+
+# --- GraphQL DGS
+graphql-dgs-spring-graphql-starter = { group = "com.netflix.graphql.dgs", name = "graphql-dgs-spring-graphql-starter" }
+
+# --- Tests
+assertk        = { group = "com.willowtreeapps.assertk", name = "assertk-jvm",    version.ref = "assertk" }
+mockito-kotlin = { group = "org.mockito.kotlin",         name = "mockito-kotlin", version.ref = "mockito-kotlin" }
+datafaker      = { group = "net.datafaker",              name = "datafaker",      version.ref = "datafaker" }

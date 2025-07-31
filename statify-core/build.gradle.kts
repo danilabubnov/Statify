@@ -1,79 +1,39 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.spring")
-    id("org.jetbrains.kotlin.plugin.jpa")
-    id("org.jetbrains.kotlin.plugin.allopen")
-    id("org.springframework.boot")
-    id("io.spring.dependency-management")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.kotlin.spring)
+    alias(libs.plugins.kotlin.jpa)
+    alias(libs.plugins.kotlin.allopen)
 }
-
-group = "org.danila"
-version = "1.0-SNAPSHOT"
-java.sourceCompatibility = JavaVersion.VERSION_17
-
-val springBootVersion: String by project
-
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
-    }
-}
-
-repositories {
-    mavenCentral()
-}
-
-val kafkaVersion = providers.gradleProperty("kafkaVersion").get()
-val springDocOpenApiVersion = providers.gradleProperty("springDocOpenApiVersion").get()
-val postgresqlVersion = providers.gradleProperty("postgresqlVersion").get()
-val jjwtVersion = providers.gradleProperty("jjwtVersion").get()
-val assertkVersion = providers.gradleProperty("assertkVersion").get()
-val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
-val dataFakerVersion = providers.gradleProperty("dataFakerVersion").get()
-val h2Version = providers.gradleProperty("h2Version").get()
-val springSecurityCryptoVersion = providers.gradleProperty("springSecurityCryptoVersion").get()
 
 dependencies {
+    implementation(platform(libs.spring.boot.dependencies))
     implementation(project(":statify-utils"))
 
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.oauth2.client)
+    implementation(libs.spring.boot.starter.actuator)
 
-    implementation("org.springframework.integration:spring-integration-kafka:$kafkaVersion")
-    implementation("org.springframework.security:spring-security-crypto:${springSecurityCryptoVersion}")
+    implementation(libs.spring.integration.kafka)
+    implementation(libs.spring.security.crypto)
+    implementation(libs.springdoc.openapi.starter.webmvc.ui)
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:${springDocOpenApiVersion}")
+    implementation(libs.postgresql)
 
-    implementation("org.postgresql:postgresql:$postgresqlVersion")
+    implementation(libs.jjwt.api)
+    runtimeOnly(libs.jjwt.impl)
+    runtimeOnly(libs.jjwt.jackson)
 
-    implementation("io.jsonwebtoken:jjwt-api:${jjwtVersion}")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:${jjwtVersion}")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:${jjwtVersion}")
-
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
-        exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
+    testImplementation(platform(libs.spring.boot.dependencies))
+    testImplementation(libs.spring.boot.starter.test) {
+        exclude("org.junit.vintage", "junit-vintage-engine")
     }
-    testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("com.willowtreeapps.assertk:assertk-jvm:$assertkVersion")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
-    testImplementation("net.datafaker:datafaker:${dataFakerVersion}")
-    testImplementation("com.h2database:h2:${h2Version}")
-}
-
-tasks.withType<KotlinCompile> {
-    compilerOptions {
-        freeCompilerArgs.set(listOf("-Xjsr305=strict"))
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
-}
-
-tasks.test {
-    useJUnitPlatform()
+    testImplementation(libs.spring.security.test)
+    testImplementation(libs.assertk)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.datafaker)
+    testImplementation(libs.h2)
 }

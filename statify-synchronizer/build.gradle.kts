@@ -1,91 +1,48 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.spring")
-    id("org.jetbrains.kotlin.plugin.allopen")
-    id("org.springframework.boot")
-    id("io.spring.dependency-management")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.kotlin.spring)
+    alias(libs.plugins.kotlin.allopen)
 }
-
-group = "org.danila"
-version = "1.0-SNAPSHOT"
-java.sourceCompatibility = JavaVersion.VERSION_17
-
-val springBootVersion: String by project
-
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
-    }
-}
-
-repositories {
-    mavenCentral()
-}
-
-val kafkaVersion = providers.gradleProperty("kafkaVersion").get()
-val retrofitVersion = providers.gradleProperty("retrofitVersion").get()
-val r2dbcPostgresVersion = providers.gradleProperty("r2dbcPostgresVersion").get()
-val reactorKafkaVersion = providers.gradleProperty("reactorKafkaVersion").get()
-val retrofitLoggingVersion = providers.gradleProperty("retrofitLoggingVersion").get()
-val assertkVersion = providers.gradleProperty("assertkVersion").get()
-val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
-val lettuceCoreVersion = providers.gradleProperty("lettuceCoreVersion").get()
-val resilience4jVersion = providers.gradleProperty("resilience4jVersion").get()
-val caffeineVersion = providers.gradleProperty("caffeineVersion").get()
-val prometheusVersion = providers.gradleProperty("prometheusVersion").get()
 
 dependencies {
+    implementation(platform(libs.spring.boot.dependencies))
     implementation(project(":statify-utils"))
 
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
-    implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.data.r2dbc)
+    implementation(libs.spring.boot.starter.security)
+    implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.spring.boot.starter.data.redis.reactive)
 
-    implementation("org.postgresql:r2dbc-postgresql:$r2dbcPostgresVersion")
+    implementation(libs.r2dbc.postgresql)
 
-    implementation("io.projectreactor.kafka:reactor-kafka:$reactorKafkaVersion")
+    implementation(libs.reactor.kafka)
+    implementation(libs.spring.integration.kafka)
 
-    implementation("org.springframework.integration:spring-integration-kafka:$kafkaVersion")
+    implementation(libs.lettuce.core)
 
-    implementation("io.lettuce:lettuce-core:$lettuceCoreVersion")
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.jackson)
+    implementation(libs.okhttp.logging.interceptor)
 
-    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
-    implementation("com.squareup.retrofit2:converter-jackson:$retrofitVersion")
-    implementation("com.squareup.okhttp3:logging-interceptor:$retrofitLoggingVersion")
+    implementation(libs.resilience4j.springboot3)
+    implementation(libs.resilience4j.kotlin)
+    implementation(libs.resilience4j.retry)
+    implementation(libs.resilience4j.circuitbreaker)
 
-    implementation("io.github.resilience4j:resilience4j-spring-boot3:$resilience4jVersion")
-    implementation("io.github.resilience4j:resilience4j-kotlin:$resilience4jVersion")
-    implementation("io.github.resilience4j:resilience4j-retry:$resilience4jVersion")
-    implementation("io.github.resilience4j:resilience4j-circuitbreaker:$resilience4jVersion")
+    implementation(libs.caffeine)
+    implementation(libs.jackson.datatype.hibernate5.jakarta)
 
-    implementation("com.github.ben-manes.caffeine:caffeine:$caffeineVersion")
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.reactor)
 
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta")
+    implementation(libs.micrometer.registry.prometheus)
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-
-    implementation("io.micrometer:micrometer-registry-prometheus:$prometheusVersion")
-
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
-        exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
+    testImplementation(platform(libs.spring.boot.dependencies))
+    testImplementation(libs.spring.boot.starter.test) {
+        exclude("org.junit.vintage", "junit-vintage-engine")
     }
-    testImplementation("com.willowtreeapps.assertk:assertk-jvm:$assertkVersion")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
-}
-
-tasks.withType<KotlinCompile> {
-    compilerOptions {
-        freeCompilerArgs.set(listOf("-Xjsr305=strict"))
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
-}
-
-tasks.test {
-    useJUnitPlatform()
+    testImplementation(libs.assertk)
+    testImplementation(libs.mockito.kotlin)
 }

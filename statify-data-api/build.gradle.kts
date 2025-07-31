@@ -1,59 +1,36 @@
 import com.netflix.graphql.dgs.codegen.gradle.GenerateJavaTask
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.spring")
-    id("org.jetbrains.kotlin.plugin.jpa")
-    id("org.jetbrains.kotlin.plugin.allopen")
-    id("org.springframework.boot")
-    id("io.spring.dependency-management")
-    id("com.netflix.dgs.codegen")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.kotlin.spring)
+    alias(libs.plugins.kotlin.jpa)
+    alias(libs.plugins.kotlin.allopen)
+    alias(libs.plugins.dgs.codegen)
 }
-
-group = "org.danila"
-version = "1.0-SNAPSHOT"
-java.sourceCompatibility = JavaVersion.VERSION_17
-
-val springBootVersion: String by project
-
-extra["netflixDgsVersion"] = "10.1.2"
-
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
-        mavenBom("com.netflix.graphql.dgs:graphql-dgs-platform-dependencies:${property("netflixDgsVersion")}")
-    }
-}
-
-repositories {
-    mavenCentral()
-}
-
-val postgresqlVersion = providers.gradleProperty("postgresqlVersion").get()
 
 dependencies {
+    implementation(platform(libs.spring.boot.dependencies))
+    implementation(platform(libs.graphql.dgs.platform.dependencies))
+
     implementation(project(":statify-utils"))
 
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.validation)
 
-    implementation("com.netflix.graphql.dgs:graphql-dgs-spring-graphql-starter")
+    implementation(libs.graphql.dgs.spring.graphql.starter)
 
-    implementation("org.postgresql:postgresql:$postgresqlVersion")
-}
+    implementation(libs.postgresql)
 
-tasks.withType<KotlinCompile> {
-    compilerOptions {
-        freeCompilerArgs.set(listOf("-Xjsr305=strict"))
-        jvmTarget.set(JvmTarget.JVM_17)
+    testImplementation(platform(libs.spring.boot.dependencies))
+    testImplementation(libs.spring.boot.starter.test) {
+        exclude("org.junit.vintage", "junit-vintage-engine")
     }
 }
 
 tasks.named<GenerateJavaTask>("generateJava") {
-    schemaPaths = mutableListOf("src/main/resources/graphql")
-    packageName = "org.danila.generated"
-    generateClient = false
+    schemaPaths       = mutableListOf("src/main/resources/schema")
+    packageName       = "org.danila.generated"
+    generateClient    = false
 }

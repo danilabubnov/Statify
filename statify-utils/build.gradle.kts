@@ -1,53 +1,21 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.spring")
-    id("io.spring.dependency-management")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.spring)
 }
-
-group = "org.danila"
-version = "1.0-SNAPSHOT"
-
-val springBootVersion: String by project
-
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
-    }
-}
-
-repositories {
-    mavenCentral()
-}
-
-val assertkVersion = providers.gradleProperty("assertkVersion").get()
-val mockitoKotlinVersion = providers.gradleProperty("mockitoKotlinVersion").get()
-val kotlinLoggingJVMVersion = providers.gradleProperty("kotlinLoggingJVMVersion").get()
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter")
+    implementation(platform(libs.spring.boot.dependencies))
 
-    api("com.fasterxml.jackson.module:jackson-module-kotlin")
-    api("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    implementation(libs.spring.boot.starter)
 
-    api("io.github.oshai:kotlin-logging-jvm:${kotlinLoggingJVMVersion}")
+    api(libs.jackson.module.kotlin)
+    api(libs.jackson.datatype.jsr310)
+    api(libs.kotlin.logging.jvm)
 
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
-        exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
+    testImplementation(platform(libs.spring.boot.dependencies))
+    testImplementation(libs.spring.boot.starter.test) {
+        exclude("org.junit.vintage", "junit-vintage-engine")
     }
-    testImplementation("com.willowtreeapps.assertk:assertk-jvm:$assertkVersion")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
-}
-
-tasks.withType<KotlinCompile> {
-    compilerOptions {
-        freeCompilerArgs.set(listOf("-Xjsr305=strict"))
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
-}
-
-tasks.test {
-    useJUnitPlatform()
+    testImplementation(libs.assertk)
+    testImplementation(libs.mockito.kotlin)
 }
