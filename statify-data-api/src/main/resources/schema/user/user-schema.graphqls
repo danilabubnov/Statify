@@ -1,14 +1,14 @@
 extend type Query {
 
     getFavoriteTracks(
-        userId: ID!,
-        size: Int = 10,
+        userId: ID!, @NotBlank
+        size: Int = 10, @Range(min: 1, max: 20)
         after: ID
     ): FavTrackConnection!
 
     getFavoriteAlbums(
-        userId: ID!,
-        size: Int = 10,
+        userId: ID!, @NotBlank
+        size: Int = 10, @Range(min: 1, max: 20)
         after: ID
     ): FavAlbumConnection!
 

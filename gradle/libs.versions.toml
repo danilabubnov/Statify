@@ -106,6 +106,7 @@ springdoc-openapi-starter-webmvc-ui = { group = "org.springdoc", name = "springd
 
 # --- GraphQL DGS
 graphql-dgs-spring-graphql-starter = { group = "com.netflix.graphql.dgs", name = "graphql-dgs-spring-graphql-starter" }
+graphql-dgs-extended-validation    = { group = "com.netflix.graphql.dgs", name = "graphql-dgs-extended-validation" }
 
 # --- Tests
 assertk        = { group = "com.willowtreeapps.assertk", name = "assertk-jvm",    version.ref = "assertk" }

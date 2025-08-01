@@ -1,19 +1,19 @@
 extend type Query {
 
     topTracksByPopularity(
-        year: Int
-        page: Int = 0
-        size: Int = 25
+        year: Int @Range(min: 1900, max: 2100)
+        page: Int! @Range(min: 0)
+        size: Int = 25 @Range(min: 1, max: 50)
     ): [TrackSimple!]!
 
     track(
-        id: ID!
+        id: ID! @NotBlank
     ): TrackDTO!
 
     searchTracks(
-        query: String!
-        page: Int = 0
-        size: Int = 10
+        query: String! @NotBlank @Size(min: 1, max: 100)
+        page: Int! @Range(min: 0)
+        size: Int = 10 @Range(min: 1, max: 20)
     ): [TrackSimple!]!
 
 }

@@ -1,8 +1,6 @@
 package org.danila.web.controller.graphql.user
 
 import com.netflix.graphql.dgs.DgsComponent
-import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Min
 import org.danila.generated.types.*
 import org.danila.services.model.user.UserService
 import com.netflix.graphql.dgs.DgsQuery
@@ -17,7 +15,7 @@ class UserGraphQLEndpoint(
     @DgsQuery
     fun getFavoriteTracks(
         @InputArgument userId: UUID,
-        @InputArgument @Min(1) @Max(50) size: Int = 10,
+        @InputArgument size: Int,
         @InputArgument after: String?
     ): FavTrackConnection {
         val (tracks, pageInfoDto) = userService.getFavoriteTracks(userId = userId, size = size, after = after)
@@ -50,7 +48,7 @@ class UserGraphQLEndpoint(
     @DgsQuery
     fun getFavoriteAlbums(
         @InputArgument userId: UUID,
-        @InputArgument @Min(1) @Max(50) size: Int = 10,
+        @InputArgument size: Int,
         @InputArgument after: String?
     ): FavAlbumConnection {
         val (albums, pageInfoDto) = userService.getFavoriteAlbums(userId = userId, size = size, after = after)

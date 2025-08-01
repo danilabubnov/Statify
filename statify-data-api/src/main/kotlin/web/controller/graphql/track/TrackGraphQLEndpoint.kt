@@ -1,8 +1,6 @@
 package org.danila.web.controller.graphql.track
 
 import com.netflix.graphql.dgs.DgsComponent
-import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Min
 import org.danila.generated.types.TrackDTO
 import org.danila.generated.types.TrackSimple
 import org.danila.mapper.graphql.toTrackDTO
@@ -21,8 +19,8 @@ class TrackGraphQLEndpoint(
     @DgsQuery
     fun topTracksByPopularity(
         @InputArgument year: Int?,
-        @InputArgument @Min(0) page: Int = 0,
-        @InputArgument @Min(1) @Max(50) size: Int = 25
+        @InputArgument page: Int,
+        @InputArgument size: Int
     ): List<TrackSimple> {
         val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "popularity"))
 
@@ -37,8 +35,8 @@ class TrackGraphQLEndpoint(
     @DgsQuery
     fun searchTracks(
         @InputArgument query: String,
-        @InputArgument @Min(0) page: Int = 0,
-        @InputArgument @Min(1) @Max(20) size: Int = 10
+        @InputArgument page: Int,
+        @InputArgument size: Int
     ): List<TrackSimple> {
         val sanitized = query.trim().takeIf { it.isNotEmpty() } ?: throw IllegalArgumentException("Query cannot be empty")
         val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "popularity"))

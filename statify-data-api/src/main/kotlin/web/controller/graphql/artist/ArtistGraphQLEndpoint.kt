@@ -1,8 +1,6 @@
 package org.danila.web.controller.graphql.artist
 
 import com.netflix.graphql.dgs.DgsComponent
-import jakarta.validation.constraints.Max
-import jakarta.validation.constraints.Min
 import org.danila.generated.types.AlbumSimple
 import org.danila.generated.types.ArtistDTO
 import org.danila.generated.types.ArtistSimple
@@ -24,8 +22,8 @@ class ArtistGraphQLEndpoint(
 
     @DgsQuery
     fun topArtistsByPopularity(
-        @InputArgument @Min(0) page: Int = 0,
-        @InputArgument @Min(1) @Max(100) size: Int = 50
+        @InputArgument page: Int,
+        @InputArgument size: Int
     ): List<ArtistSimple> {
         val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "popularity"))
 
@@ -34,8 +32,8 @@ class ArtistGraphQLEndpoint(
 
     @DgsQuery
     fun topArtistsByFollowers(
-        @InputArgument @Min(0) page: Int = 0,
-        @InputArgument @Min(1) @Max(100) size: Int = 50
+        @InputArgument page: Int,
+        @InputArgument size: Int
     ): List<ArtistSimple> {
         val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "followersTotal"))
 
