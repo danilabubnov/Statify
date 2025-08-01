@@ -6,6 +6,7 @@ Statify is a microservices-based system for Spotify data integration, analysis, 
 
 - [`statify-core`](./statify-core/) – Authentication, JWT, Spotify OAuth2 integration
 - [`statify-synchronizer`](./statify-synchronizer/) – Async ETL service that fetches and stores user data from Spotify API
+- [`statify-data-api`](./statify-data-api/) – GraphQL API to access user’s Spotify library and analytics data
 
 ## 🐳 Running the System
 
@@ -22,6 +23,8 @@ The PostgreSQL schema used by `statify-synchronizer` is located in [`schema.sql`
 
 This schema must be applied to the database before running the synchronizer, as it defines all required tables and relationships for storing user data fetched from the Spotify API.
 
+Alternatively, if you run `statify-data-api`, it will automatically generate the database schema using Hibernate based on the entity definitions.
+
 ## 🐳 Running the System
 
 To run the entire Statify system locally, use the provided `docker-compose.yml` in the root of the repository:
@@ -37,9 +40,11 @@ This will launch the following services:
 
     statify-synchronizer – Fetches user data from Spotify asynchronously after OAuth2.
 
+    statify-data-api – Provides a GraphQL API for accessing Spotify library and analytics data.
+
     postgres-core – PostgreSQL database for statify-core.
 
-    postgres-data-storage – PostgreSQL database for statify-synchronizer.
+    postgres-data-storage – PostgreSQL database for statify-synchronizer and statify-data-api.
 
     kafka – Message broker for inter-service communication.
 

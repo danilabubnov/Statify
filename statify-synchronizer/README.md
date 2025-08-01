@@ -42,7 +42,6 @@ Instead, it operates entirely through Kafka. It listens for domain events (e.g.,
 
 All Spotify requests are made asynchronously using Kotlin coroutines and handled with retry logic via Resilience4j.
 
-
 ## 📈 Roadmap
 
 - [ ] AI-powered custom playlist generation based on analyzed user library
@@ -54,5 +53,5 @@ All Spotify requests are made asynchronously using Kotlin coroutines and handled
 > 
 > The required schema can be found in [`../schema.sql`](../schema.sql).
 > 
-> Alternatively, you can run the companion service (`statify-data-api`) which uses Hibernate to auto-generate the required schema. (Coming soon)
+> Alternatively, you can run the companion service (`statify-data-api`) which uses Hibernate to auto-generate the required schema.
 
