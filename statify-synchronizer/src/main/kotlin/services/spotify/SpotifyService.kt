@@ -581,8 +581,6 @@ class SpotifyService @Autowired constructor(
                         delta = initialGenEventsCount.get()
                     )
                 }
-
-                if (initialGenEventsCount.get() > 0) redisStateService.incrementPendingGen1(correlationId = enrichmentMetadata().correlationId, delta = initialGenEventsCount.get())
             }
         }
     }
