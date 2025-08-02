@@ -20,6 +20,7 @@ import org.danila.model.spotify.album.UserFavoriteAlbum
 import org.danila.model.spotify.artist.Artist
 import org.danila.model.spotify.artist.ArtistGenre
 import org.danila.model.spotify.artist.ArtistImage
+import org.danila.model.spotify.artist.UserFollowedArtist
 import org.danila.model.spotify.track.Track
 import org.danila.model.spotify.track.UserFavoriteTrack
 import org.springframework.stereotype.Service
@@ -43,7 +44,8 @@ class SpotifyDataProcessor {
                 handleArtists(
                     artistDTOs = artistDTOs,
                     existingData = existingData,
-                    saveCollections = saveCollections
+                    saveCollections = saveCollections,
+                    userFollowedArtistOf = { UserFollowedArtist(userId = userId, artistId = it.id) }
                 )
             }
 
@@ -53,7 +55,7 @@ class SpotifyDataProcessor {
                     existingData = existingData,
                     saveCollections = saveCollections,
                     albumOf = { it.album },
-                    userFavoriteOf = { UserFavoriteAlbum(userId, it.album.id, Instant.parse(it.addedAt)) }
+                    userFavoriteOf = { UserFavoriteAlbum(userId = userId, albumId = it.album.id, addedAt = Instant.parse(it.addedAt)) }
                 )
             }
 
@@ -63,7 +65,7 @@ class SpotifyDataProcessor {
                     existingData = existingData,
                     saveCollections = saveCollections,
                     trackOf = { it.track },
-                    userFavoriteOf = { UserFavoriteTrack(userId, it.track.id, Instant.parse(it.addedAt)) }
+                    userFavoriteOf = { UserFavoriteTrack(userId = userId, trackId = it.track.id, addedAt = Instant.parse(it.addedAt)) }
                 )
             }
 
@@ -86,7 +88,8 @@ class SpotifyDataProcessor {
                 handleArtists(
                     artistDTOs = artistDTOs,
                     existingData = existingData,
-                    saveCollections = saveCollections
+                    saveCollections = saveCollections,
+                    userFollowedArtistOf = { null }
                 )
             }
 
@@ -116,12 +119,25 @@ class SpotifyDataProcessor {
         return saveCollections
     }
 
-    private suspend fun handleArtists(artistDTOs: List<ArtistDTO>, existingData: ExistingData, saveCollections: ConcurrentSaveCollections) {
+    private suspend fun handleArtists(
+        artistDTOs: List<ArtistDTO>,
+        existingData: ExistingData,
+        saveCollections: ConcurrentSaveCollections,
+        userFollowedArtistOf: (ArtistDTO) -> UserFollowedArtist?
+    ) {
         artistDTOs.forEach { artistDTO ->
             val existingArtist = existingData.artists.find { it.spotifyId == artistDTO.id }
 
             if (existingArtist == null || existingArtist.isSimpleArtist() || !existingArtist.matchesDto(artistDTO)) {
                 saveCollections.addArtistIfAbsent(artistDTO.toFullArtistDb())
+            }
+
+            val isUserFollowingArtist = existingData.userFollowedArtists.any { it.artistId == artistDTO.id }
+
+            if (!isUserFollowingArtist) {
+                val userFollowedArtist = userFollowedArtistOf(artistDTO)
+
+                if (userFollowedArtist != null) saveCollections.addUserFollowedArtistIfAbsent(userFollowedArtist)
             }
 
             val existingArtistImages = existingData.artistImages.filter { it.artistId == artistDTO.id }
@@ -165,7 +181,7 @@ class SpotifyDataProcessor {
             val userFavorite = userFavoriteOf(item)
 
             if (userFavorite != null) {
-                val alreadyExists = existingData.userFavoriteAlbums.any { fav -> fav.albumId == dto.id }
+                val alreadyExists = existingData.userFavoriteAlbums.any { fav -> fav.albumId == userFavorite.albumId && fav.addedAt == userFavorite.addedAt }
 
                 if (!alreadyExists) {
                     saveCollections.addUserFavoriteAlbumIfAbsent(userFavorite)
@@ -227,7 +243,7 @@ class SpotifyDataProcessor {
             val userFavorite = userFavoriteOf(item)
 
             if (userFavorite != null) {
-                val alreadyExists = existingData.userFavoriteTracks.any { fav -> fav.trackId == dto.id }
+                val alreadyExists = existingData.userFavoriteTracks.any { fav -> fav.trackId == userFavorite.trackId && fav.addedAt == userFavorite.addedAt }
 
                 if (!alreadyExists) {
                     saveCollections.addUserFavoriteTrackIfAbsent(userFavorite)
@@ -280,6 +296,7 @@ data class ConcurrentSaveCollections(
     val albumArtists: MutableSet<AlbumArtist> = mutableSetOf(),
     val tracks: MutableSet<Track> = mutableSetOf(),
     val trackArtists: MutableSet<TrackArtist> = mutableSetOf(),
+    val userFollowedArtists: MutableSet<UserFollowedArtist> = mutableSetOf(),
     val userFavoriteTracks: MutableSet<UserFavoriteTrack> = mutableSetOf(),
     val userFavoriteAlbums: MutableSet<UserFavoriteAlbum> = mutableSetOf()
 ) {
@@ -292,6 +309,7 @@ data class ConcurrentSaveCollections(
     private val albumArtistsMutex = Mutex()
     private val tracksMutex = Mutex()
     private val trackArtistsMutex = Mutex()
+    private val userFollowedArtistsMutex = Mutex()
     private val userFavoriteTracksMutex = Mutex()
     private val userFavoriteAlbumsMutex = Mutex()
 
@@ -364,6 +382,14 @@ data class ConcurrentSaveCollections(
         trackArtistsMutex.withLock {
             if (this.trackArtists.none { it.trackId == trackArtist.trackId && it.artistId == trackArtist.artistId }) {
                 this.trackArtists.add(trackArtist)
+            }
+        }
+    }
+
+    suspend fun addUserFollowedArtistIfAbsent(userFavoriteArtist: UserFollowedArtist) {
+        userFollowedArtistsMutex.withLock {
+            if (this.userFollowedArtists.none { it.userId == userFavoriteArtist.userId && it.artistId == userFavoriteArtist.artistId }) {
+                this.userFollowedArtists.add(userFavoriteArtist)
             }
         }
     }

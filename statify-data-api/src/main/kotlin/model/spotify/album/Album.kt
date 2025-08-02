@@ -9,9 +9,9 @@ import org.danila.model.spotify.track.Track
 @Table(
     name = "albums",
     indexes = [
-        Index(name = "idx_release_year", columnList = "release_year"),
-        Index(name = "idx_release_month", columnList = "release_month"),
-        Index(name = "idx_album_name", columnList = "name")
+        Index(name = "idx_albums_release_year", columnList = "release_year"),
+        Index(name = "idx_albums_release_month", columnList = "release_month"),
+        Index(name = "idx_albums_name", columnList = "name")
     ]
 )
 data class Album(

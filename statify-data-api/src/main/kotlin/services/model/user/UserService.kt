@@ -3,9 +3,9 @@ package org.danila.services.model.user
 import org.danila.dto.FavAlbumDto
 import org.danila.dto.FavTrackDto
 import org.danila.dto.PageInfoDto
-import org.danila.model.spotify.album.UserAlbumFavoriteId
+import org.danila.model.spotify.album.UserFavoriteAlbumId
 import org.danila.model.spotify.album.UserFavoriteAlbum
-import org.danila.model.spotify.track.UserTrackFavoriteId
+import org.danila.model.spotify.track.UserFavoriteTrackId
 import org.danila.repository.UserFavoriteAlbumRepository
 import org.danila.repository.UserFavoriteTrackRepository
 import org.springframework.beans.factory.annotation.Autowired
@@ -38,7 +38,7 @@ class UserService @Autowired constructor(
             userFavoriteTrackRepository.findByIdUserId(userId = userId, pageable = pageable)
         else {
             val last = userFavoriteTrackRepository
-                .findById(UserTrackFavoriteId(userId = userId, trackId = after))
+                .findById(UserFavoriteTrackId(userId = userId, trackId = after))
                 .orElseThrow { IllegalArgumentException("Favorite track not found for cursor=$after") }
 
             userFavoriteTrackRepository.findByIdUserIdAndAddedAtLessThanOrAddedAtEqualsAndIdTrackIdLessThan(
@@ -93,7 +93,7 @@ class UserService @Autowired constructor(
             userFavoriteAlbumRepository.findByIdUserId(userId = userId, pageable = pageable)
         } else {
             val last = userFavoriteAlbumRepository
-                .findById(UserAlbumFavoriteId(userId = userId, albumId = after))
+                .findById(UserFavoriteAlbumId(userId = userId, albumId = after))
                 .orElseThrow { IllegalArgumentException("Favorite album not found for cursor=$after") }
 
             userFavoriteAlbumRepository.findByIdUserIdAndAddedAtLessThanOrAddedAtEqualsAndIdAlbumIdLessThan(

@@ -1,6 +1,6 @@
 package org.danila.repository
 
-import org.danila.model.spotify.album.UserAlbumFavoriteId
+import org.danila.model.spotify.album.UserFavoriteAlbumId
 import org.danila.model.spotify.album.UserFavoriteAlbum
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Slice
@@ -10,7 +10,7 @@ import java.time.Instant
 import java.util.*
 
 @Repository
-interface UserFavoriteAlbumRepository : JpaRepository<UserFavoriteAlbum, UserAlbumFavoriteId> {
+interface UserFavoriteAlbumRepository : JpaRepository<UserFavoriteAlbum, UserFavoriteAlbumId> {
 
     fun findByIdUserId(
         userId: UUID,

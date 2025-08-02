@@ -8,15 +8,15 @@ import java.util.*
 @Table(
     name = "user_favorite_albums",
     indexes = [
-        Index(name = "idx_ufa_user", columnList = "user_id"),
-        Index(name = "idx_ufa_album", columnList = "album_id"),
-        Index(name = "idx_uft_user_added_album", columnList = "user_id, added_at, album_id")
+        Index(name = "idx_user_favorite_albums_user", columnList = "user_id"),
+        Index(name = "idx_user_favorite_albums_album", columnList = "album_id"),
+        Index(name = "idx_user_favorite_albums_user_added_album", columnList = "user_id, added_at, album_id")
     ]
 )
 data class UserFavoriteAlbum(
 
     @EmbeddedId
-    val id: UserAlbumFavoriteId,
+    val id: UserFavoriteAlbumId,
 
     @MapsId("albumId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -33,7 +33,7 @@ data class UserFavoriteAlbum(
         album: Album,
         addedAt: Instant = Instant.now(),
     ) : this(
-        id = UserAlbumFavoriteId(userId = userId, albumId = album.spotifyId),
+        id = UserFavoriteAlbumId(userId = userId, albumId = album.spotifyId),
         album = album,
         addedAt = addedAt
     )

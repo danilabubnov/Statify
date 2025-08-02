@@ -5,7 +5,7 @@ import org.danila.model.spotify.Image
 import org.danila.model.spotify.track.Track
 
 @Entity
-@Table(name = "artists", indexes = [Index(name = "idx_artist_name", columnList = "name")])
+@Table(name = "artists", indexes = [Index(name = "idx_artists_name", columnList = "name")])
 data class Artist(
 
     @Id

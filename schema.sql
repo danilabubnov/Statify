@@ -54,13 +54,13 @@ create table albums
 alter table albums
     owner to postgres;
 
-create index idx_release_year
+create index idx_albums_release_year
     on albums (release_year);
 
-create index idx_release_month
+create index idx_albums_release_month
     on albums (release_month);
 
-create index idx_album_name
+create index idx_albums_name
     on albums (name);
 
 create table artist_genres
@@ -103,7 +103,7 @@ create table artists
 alter table artists
     owner to postgres;
 
-create index idx_artist_name
+create index idx_artists_name
     on artists (name);
 
 create table track_artists
@@ -137,7 +137,7 @@ create table tracks
 alter table tracks
     owner to postgres;
 
-create index idx_track_name
+create index idx_tracks_name
     on tracks (name);
 
 create table user_favorite_albums
@@ -153,11 +153,14 @@ create table user_favorite_albums
 alter table user_favorite_albums
     owner to postgres;
 
-create index idx_ufa_user
+create index idx_user_favorite_albums_user
     on user_favorite_albums (user_id);
 
-create index idx_ufa_album
+create index idx_user_favorite_albums_album
     on user_favorite_albums (album_id);
+
+create index idx_user_favorite_albums_user_added_album
+    on user_favorite_albums (user_id, added_at, album_id);
 
 create table user_favorite_tracks
 (
@@ -172,8 +175,32 @@ create table user_favorite_tracks
 alter table user_favorite_tracks
     owner to postgres;
 
-create index idx_uft_user
+create index idx_user_favorite_tracks_user
     on user_favorite_tracks (user_id);
 
-create index idx_uft_track
+create index idx_user_favorite_tracks_track
     on user_favorite_tracks (track_id);
+
+create index idx_user_favorite_tracks_user_added_track
+    on user_favorite_tracks (user_id, added_at, track_id);
+
+create table user_followed_artists
+(
+    user_id   uuid         not null,
+    artist_id varchar(255) not null
+        constraint fk457p23bnt0mb6xcc0ypuy7klx
+            references artists,
+    primary key (artist_id, user_id)
+);
+
+alter table user_followed_artists
+    owner to postgres;
+
+create index idx_user_followed_artists_user
+    on user_followed_artists (user_id);
+
+create index idx_user_followed_artists_artist
+    on user_followed_artists (artist_id);
+
+create index idx_user_followed_artists_user_artist
+    on user_followed_artists (user_id, artist_id);

@@ -5,7 +5,7 @@ import jakarta.persistence.Embeddable
 import java.util.*
 
 @Embeddable
-data class UserAlbumFavoriteId(
+data class UserFavoriteAlbumId(
 
     @Column(name = "user_id", nullable = false)
     val userId: UUID,

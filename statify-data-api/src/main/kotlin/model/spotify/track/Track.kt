@@ -5,7 +5,7 @@ import org.danila.model.spotify.album.Album
 import org.danila.model.spotify.artist.Artist
 
 @Entity
-@Table(name = "tracks", indexes = [Index(name = "idx_track_name", columnList = "name")])
+@Table(name = "tracks", indexes = [Index(name = "idx_tracks_name", columnList = "name")])
 data class Track(
 
     @Id

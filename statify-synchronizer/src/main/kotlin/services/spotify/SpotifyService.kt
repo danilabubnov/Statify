@@ -40,6 +40,7 @@ import org.danila.model.spotify.album.UserFavoriteAlbum
 import org.danila.model.spotify.artist.Artist
 import org.danila.model.spotify.artist.ArtistGenre
 import org.danila.model.spotify.artist.ArtistImage
+import org.danila.model.spotify.artist.UserFollowedArtist
 import org.danila.model.spotify.track.Track
 import org.danila.model.spotify.track.UserFavoriteTrack
 import org.danila.services.RedisStateService
@@ -63,6 +64,7 @@ import kotlin.coroutines.coroutineContext
 
 @Service
 class SpotifyService @Autowired constructor(
+    private val userFollowedArtistStorageService: UserFollowedArtistStorageService,
     private val userFavoriteAlbumStorageService: UserFavoriteAlbumStorageService,
     private val userFavoriteTrackStorageService: UserFavoriteTrackStorageService,
     private val trackArtistStorageService: TrackArtistStorageService,
@@ -429,6 +431,7 @@ class SpotifyService @Autowired constructor(
                 albumDTOs.map { it.id to it.images }.toSet() + trackDTOs.map { track -> track.album.id to track.album.images }.toSet()
             )
         }
+        val userFollowedArtistsDeferred = async { if (userId != null) userFollowedArtistStorageService.findExistingUserFollowedArtists(userId) else emptyList() }
         val userFavoriteTracksDeferred = async { if (userId != null) userFavoriteTrackStorageService.findExistingUserFavoriteTracks(userId) else emptyList() }
         val userFavoriteAlbumsDeferred = async { if (userId != null) userFavoriteAlbumStorageService.findExistingUserFavoriteAlbums(userId) else emptyList() }
 
@@ -441,6 +444,7 @@ class SpotifyService @Autowired constructor(
             artistImages = artistImagesDeferred.await().toSet(),
             artistGenres = artistGenresDeferred.await().toSet(),
             albumImages = albumImagesDeferred.await().toSet(),
+            userFollowedArtists = userFollowedArtistsDeferred.await().toSet(),
             userFavoriteTracks = userFavoriteTracksDeferred.await().toSet(),
             userFavoriteAlbums = userFavoriteAlbumsDeferred.await().toSet()
         )
@@ -461,6 +465,7 @@ class SpotifyService @Autowired constructor(
                 launch { artistGenreStorageService.persistArtistGenres(saveCollections.artistGenres) },
                 launch { albumArtistStorageService.persistAlbumArtists(saveCollections.albumArtists) },
                 launch { trackArtistStorageService.persistTrackArtists(saveCollections.trackArtists) },
+                launch { userFollowedArtistStorageService.persistUserFollowedArtists(saveCollections.userFollowedArtists) },
                 launch { userFavoriteTrackStorageService.persistUserFavoriteTracks(saveCollections.userFavoriteTracks) },
                 launch { userFavoriteAlbumStorageService.persistUserFavoriteAlbums(saveCollections.userFavoriteAlbums) }
             )
@@ -593,6 +598,7 @@ data class ExistingData(
     val artistImages: Set<ArtistImage>,
     val artistGenres: Set<ArtistGenre>,
     val albumImages: Set<AlbumImage>,
+    val userFollowedArtists: Set<UserFollowedArtist>,
     val userFavoriteTracks: Set<UserFavoriteTrack>,
     val userFavoriteAlbums: Set<UserFavoriteAlbum>
 )
