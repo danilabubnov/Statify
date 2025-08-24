@@ -94,8 +94,10 @@ services:
       POSTGRES_USER: ${STATIFY_CORE_POSTGRES_USER}
       POSTGRES_PASSWORD: ${STATIFY_CORE_POSTGRES_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: ${SPRING_KAFKA_BOOTSTRAP_SERVERS_DOCKER}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      JWT_ACCESS_SECRET_KEY: ${JWT_ACCESS_SECRET_KEY}
+      JWT_REFRESH_SECRET_KEY: ${JWT_REFRESH_SECRET_KEY}
+      JWT_ACCESS_EXPIRATION_MS: ${JWT_ACCESS_EXPIRATION_MS}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS}
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       SPOTIFY_SCOPE: ${SPOTIFY_SCOPE}
@@ -138,8 +140,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      statify-data-api:
-        condition: service_healthy
+      #      statify-data-api:
+      #        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -153,14 +155,15 @@ services:
   statify-data-api:
     build: ./statify-data-api
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: ${STATIFY_DATA_STORAGE_POSTGRES_DOCKER_JDBC_URL}
       POSTGRES_USER: ${STATIFY_DATA_STORAGE_POSTGRES_USER}
       POSTGRES_PASSWORD: ${STATIFY_DATA_STORAGE_POSTGRES_PASSWORD}
       SERVER_PORT: ${STATIFY_DATA_API_PORT}
       SERVER_URL: ${STATIFY_DATA_API_URL}
-    depends_on:
-      postgres-data-storage:
-        condition: service_healthy
+    #    depends_on:
+    #      postgres-data-storage:
+    #        condition: service_healthy
 #    healthcheck:
 #      test: [ "CMD-SHELL", "curl -f http://localhost:$${STATIFY_DATA_API_PORT}/actuator/health || exit 1" ]
 #      interval: 30s

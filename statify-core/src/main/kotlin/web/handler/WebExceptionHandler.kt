@@ -1,5 +1,6 @@
 package org.danila.web.handler
 
+import org.danila.dto.error.ErrorResponse
 import org.danila.exception.InvalidBearerTokenException
 import org.danila.exception.MissingBearerTokenException
 import org.springframework.http.HttpStatus
@@ -32,5 +33,3 @@ class WebExceptionHandler {
     }
 
 }
-
-data class ErrorResponse(val message: String)

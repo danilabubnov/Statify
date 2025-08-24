@@ -19,17 +19,60 @@
 
 - JWT tokens are issued after a successful login via the `/login` endpoint.
 
-- Spotify OAuth2 linking (`/link/spotify`) is only available to authenticated users.
+- A refresh token is issued in a secure HttpOnly cookie.
+    - Path is limited to /api/auth/refresh.
+    - Can be used to obtain a new access token without re-login.
+
+- Logout (/api/auth/logout) clears the refresh token cookie.
+
+- Spotify OAuth2 linking (/api/oauth/link/spotify) is only available to authenticated users.
 
 - Sensitive configuration values (e.g., secrets, keys, credentials) are injected via environment variables and should never be hardcoded.
+
+### Authentication Flow
+
+1. Register
+
+```
+POST /api/auth/register
+```
+
+Creates a new user.
+
+2. Login
+
+```
+POST /api/auth/login
+```
+
+Response body contains an access token.
+Response headers contain an HttpOnly cookie with the refresh token.
+
+3. Refresh Access Token
+
+```
+POST /api/auth/refresh
+```
+
+Uses the refresh token from the HttpOnly cookie.
+Responds with a new access token.
+
+4. Logout
+
+```
+POST /api/auth/logout
+```
+
+Clears the refresh token cookie.
 
 ### Link Spotify Account
 
 Initiates the OAuth2 authorization flow with Spotify for the authenticated user.
 
-Endpoint:
-POST /link/spotify
-Authorization: Bearer <jwt-token>
+```
+POST /api/oauth/link/spotify
+Authorization: Bearer <access-token>
+```
 
 Behavior:
 
