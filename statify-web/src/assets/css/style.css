@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+@import './variables.css';
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+  name: 'light';
+  default: true;
+  prefersdark: true;
+  color-scheme: 'light';
+  --color-base-100: oklch(21% 0.006 285.885);
+  --color-base-200: var(--color-background);
+  --color-base-300: oklch(21% 0.006 285.885);
+  --color-base-content: oklch(100% 0 0);
+  --color-primary: oklch(82% 0.21 140);
+  --color-primary-content: oklch(0% 0 0);
+  --color-secondary: oklch(0.7697 0.2124 148.67);
+  --color-secondary-content: oklch(0% 0 0);
+  --color-accent: oklch(0.8741 0.2322 139.26);
+  --color-accent-content: oklch(0 0 0);
+  --color-neutral: oklch(14% 0.005 285.823);
+  --color-neutral-content: oklch(100% 0 0);
+  --color-info: oklch(70% 0.18 240);
+  --color-info-content: oklch(100% 0 0);
+  --color-success: oklch(65% 0.2 145);
+  --color-success-content: oklch(100% 0 0);
+  --color-warning: oklch(80% 0.2 85);
+  --color-warning-content: oklch(0% 0 0);
+  --color-error: oklch(65% 0.2 25);
+  --color-error-content: oklch(0% 0 0);
+  --radius-selector: 0.5rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-background);
+  scrollbar-gutter: auto !important;
+}
+
+.btn-hoverable { 
+  @apply hover:scale-95 transition-all duration-300 ease-out transform-gpu will-change-[transform] [backface-visibility:hidden]
+}
+
+.input:hover { 
+  @apply duration-350 ease-out
+}

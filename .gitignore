@@ -46,4 +46,11 @@ bin/
 /.idea/
 
 .env
-.env.web
+
+### WEB ###
+
+statify-web/.env
+statify-web/.firebase/
+statify-web/.vite/
+statify-web/dist/
+statify-web/node_modules/
