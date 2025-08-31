@@ -1,10 +1,12 @@
 package org.danila.service.auth
 
-import org.danila.dto.auth.*
+import org.danila.dto.request.auth.LoginRequest
+import org.danila.dto.request.auth.RegistrationRequest
+import org.danila.dto.response.auth.AuthResponse
 import org.danila.security.jwt.JwtUtils
+import org.danila.security.jwt.TokenType
 import org.danila.security.user.UserDetailsImpl
 import org.danila.service.model.user.UserService
-import org.danila.web.controller.toUserResponse
 import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
@@ -19,49 +21,53 @@ class AuthService(
     private val jwtUtils: JwtUtils,
 ) {
 
-    fun register(request: RegistrationRequest): AuthResponse {
-        val sanitizedFirstName = request.firstName.trim().ifEmpty { error("First name must not be blank") }
-        val sanitizedLastName = request.lastName.trim().ifEmpty { error("Last name must not be blank") }
-        val sanitizedEmail = request.email.trim().ifEmpty { error("Email must not be blank") }
-        val sanitizedUsername = request.username.trim().ifEmpty { error("Username must not be blank") }
-        val sanitizedPassword = request.password.trim().ifEmpty { error("Password must not be blank") }
-
+    fun register(request: RegistrationRequest): RegisterResult {
         val createdUser = userService.create(
-            firstName = sanitizedFirstName,
-            lastName = sanitizedLastName,
-            email = sanitizedEmail,
-            username = sanitizedUsername,
-            password = sanitizedPassword
+            email = request.email,
+            password = request.password
         )
 
-        return createdUser.toUserResponse()
+        val accessToken = jwtUtils.generateToken(username = createdUser.email, type = TokenType.ACCESS)
+        val refreshToken = jwtUtils.generateToken(username = createdUser.email, type = TokenType.REFRESH)
+
+        return RegisterResult(accessToken = accessToken, refreshToken = refreshToken, user = AuthResponse(id = createdUser.id, email = createdUser.email))
     }
 
-    fun login(request: LoginRequest): LoginResponse {
-        val sanitizedUsername = request.username.trim().ifEmpty { error("Username must not be blank") }
-        val sanitizedPassword = request.password.trim().ifEmpty { error("Password must not be blank") }
-
+    fun login(request: LoginRequest): LoginResult {
         val authentication = authenticationManager.authenticate(
-            UsernamePasswordAuthenticationToken(sanitizedUsername, sanitizedPassword)
+            UsernamePasswordAuthenticationToken(request.email, request.password)
         )
+
         SecurityContextHolder.getContext().authentication = authentication
 
         val userDetails = authentication.principal as UserDetailsImpl
         val username = userDetails.username ?: error("Username must not be blank")
 
-        val accessToken = jwtUtils.generateAccessToken(username)
-        val refreshToken = jwtUtils.generateRefreshToken(username)
+        val accessToken = jwtUtils.generateToken(username = username, type = TokenType.ACCESS)
+        val refreshToken = jwtUtils.generateToken(username = username, type = TokenType.REFRESH)
 
-        return LoginResponse(accessToken, refreshToken)
+        return LoginResult(accessToken = accessToken, refreshToken = refreshToken, user = AuthResponse(id = userDetails.user.id, email = userDetails.user.email))
     }
 
-    fun refresh(refreshToken: String): TokenResponse {
-        if (!jwtUtils.validateRefreshToken(refreshToken)) throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token")
+    fun refreshAccessToken(refreshToken: String): String {
+        if (!jwtUtils.validateToken(token = refreshToken, type = TokenType.REFRESH)) throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token")
 
-        val username = jwtUtils.getUsernameFromRefreshToken(refreshToken)
-        val newAccessToken = jwtUtils.generateAccessToken(username)
+        val username = jwtUtils.getUsernameFromToken(token = refreshToken, type = TokenType.REFRESH)
+        val newAccessToken = jwtUtils.generateToken(username = username, type = TokenType.ACCESS)
 
-        return TokenResponse(newAccessToken)
+        return newAccessToken
     }
 
 }
+
+data class RegisterResult(
+    val accessToken: String,
+    val refreshToken: String,
+    val user: AuthResponse
+)
+
+data class LoginResult(
+    val accessToken: String,
+    val refreshToken: String,
+    val user: AuthResponse
+)

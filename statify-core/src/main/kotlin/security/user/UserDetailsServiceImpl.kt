@@ -1,6 +1,6 @@
 package org.danila.security.user
 
-import org.danila.exception.UsernameNotFoundException
+import org.danila.exception.EmailNotFoundException
 import org.danila.repository.UserRepository
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
@@ -13,9 +13,9 @@ class UserDetailsServiceImpl(
 ) : UserDetailsService {
 
     override fun loadUserByUsername(username: String?): UserDetails? = UserDetailsImpl(
-        user = userRepository.findByUsername(
-            username?.trimToNull() ?: error("Username is null")
-        ) ?: throw UsernameNotFoundException()
+        user = userRepository.findByEmail(
+            username?.trimToNull() ?: error("Email is null")
+        ) ?: throw EmailNotFoundException()
     )
 
 }

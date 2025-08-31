@@ -11,8 +11,7 @@ import java.util.*
 @Table(
     name = "users",
     indexes = [
-        Index(name = "idx_user_email", columnList = "email"),
-        Index(name = "idx_user_username", columnList = "username")
+        Index(name = "idx_user_email", columnList = "email")
     ]
 )
 data class User(
@@ -21,17 +20,8 @@ data class User(
     @Column(name = "id")
     val id: UUID,
 
-    @Column(name = "first_name", nullable = false)
-    var firstName: String,
-
-    @Column(name = "last_name", nullable = false)
-    var lastName: String,
-
     @Column(name = "email", nullable = false, unique = true)
     var email: String,
-
-    @Column(name = "username", nullable = false, unique = true)
-    var username: String,
 
     @Column(name = "password")
     val password: String?,

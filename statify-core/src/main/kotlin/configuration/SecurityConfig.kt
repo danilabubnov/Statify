@@ -17,8 +17,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import java.time.Instant
 
 @Configuration
 @EnableWebSecurity
@@ -32,22 +34,24 @@ class SecurityConfig(
 ) {
 
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain = http
+    fun securityFilterChain(
+        http: HttpSecurity,
+        authenticationEntryPoint: AuthenticationEntryPoint,
+        jwtAuthenticationFilter: JwtAuthenticationFilter
+    ): SecurityFilterChain = http
         .csrf { csrf ->
             csrf.disable()
         }
+        .cors { }
         .sessionManagement { session ->
             session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         }
         .exceptionHandling { exception ->
-            exception.authenticationEntryPoint { request, response, authException ->
-                response.sendError(401, authException.message ?: authException.localizedMessage)
-            }
+            exception.authenticationEntryPoint(authenticationEntryPoint)
         }
         .authorizeHttpRequests { auth ->
             auth
                 .requestMatchers(*publicEndpoints.publicEndpoints.toTypedArray()).permitAll()
-                .requestMatchers(*publicEndpoints.excludedEndpoints.toTypedArray()).authenticated()
                 .anyRequest().authenticated()
         }
         .oauth2Login { oauth2 ->
@@ -58,11 +62,15 @@ class SecurityConfig(
                 .userInfoEndpoint { userInfo -> userInfo.userService(spotifyOAuth2UserService) }
                 .successHandler(oAuth2SuccessHandler)
                 .failureHandler { request, response, exception ->
-                    response.sendError(HttpStatus.UNAUTHORIZED.value(), "OAuth2 Error: ${exception.message}")
+                    response.status = HttpStatus.UNAUTHORIZED.value()
+                    response.contentType = "application/json"
+                    response.writer.write(
+                        """{"timestamp":"${Instant.now()}","message":"OAuth2 Error: ${exception.message}"}"""
+                    )
                 }
         }
         .userDetailsService(userDetailsServiceImpl)
-        .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter::class.java)
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         .build()
 
     @Bean
@@ -73,5 +81,12 @@ class SecurityConfig(
 
     @Bean
     fun authenticationManager(authenticationConfiguration: AuthenticationConfiguration): AuthenticationManager = authenticationConfiguration.authenticationManager
+
+    @Bean
+    fun authenticationEntryPoint(): AuthenticationEntryPoint = AuthenticationEntryPoint { request, response, authException ->
+        response.status = HttpStatus.UNAUTHORIZED.value()
+        response.contentType = "application/json"
+        response.writer.write("""{"timestamp":"${Instant.now()}","message":"Invalid email or password","errors":{}}""")
+    }
 
 }

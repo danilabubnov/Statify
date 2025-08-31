@@ -1,23 +1,12 @@
-package org.danila.dto.auth
+package org.danila.dto.request.auth
 
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
+import org.danila.validation.NoEdgeSpaces
 
 data class RegistrationRequest(
-
-    @field:NotBlank(message = "First Name must not be blank")
-    @field:Size(min = 3, max = 24, message = "First Name must contain between 3 and 24 characters")
-    val firstName: String,
-
-    @field:NotBlank(message = "Last Name must not be blank")
-    @field:Size(min = 3, max = 24, message = "Last Name must contain between 3 and 24 characters")
-    val lastName: String,
-
-    @field:NotBlank(message = "Username must not be blank")
-    @field:Size(min = 3, max = 24, message = "Username must contain between 3 and 24 characters")
-    val username: String,
 
     @field:NotBlank(message = "Email must not be blank")
     @field:Email(message = "Email must be a valid email address")
@@ -29,6 +18,13 @@ data class RegistrationRequest(
         regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).*$",
         message = "Password must contain at least one digit, one lowercase letter, and one uppercase letter"
     )
+    @field:NoEdgeSpaces(message = "Password cannot start or end with spaces")
     val password: String
 
-)
+) {
+
+    fun normalize(): RegistrationRequest = copy(
+        email = email.trim()
+    )
+
+}

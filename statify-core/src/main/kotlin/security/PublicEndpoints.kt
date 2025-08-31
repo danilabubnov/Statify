@@ -16,13 +16,10 @@ class PublicEndpoints {
         "/favicon.ico",
         "/api/auth/register",
         "/api/auth/login",
+        "/api/auth/refresh",
+        "/api/auth/logout",
         "/login/oauth2/code/**",
         "/actuator/health"
-    )
-
-    val excludedEndpoints: Set<String> = setOf(
-        "/api/auth/me",
-        "/api/auth/link/spotify"
     )
 
     fun isPublicEndpoint(request: HttpServletRequest): Boolean {
@@ -30,8 +27,8 @@ class PublicEndpoints {
         val matcher = AntPathMatcher()
 
         val isPublic = publicEndpoints.any { endpoint -> matcher.match(endpoint, path) }
-        val isExcluded = excludedEndpoints.any { endpoint -> matcher.match(endpoint, path) }
 
-        return isPublic && !isExcluded
+        return isPublic
     }
+
 }

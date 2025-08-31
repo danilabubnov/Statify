@@ -1,6 +1,7 @@
 package org.danila.security.jwt
 
 import io.jsonwebtoken.JwtException
+import io.jsonwebtoken.JwtParser
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import org.springframework.beans.factory.annotation.Value
@@ -8,6 +9,10 @@ import org.springframework.stereotype.Component
 import java.nio.charset.StandardCharsets
 import java.util.*
 import javax.crypto.SecretKey
+
+enum class TokenType {
+    ACCESS, REFRESH
+}
 
 @Component
 class JwtUtils(
@@ -17,26 +22,32 @@ class JwtUtils(
     @Value("\${jwt.refresh.expiration.ms}") private val refreshExpirationMs: Long
 ) {
 
-    private val accessKey = Keys.hmacShaKeyFor(jwtAccessSecretKey.toByteArray(StandardCharsets.UTF_8))
-    private val refreshKey = Keys.hmacShaKeyFor(jwtRefreshSecretKey.toByteArray(StandardCharsets.UTF_8))
+    private val keys = mapOf(
+        TokenType.ACCESS to Keys.hmacShaKeyFor(jwtAccessSecretKey.toByteArray(StandardCharsets.UTF_8)),
+        TokenType.REFRESH to Keys.hmacShaKeyFor(jwtRefreshSecretKey.toByteArray(StandardCharsets.UTF_8))
+    )
 
-    // -------------------- ACCESS --------------------
+    private val expirations = mapOf(
+        TokenType.ACCESS to accessExpirationMs,
+        TokenType.REFRESH to refreshExpirationMs
+    )
 
-    fun generateAccessToken(username: String): String =
-        generateToken(username, accessExpirationMs, accessKey)
+    fun generateToken(username: String, type: TokenType): String =
+        generateToken(username, expirations[type]!!, keys[type]!!)
 
-    // -------------------- REFRESH --------------------
+    fun validateToken(token: String, type: TokenType): Boolean =
+        try {
+            verifyJwt(keys[type]!!).parse(token)
+            true
+        } catch (e: JwtException) {
+            false
+        }
 
-    fun generateRefreshToken(username: String): String =
-        generateToken(username, refreshExpirationMs, refreshKey)
-
-    fun validateRefreshToken(token: String): Boolean =
-        validateToken(token, refreshKey)
-
-    fun getUsernameFromRefreshToken(token: String): String =
-        getUsernameFromToken(token, refreshKey)
-
-    // -------------------- COMMON --------------------
+    fun getUsernameFromToken(token: String, type: TokenType): String =
+        verifyJwt(keys[type]!!)
+            .parseSignedClaims(token)
+            .payload
+            .subject
 
     private fun generateToken(username: String, expiration: Long, key: SecretKey): String {
         val now = Date()
@@ -50,24 +61,9 @@ class JwtUtils(
             .compact()
     }
 
-    fun getUsernameFromToken(token: String, key: SecretKey = accessKey): String =
-        Jwts.parser()
-            .verifyWith(key)
-            .build()
-            .parseSignedClaims(token)
-            .payload
-            .subject
-
-    fun validateToken(token: String, key: SecretKey = accessKey): Boolean {
-        return try {
-            Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parse(token)
-            true
-        } catch (e: JwtException) {
-            false
-        }
-    }
+    private fun verifyJwt(key: SecretKey): JwtParser = Jwts
+        .parser()
+        .verifyWith(key)
+        .build()
 
 }

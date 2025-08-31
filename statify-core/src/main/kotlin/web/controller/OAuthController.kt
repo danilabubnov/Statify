@@ -1,5 +1,6 @@
 package org.danila.web.controller
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import org.danila.model.OAuth2LinkState
 import org.danila.repository.OAuth2LinkStateRepository
 import org.danila.security.user.UserDetailsImpl
@@ -27,6 +28,7 @@ class OAuthController @Autowired constructor(
 ) {
 
     @PostMapping("/link/spotify")
+    @SecurityRequirement(name = "bearerAuth")
     fun initiateLinkSpotify(@AuthenticationPrincipal userDetails: UserDetailsImpl): ResponseEntity<Void> {
         val state = idGeneratorService.uuid
         val authorizationRequest = OAuth2AuthorizationRequest.authorizationCode()
@@ -46,7 +48,7 @@ class OAuthController @Autowired constructor(
             )
         )
 
-        return ResponseEntity.status(HttpStatus.FOUND)
+        return ResponseEntity.status(HttpStatus.SEE_OTHER)
             .header("Location", authorizationRequest.authorizationRequestUri)
             .build()
     }
