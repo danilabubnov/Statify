@@ -36,6 +36,14 @@ services:
     networks:
       - app-network
 
+  kafka-init:
+    image: busybox
+    command: [ "sh", "-c", "chown -R 1001:1001 /tmp/kraft-combined-logs" ]
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+    networks:
+      - app-network
+
   kafka:
     image: bitnami/kafka:3.7
     environment:
@@ -50,13 +58,18 @@ services:
       ALLOW_PLAINTEXT_LISTENER: "yes"
       KAFKA_CFG_LOG_DIRS: /tmp/kraft-combined-logs
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_KRAFT_CLUSTER_ID: KAFKA_KRAFT_CLUSTER_ID
     healthcheck:
       test: [ "CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9094" ]
       interval: 10s
       timeout: 5s
       retries: 10
+    depends_on:
+      - kafka-init
     ports:
       - "9094:9094"
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
     networks:
       - app-network
 
@@ -179,3 +192,4 @@ networks:
 volumes:
   postgres_core_data:
   postgres_data_storage_data:
+  kafka-data:
