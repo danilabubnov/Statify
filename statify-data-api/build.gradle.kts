@@ -29,8 +29,10 @@ dependencies {
     }
 }
 
-tasks.named<GenerateJavaTask>("generateJava") {
-    schemaPaths       = mutableListOf("src/main/resources/schema")
-    packageName       = "org.danila.generated"
-    generateClient    = false
+project(":statify-data-api") {
+    tasks.named<GenerateJavaTask>("generateJava") {
+        schemaPaths = mutableListOf("$projectDir/src/main/resources/schema")
+        packageName = "org.danila.generated"
+        generateClient = false
+    }
 }
