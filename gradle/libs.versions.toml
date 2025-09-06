@@ -21,6 +21,7 @@ spring-security-crypto = "6.4.4"
 
 postgresql             = "42.7.5"
 h2                     = "2.3.232"
+flyway                 = "11.12.0"
 
 kotlin-logging-jvm     = "7.0.7"
 assertk                = "0.28.1"
@@ -62,9 +63,11 @@ spring-security-test   = { group = "org.springframework.security", name = "sprin
 spring-security-crypto = { group = "org.springframework.security", name = "spring-security-crypto", version.ref = "spring-security-crypto" }
 
 # --- DB / JPA
-postgresql       = { group = "org.postgresql", name = "postgresql",       version.ref = "postgresql" }
-r2dbc-postgresql = { group = "org.postgresql", name = "r2dbc-postgresql", version.ref = "r2dbc-postgresql" }
-h2               = { group = "com.h2database", name = "h2",               version.ref = "h2" }
+postgresql               = { group = "org.postgresql", name = "postgresql",                 version.ref = "postgresql" }
+r2dbc-postgresql         = { group = "org.postgresql", name = "r2dbc-postgresql",           version.ref = "r2dbc-postgresql" }
+h2                       = { group = "com.h2database", name = "h2",                         version.ref = "h2" }
+flyway-core              = { group = "org.flywaydb",   name = "flyway-core",                version.ref = "flyway" }
+flyway-database-postgres = { group = "org.flywaydb",   name = "flyway-database-postgresql", version.ref = "flyway"}
 
 # --- Kafka
 spring-integration-kafka = { group = "org.springframework.integration", name = "spring-integration-kafka", version.ref = "kafka" }

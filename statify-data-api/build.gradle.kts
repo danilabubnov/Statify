@@ -22,6 +22,8 @@ dependencies {
     implementation(libs.graphql.dgs.extended.validation)
 
     implementation(libs.postgresql)
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.database.postgres)
 
     testImplementation(platform(libs.spring.boot.dependencies))
     testImplementation(libs.spring.boot.starter.test) {

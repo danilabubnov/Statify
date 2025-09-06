@@ -22,6 +22,8 @@ dependencies {
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
 
     implementation(libs.postgresql)
+    implementation(libs.flyway.core)
+    implementation(libs.flyway.database.postgres)
 
     implementation(libs.jjwt.api)
     runtimeOnly(libs.jjwt.impl)

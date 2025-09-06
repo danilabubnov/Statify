@@ -1,34 +1,3 @@
--- SQL schema for statify-synchronizer
-
-create table album_artists
-(
-    album_id  varchar(50) not null
-        constraint fktblxj61x9u2a4qwpbd22bjxxg
-            references albums,
-    artist_id varchar(50) not null
-        constraint fkpmmqobo7dghsklv6ocdqds4mb
-            references artists,
-    primary key (album_id, artist_id)
-);
-
-alter table album_artists
-    owner to postgres;
-
-create table album_images
-(
-    album_id     varchar(50) not null
-        constraint fkbdn548tq89gkcmd9y68syvs99
-            references albums,
-    image_height integer,
-    image_url    varchar(255),
-    image_width  integer,
-    image_order  integer     not null,
-    primary key (album_id, image_order)
-);
-
-alter table album_images
-    owner to postgres;
-
 create table albums
 (
     spotify_id             varchar(50)  not null
@@ -63,34 +32,6 @@ create index idx_albums_release_month
 create index idx_albums_name
     on albums (name);
 
-create table artist_genres
-(
-    artist_id varchar(50)  not null
-        constraint fkrsiygs82pwn6xqk6prce2eana
-            references artists,
-    genre     varchar(100) not null,
-    constraint uk_artist_genre
-        unique (artist_id, genre)
-);
-
-alter table artist_genres
-    owner to postgres;
-
-create table artist_images
-(
-    artist_id    varchar(50) not null
-        constraint fk7cqpk25202oorwucah01lxn1k
-            references artists,
-    image_height integer,
-    image_url    varchar(255),
-    image_width  integer,
-    image_order  integer     not null,
-    primary key (artist_id, image_order)
-);
-
-alter table artist_images
-    owner to postgres;
-
 create table artists
 (
     spotify_id      varchar(50)  not null
@@ -105,20 +46,6 @@ alter table artists
 
 create index idx_artists_name
     on artists (name);
-
-create table track_artists
-(
-    track_id  varchar(50) not null
-        constraint fkony1th5c1wj2jev5dj7iu3w0s
-            references tracks,
-    artist_id varchar(50) not null
-        constraint fksl7o5dd8puim5tvojt2elt5cy
-            references artists,
-    primary key (track_id, artist_id)
-);
-
-alter table track_artists
-    owner to postgres;
 
 create table tracks
 (
@@ -139,6 +66,77 @@ alter table tracks
 
 create index idx_tracks_name
     on tracks (name);
+
+create table album_artists
+(
+    album_id  varchar(50) not null
+        constraint fktblxj61x9u2a4qwpbd22bjxxg
+            references albums,
+    artist_id varchar(50) not null
+        constraint fkpmmqobo7dghsklv6ocdqds4mb
+            references artists,
+    primary key (album_id, artist_id)
+);
+
+alter table album_artists
+    owner to postgres;
+
+create table album_images
+(
+    album_id     varchar(50) not null
+        constraint fkbdn548tq89gkcmd9y68syvs99
+            references albums,
+    image_height integer,
+    image_url    varchar(255),
+    image_width  integer,
+    image_order  integer     not null,
+    primary key (album_id, image_order)
+);
+
+alter table album_images
+    owner to postgres;
+
+create table artist_images
+(
+    artist_id    varchar(50) not null
+        constraint fk7cqpk25202oorwucah01lxn1k
+            references artists,
+    image_height integer,
+    image_url    varchar(255),
+    image_width  integer,
+    image_order  integer     not null,
+    primary key (artist_id, image_order)
+);
+
+alter table artist_images
+    owner to postgres;
+
+create table artist_genres
+(
+    artist_id varchar(50)  not null
+        constraint fkrsiygs82pwn6xqk6prce2eana
+            references artists,
+    genre     varchar(100) not null,
+    constraint uk_artist_genre
+        unique (artist_id, genre)
+);
+
+alter table artist_genres
+    owner to postgres;
+
+create table track_artists
+(
+    track_id  varchar(50) not null
+        constraint fkony1th5c1wj2jev5dj7iu3w0s
+            references tracks,
+    artist_id varchar(50) not null
+        constraint fksl7o5dd8puim5tvojt2elt5cy
+            references artists,
+    primary key (track_id, artist_id)
+);
+
+alter table track_artists
+    owner to postgres;
 
 create table user_favorite_albums
 (
