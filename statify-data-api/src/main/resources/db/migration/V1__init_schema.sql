@@ -17,8 +17,13 @@ create table albums
     release_day            integer,
     release_month          integer,
     release_year           integer,
-    total_tracks           integer      not null
+    total_tracks           integer      not null,
+    upc                    char(14),
+    ean                    char(14)
 );
+
+comment on column albums.upc is 'A UPC (Universal Product Code) is a 12-digit product identifier commonly used in North America to identify a music release (album, single, or compilation).';
+comment on column albums.ean is 'An EAN (European Article Number, also known as GTIN-13) is a 13-digit international product identifier used for music releases, functionally similar to a UPC but standardized globally.';
 
 alter table albums
     owner to postgres;
@@ -58,8 +63,11 @@ create table tracks
     track_number integer      not null,
     album_id     varchar(50)  not null
         constraint fkdcmijveo7n1lql01vav1u2jd2
-            references albums
+            references albums,
+    isrc         char(12)
 );
+
+comment on column tracks.isrc is 'An ISRC (International Standard Recording Code) is a unique identifier for an individual track or sound recording, assigned per recording.';
 
 alter table tracks
     owner to postgres;

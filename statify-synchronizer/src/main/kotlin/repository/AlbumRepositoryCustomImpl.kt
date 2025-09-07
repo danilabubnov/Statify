@@ -14,7 +14,7 @@ class AlbumRepositoryCustomImpl(
         if (albums.isEmpty()) return Flux.empty()
 
         val placeholders = albums.indices.joinToString(", ") { index ->
-            "(" + ((index * 11 + 1)..(index * 11 + 11)).joinToString(", ") { "$$it" } + ")"
+            "(" + ((index * 13 + 1)..(index * 13 + 13)).joinToString(", ") { "$$it" } + ")"
         }
 
         val sql = """
@@ -30,7 +30,9 @@ class AlbumRepositoryCustomImpl(
                     release_day,
                     release_month,
                     release_year,
-                    total_tracks
+                    total_tracks,
+                    upc,
+                    ean
                 )
             VALUES $placeholders
             ON CONFLICT (spotify_id) 
@@ -39,12 +41,16 @@ class AlbumRepositoryCustomImpl(
                     label         = EXCLUDED.label,
                     popularity    = EXCLUDED.popularity,
                     release_day   = EXCLUDED.release_day,
-                    release_month = EXCLUDED.release_month
+                    release_month = EXCLUDED.release_month,
+                    upc           = EXCLUDED.upc,
+                    ean           = EXCLUDED.ean
                 WHERE 
                     albums.label         IS DISTINCT FROM EXCLUDED.label OR
                     albums.popularity    IS DISTINCT FROM EXCLUDED.popularity OR 
                     albums.release_day   IS DISTINCT FROM EXCLUDED.release_day OR
-                    albums.release_month IS DISTINCT FROM EXCLUDED.release_month
+                    albums.release_month IS DISTINCT FROM EXCLUDED.release_month OR 
+                    albums.upc           IS DISTINCT FROM EXCLUDED.upc OR
+                    albums.ean           IS DISTINCT FROM EXCLUDED.ean
                 RETURNING
                     spotify_id,
                     (label IS NULL OR popularity IS NULL) AS is_simple
@@ -61,7 +67,9 @@ class AlbumRepositoryCustomImpl(
             val popularity = album.popularity
             val releaseDay = album.releaseDay
             val releaseMonth = album.releaseMonth
-            val base = index * 11
+            val upc = album.upc
+            val ean = album.ean
+            val base = index * 13
 
             spec = spec
                 .bind(base + 0, album.spotifyId)
@@ -87,6 +95,14 @@ class AlbumRepositoryCustomImpl(
                 }
                 .bind(base + 9, album.releaseYear)
                 .bind(base + 10, album.totalTracks)
+                .let { s ->
+                    if (upc == null) s.bindNull(base + 11, String::class.java)
+                    else s.bind(base + 11, upc)
+                }
+                .let { s ->
+                    if (ean == null) s.bindNull(base + 12, String::class.java)
+                    else s.bind(base + 12, ean)
+                }
         }
 
         return spec

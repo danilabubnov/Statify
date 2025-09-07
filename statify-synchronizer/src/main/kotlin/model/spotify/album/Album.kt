@@ -40,11 +40,23 @@ data class Album(
     var releaseMonth: Int?,
 
     @Column(value = "release_day")
-    var releaseDay: Int?
+    var releaseDay: Int?,
+
+    @Column(value = "ean")
+    var ean: String?,
+
+    @Column(value = "upc")
+    var upc: String?
 
 ) {
 
-    fun isSimpleAlbum() = this.label == null && this.popularity == null
-    fun matchesDto(dto: AlbumDTO) = this.label == dto.label && this.popularity == dto.popularity && this.totalTracks == dto.totalTracks && this.releaseDateRaw == dto.releaseDate
+    fun isSimpleAlbum() = this.label == null && this.popularity == null && (ean != null || upc != null)
+    fun matchesDto(dto: AlbumDTO) =
+        this.label == dto.label &&
+                this.popularity == dto.popularity &&
+                this.totalTracks == dto.totalTracks &&
+                this.releaseDateRaw == dto.releaseDate &&
+                this.ean == dto.externalIds.ean &&
+                this.upc == dto.externalIds.upc
 
 }

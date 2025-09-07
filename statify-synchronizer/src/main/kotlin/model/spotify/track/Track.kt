@@ -28,11 +28,14 @@ data class Track(
     var trackNumber: Int,
 
     @Column(value = "album_id")
-    var albumId: String
+    var albumId: String,
+
+    @Column(value = "isrc")
+    var isrc: String?
 
 ) {
 
-    fun isSimpleTrack() = this.popularity == null
-    fun matchesDto(dto: TrackDTO) = this.popularity == dto.popularity
+    fun isSimpleTrack() = this.popularity == null && this.isrc == null
+    fun matchesDto(dto: TrackDTO) = this.popularity == dto.popularity && this.isrc == dto.externalIds.isrc
 
 }

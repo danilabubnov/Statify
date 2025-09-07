@@ -38,7 +38,10 @@ data class AlbumDTO(
     val label: String,
 
     @JsonProperty("popularity")
-    val popularity: Int
+    val popularity: Int,
+
+    @JsonProperty("external_ids")
+    val externalIds: AlbumExternalIds
 
 ) {
 

@@ -28,7 +28,10 @@ data class TrackDTO(
     val popularity: Int,
 
     @JsonProperty("track_number")
-    val trackNumber: Int
+    val trackNumber: Int,
+
+    @JsonProperty("external_ids")
+    val externalIds: TrackExternalIds
 
 ) {
 

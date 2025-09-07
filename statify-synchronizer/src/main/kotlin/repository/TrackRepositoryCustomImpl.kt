@@ -12,7 +12,7 @@ class TrackRepositoryCustomImpl(val databaseClient: DatabaseClient) : TrackRepos
         if (tracks.isEmpty()) return Flux.empty()
 
         val placeholders = tracks.indices.joinToString(", ") { index ->
-            "(" + ((index * 7 + 1)..(index * 7 + 7)).joinToString(", ") { "$$it" } + ")"
+            "(" + ((index * 8 + 1)..(index * 8 + 8)).joinToString(", ") { "$$it" } + ")"
         }
 
         val sql = """
@@ -24,15 +24,18 @@ class TrackRepositoryCustomImpl(val databaseClient: DatabaseClient) : TrackRepos
                 name,
                 popularity,
                 track_number,
-                album_id
+                album_id,
+                isrc
             )
             VALUES $placeholders
             ON CONFLICT (spotify_id) 
             DO UPDATE
                 SET 
-                    popularity = EXCLUDED.popularity
+                    popularity = EXCLUDED.popularity,
+                    isrc       = EXCLUDED.isrc
                 WHERE 
-                    tracks.popularity IS DISTINCT FROM EXCLUDED.popularity
+                    tracks.popularity IS DISTINCT FROM EXCLUDED.popularity OR
+                    tracks.isrc       IS DISTINCT FROM EXCLUDED.isrc
                 RETURNING
                     spotify_id,
                     (popularity IS NULL) AS is_simple
@@ -45,7 +48,8 @@ class TrackRepositoryCustomImpl(val databaseClient: DatabaseClient) : TrackRepos
         var spec = databaseClient.sql(sql)
         tracks.forEachIndexed { index, track ->
             val popularity = track.popularity
-            val base = index * 7
+            val isrc = track.isrc
+            val base = index * 8
 
             spec = spec
                 .bind(base + 0, track.spotifyId)
@@ -58,6 +62,10 @@ class TrackRepositoryCustomImpl(val databaseClient: DatabaseClient) : TrackRepos
                 }
                 .bind(base + 5, track.trackNumber)
                 .bind(base + 6, track.albumId)
+                .let { s ->
+                    if (isrc == null) s.bindNull(base + 7, String::class.java)
+                    else s.bind(base + 7, isrc)
+                }
         }
 
         return spec

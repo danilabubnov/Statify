@@ -48,7 +48,8 @@ fun TrackItemDTO.toSimpleTrackDb(albumId: String) = Track(
     explicit = this.explicit,
     popularity = null,
     trackNumber = this.trackNumber,
-    albumId = albumId
+    albumId = albumId,
+    isrc = null
 )
 
 fun TrackDTO.toFullTrackDb() = Track(
@@ -58,7 +59,8 @@ fun TrackDTO.toFullTrackDb() = Track(
     explicit = this.explicit,
     popularity = this.popularity,
     trackNumber = this.trackNumber,
-    albumId = this.album.id
+    albumId = this.album.id,
+    isrc = this.externalIds.isrc
 )
 
 fun AlbumSimpleDTO.toSimpleAlbumDb() = Album(
@@ -72,7 +74,9 @@ fun AlbumSimpleDTO.toSimpleAlbumDb() = Album(
     releaseDatePrecision = parsePrecision(this.releaseDate),
     releaseYear = parseYear(this.releaseDate),
     releaseMonth = parseMonth(this.releaseDate),
-    releaseDay = parseDay(this.releaseDate)
+    releaseDay = parseDay(this.releaseDate),
+    upc = null,
+    ean = null
 )
 
 fun AlbumDTO.toFullAlbumDb() = Album(
@@ -86,7 +90,9 @@ fun AlbumDTO.toFullAlbumDb() = Album(
     releaseDatePrecision = parsePrecision(this.releaseDate),
     releaseYear = parseYear(this.releaseDate),
     releaseMonth = parseMonth(this.releaseDate),
-    releaseDay = parseDay(this.releaseDate)
+    releaseDay = parseDay(this.releaseDate),
+    upc = this.externalIds.upc,
+    ean = this.externalIds.ean
 )
 
 fun ImageDTO.toAlbumImageDb(index: Int, albumId: String) = AlbumImage(
