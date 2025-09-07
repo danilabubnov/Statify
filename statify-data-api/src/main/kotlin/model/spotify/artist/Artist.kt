@@ -43,4 +43,23 @@ data class Artist(
     @ManyToMany(mappedBy = "artists", fetch = FetchType.LAZY)
     val tracks: Set<Track> = emptySet()
 
-)
+) {
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Artist) return false
+        return spotifyId == other.spotifyId
+    }
+
+    override fun hashCode(): Int = spotifyId.hashCode()
+
+    override fun toString(): String = buildString {
+        append("Artist(")
+        append("spotifyId=").append(spotifyId)
+        append(", name=").append(name)
+        append(", followersTotal=").append(followersTotal)
+        append(", popularity=").append(popularity)
+        append(")")
+    }
+
+}

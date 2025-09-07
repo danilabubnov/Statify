@@ -10,7 +10,7 @@ data class Track(
 
     @Id
     @Column(name = "spotify_id", length = 50, nullable = false)
-    var spotifyId: String,
+    val spotifyId: String,
 
     @Column(name = "duration_ms", nullable = false)
     var durationMs: Int,
@@ -39,4 +39,25 @@ data class Track(
     )
     var artists: Set<Artist> = emptySet()
 
-)
+) {
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Track) return false
+        return spotifyId == other.spotifyId
+    }
+
+    override fun hashCode(): Int = spotifyId.hashCode()
+
+    override fun toString(): String = buildString {
+        append("Track(")
+        append("spotifyId=").append(spotifyId)
+        append(", name=").append(name)
+        append(", durationMs=").append(durationMs)
+        append(", explicit=").append(explicit)
+        append(", trackNumber=").append(trackNumber)
+        append(", popularity=").append(popularity)
+        append(")")
+    }
+
+}

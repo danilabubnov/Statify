@@ -55,4 +55,26 @@ data class Album(
     @OneToMany(mappedBy = "album", fetch = FetchType.LAZY, cascade = [CascadeType.ALL])
     val tracks: List<Track> = emptyList()
 
-)
+) {
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Album) return false
+        return spotifyId == other.spotifyId
+    }
+
+    override fun hashCode(): Int = spotifyId.hashCode()
+
+    override fun toString(): String = buildString {
+        append("Album(")
+        append("spotifyId=").append(spotifyId)
+        append(", name=").append(name)
+        append(", albumType=").append(albumType)
+        append(", totalTracks=").append(totalTracks)
+        append(", releaseDate=").append(releaseDate)
+        append(", label=").append(label)
+        append(", popularity=").append(popularity)
+        append(")")
+    }
+
+}
