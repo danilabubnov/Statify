@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import logging.logger
 import org.danila.configuration.constants.spotify.SpotifyApiConstants.MAX_ALBUMS_PER_MULTI_FETCH
-import org.danila.dto.album.AlbumDTO
-import org.danila.dto.album.FullAlbumsResponseDTO
-import org.danila.dto.album.SavedAlbumItemDTO
-import org.danila.dto.album.SavedAlbumsResponseDTO
+import org.danila.dto.spotify.album.AlbumDTO
+import org.danila.dto.spotify.album.FullAlbumsResponseDTO
+import org.danila.dto.spotify.album.SavedAlbumItemDTO
+import org.danila.dto.spotify.album.SavedAlbumsResponseDTO
 import org.danila.services.api.spotify.auth.SpotifyAuthRetryHelper
 import org.danila.services.api.spotify.retry.SpotifyRateLimitRetryHelper
 import org.springframework.beans.factory.annotation.Autowired

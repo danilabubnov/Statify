@@ -1,12 +1,12 @@
-package org.danila.dto
+package org.danila.dto.spotify
 
-import org.danila.dto.album.AlbumDTO
-import org.danila.dto.album.AlbumSimpleDTO
-import org.danila.dto.artist.ArtistDTO
-import org.danila.dto.artist.ArtistSimpleDTO
-import org.danila.dto.common.ImageDTO
-import org.danila.dto.track.TrackDTO
-import org.danila.dto.track.TrackItemDTO
+import org.danila.dto.spotify.album.AlbumDTO
+import org.danila.dto.spotify.album.AlbumSimpleDTO
+import org.danila.dto.spotify.artist.ArtistDTO
+import org.danila.dto.spotify.artist.ArtistSimpleDTO
+import org.danila.dto.spotify.common.ImageDTO
+import org.danila.dto.spotify.track.TrackDTO
+import org.danila.dto.spotify.track.TrackItemDTO
 import org.danila.model.spotify.album.Album
 import org.danila.model.spotify.album.AlbumImage
 import org.danila.model.spotify.artist.Artist

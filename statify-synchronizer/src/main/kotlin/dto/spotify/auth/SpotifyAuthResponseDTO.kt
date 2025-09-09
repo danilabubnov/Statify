@@ -1,4 +1,4 @@
-package org.danila.dto.auth
+package org.danila.dto.spotify.auth
 
 import com.fasterxml.jackson.annotation.JsonProperty
 

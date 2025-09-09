@@ -30,6 +30,7 @@ dependencies {
     implementation(libs.resilience4j.kotlin)
     implementation(libs.resilience4j.retry)
     implementation(libs.resilience4j.circuitbreaker)
+    implementation(libs.resilience4j.ratelimiter)
 
     implementation(libs.caffeine)
     implementation(libs.jackson.datatype.hibernate5.jakarta)

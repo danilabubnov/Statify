@@ -6,21 +6,21 @@ import assertk.assertions.isFalse
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import org.danila.dto.album.AlbumDTO
-import org.danila.dto.album.AlbumSimpleDTO
-import org.danila.dto.artist.ArtistDTO
-import org.danila.dto.artist.ArtistSimpleDTO
-import org.danila.dto.common.FollowersDTO
-import org.danila.dto.common.ImageDTO
-import org.danila.dto.track.TrackDTO
-import org.danila.dto.track.TrackItemDTO
-import org.danila.dto.track.TracksDTO
+import org.danila.dto.spotify.album.AlbumDTO
+import org.danila.dto.spotify.album.AlbumSimpleDTO
+import org.danila.dto.spotify.artist.ArtistDTO
+import org.danila.dto.spotify.artist.ArtistSimpleDTO
+import org.danila.dto.spotify.common.FollowersDTO
+import org.danila.dto.spotify.common.ImageDTO
+import org.danila.dto.spotify.track.TrackDTO
+import org.danila.dto.spotify.track.TrackItemDTO
+import org.danila.dto.spotify.track.TracksDTO
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest(classes = [UtilsJacksonConfiguration::class])
-class SpotifyObjectMapperTest @Autowired constructor(
+class ExternalApiObjectMapperTest @Autowired constructor(
     private val objectMapper: ObjectMapper
 ) {
 

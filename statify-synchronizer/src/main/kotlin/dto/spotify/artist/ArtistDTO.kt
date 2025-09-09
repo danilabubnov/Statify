@@ -1,8 +1,8 @@
-package org.danila.dto.artist
+package org.danila.dto.spotify.artist
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.danila.dto.common.FollowersDTO
-import org.danila.dto.common.ImageDTO
+import org.danila.dto.spotify.common.FollowersDTO
+import org.danila.dto.spotify.common.ImageDTO
 
 data class ArtistDTO(
 

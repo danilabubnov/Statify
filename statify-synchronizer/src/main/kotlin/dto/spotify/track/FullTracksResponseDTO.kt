@@ -1,4 +1,4 @@
-package org.danila.dto.track
+package org.danila.dto.spotify.track
 
 import com.fasterxml.jackson.annotation.JsonProperty
 

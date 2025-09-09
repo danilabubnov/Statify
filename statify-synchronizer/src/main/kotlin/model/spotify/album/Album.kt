@@ -1,6 +1,6 @@
 package org.danila.model.spotify.album
 
-import org.danila.dto.album.AlbumDTO
+import org.danila.dto.spotify.album.AlbumDTO
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table

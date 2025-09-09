@@ -21,11 +21,11 @@ import org.danila.configuration.constants.spotify.SpotifyBatchConfig.SAVED_ALBUM
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.SAVED_ALBUMS_FLOW_BUFFER_CAPACITY
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.SAVED_TRACKS_BATCH_SIZE
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.SAVED_TRACKS_FLOW_BUFFER_CAPACITY
-import org.danila.dto.album.AlbumDTO
-import org.danila.dto.album.SavedAlbumItemDTO
-import org.danila.dto.artist.ArtistDTO
-import org.danila.dto.track.SavedTrackItemDTO
-import org.danila.dto.track.TrackDTO
+import org.danila.dto.spotify.album.AlbumDTO
+import org.danila.dto.spotify.album.SavedAlbumItemDTO
+import org.danila.dto.spotify.artist.ArtistDTO
+import org.danila.dto.spotify.track.SavedTrackItemDTO
+import org.danila.dto.spotify.track.TrackDTO
 import org.danila.event.enrich.*
 import org.danila.event.spotifyfetch.SpotifyFetchCompletedEvent
 import org.danila.event.spotifyfetch.SpotifyFetchContext
@@ -406,7 +406,7 @@ class SpotifyService @Autowired constructor(
             trackStorageService.findExistingTracks(trackDTOs.map { it.id }.toSet() + albumDTOs.flatMap { it.tracks.items.map { it.id } }.toSet())
         }
         val albumsDeferred = async {
-            albumStorageService.findExistingAlbum(albumDTOs.map { it.id }.toSet() + trackDTOs.map { it.album.id }.toSet())
+            albumStorageService.findExistingAlbums(albumDTOs.map { it.id }.toSet() + trackDTOs.map { it.album.id }.toSet())
         }
         val albumArtistsDeferred = async {
             albumArtistStorageService.findExistingAlbumArtists(

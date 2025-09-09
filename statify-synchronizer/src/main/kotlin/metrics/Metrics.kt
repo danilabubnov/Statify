@@ -178,4 +178,15 @@ class Metrics(private val meterRegistry: MeterRegistry) {
         "description", "Total number of exceptions thrown during Spotify API fetch calls"
     )
 
+    // ─── Music Brainz API metrics ─────────────────────────────────────────────────────
+
+    val musicBrainzApiCallDurationTimer: Timer = meterRegistry.timer(
+        "music_brainz_api_call_duration_seconds",
+        "description", "Duration of Music Brainz API HTTP call (without retries)"
+    )
+    val musicBrainzApiRequestsTotal: Counter = meterRegistry.counter(
+        "music_brainz_api_requests_total",
+        "description", "Total number of HTTP calls to Music Brainz API"
+    )
+
 }

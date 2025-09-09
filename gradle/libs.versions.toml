@@ -83,6 +83,7 @@ resilience4j-springboot3       = { group = "io.github.resilience4j",        name
 resilience4j-kotlin            = { group = "io.github.resilience4j",        name = "resilience4j-kotlin",            version.ref = "resilience4j" }
 resilience4j-retry             = { group = "io.github.resilience4j",        name = "resilience4j-retry",             version.ref = "resilience4j" }
 resilience4j-circuitbreaker    = { group = "io.github.resilience4j",        name = "resilience4j-circuitbreaker",    version.ref = "resilience4j" }
+resilience4j-ratelimiter       = { group = "io.github.resilience4j",        name = "resilience4j-ratelimiter",       version.ref = "resilience4j" }
 caffeine                       = { group = "com.github.ben-manes.caffeine", name = "caffeine",                       version.ref = "caffeine" }
 micrometer-registry-prometheus = { group = "io.micrometer",                 name = "micrometer-registry-prometheus", version.ref = "prometheus" }
 

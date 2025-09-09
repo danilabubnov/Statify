@@ -1,6 +1,6 @@
 package org.danila.model.spotify.track
 
-import org.danila.dto.track.TrackDTO
+import org.danila.dto.spotify.track.TrackDTO
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table

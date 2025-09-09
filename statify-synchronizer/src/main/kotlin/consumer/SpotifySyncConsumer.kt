@@ -1,5 +1,7 @@
 package org.danila.consumer
 
+import constants.kafka.KafkaTopics.ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC
+import constants.kafka.KafkaTopics.USER_SPOTIFY_CONNECTED_TOPIC
 import event.UserConnectedEvent
 import jakarta.annotation.PostConstruct
 import kotlinx.coroutines.CoroutineName
@@ -8,6 +10,7 @@ import kotlinx.coroutines.reactor.mono
 import logging.logger
 import org.danila.event.enrich.EnrichEvent
 import org.danila.event.enrich.EnrichExtensions.functionName
+import org.danila.event.scheduled.albums.PendingAlbumBatchEvent
 import org.danila.metrics.coroutine.CoroutineMetricsInterceptor
 import org.danila.util.reactive.kafka.defaultRetry
 import org.danila.util.reactive.kafka.sendToDlt
@@ -19,10 +22,12 @@ import org.springframework.stereotype.Component
 @Component
 class SpotifySyncConsumer @Autowired constructor(
     private val userConnectedConsumer: ReactiveKafkaConsumerTemplate<String, UserConnectedEvent>,
+    private val pendingAlbumConsumer: ReactiveKafkaConsumerTemplate<String, PendingAlbumBatchEvent>,
     private val enrichConsumer: ReactiveKafkaConsumerTemplate<String, Any>,
     private val kafkaTemplate: ReactiveKafkaProducerTemplate<String, Any>,
     private val metricsInterceptor: CoroutineMetricsInterceptor,
     private val userConnectedHandler: UserConnectedHandler,
+    private val pendingAlbumsHandler: PendingAlbumsHandler,
     private val enrichHandler: EnrichHandler
 ) {
 
@@ -33,10 +38,11 @@ class SpotifySyncConsumer @Autowired constructor(
         logger.info { "Starting consumers..." }
         consumeUserConnected()
         consumeEnrichWaves()
+        consumePendingAlbums()
     }
 
     private fun consumeUserConnected() {
-        logger.info { "consumeUserConnected(): subscribing to UserConnectedEvent stream" }
+        logger.info { "consumeUserConnected(): subscribing to topic=$USER_SPOTIFY_CONNECTED_TOPIC" }
 
         userConnectedConsumer
             .receive()
@@ -58,12 +64,12 @@ class SpotifySyncConsumer @Autowired constructor(
             )
             .subscribe(
                 {},
-                { ex -> logger.error(ex) { "Fatal error in consumer stream" } }
+                { ex -> logger.error(ex) { "Fatal error in consumer stream for topic=$USER_SPOTIFY_CONNECTED_TOPIC" } }
             )
     }
 
     private fun consumeEnrichWaves() {
-        logger.info { "consumeEnrichWaves(): subscribing to EnrichEvent stream" }
+        logger.info { "consumeEnrichWaves(): subscribing to topic=*_ENRICH_TOPIC" }
 
         enrichConsumer
             .receive()
@@ -93,7 +99,34 @@ class SpotifySyncConsumer @Autowired constructor(
             )
             .subscribe(
                 {},
-                { ex -> logger.error(ex) { "Fatal error in consumer stream" } }
+                { ex -> logger.error(ex) { "Fatal error in consumer stream for topic=*_ENRICH_TOPIC" } }
+            )
+    }
+
+    private fun consumePendingAlbums() {
+        logger.info { "consumePendingAlbums(): subscribing to topic=$ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC" }
+
+        pendingAlbumConsumer
+            .receive()
+            .flatMap(
+                { rec ->
+                    logger.debug { "Received PendingAlbumBatchEvent: eventId=${rec.value().eventId}, size=${rec.value().ids.size}" }
+
+                    mono(Dispatchers.Default + metricsInterceptor + CoroutineName("consume_pending_albums")) {
+                        pendingAlbumsHandler.handle(rec.value())
+                    }
+                        .retryWhen(defaultRetry())
+                        .onErrorResume { ex ->
+                            logger.error(ex) { "Failed to process PendingAlbumBatchEvent: eventId=${rec.value().eventId}" }
+                            kafkaTemplate.sendToDlt(rec)
+                        }
+                        .then(rec.receiverOffset().commit())
+                },
+                1
+            )
+            .subscribe(
+                {},
+                { ex -> logger.error(ex) { "Fatal error in consumer stream for topic=$ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC" } }
             )
     }
 

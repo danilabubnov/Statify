@@ -1,4 +1,4 @@
-package org.danila.dto.album
+package org.danila.dto.spotify.album
 
 import com.fasterxml.jackson.annotation.JsonProperty
 

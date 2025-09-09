@@ -2,7 +2,7 @@ package org.danila.services.model.spotify.storage
 
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.danila.configuration.constants.spotify.SpotifyBatchConfig.MAX_SAVED_ENTITIES_CHUNK_SIZE
-import org.danila.dto.common.ImageDTO
+import org.danila.dto.spotify.common.ImageDTO
 import org.danila.model.spotify.artist.ArtistImage
 import org.danila.repository.ArtistImageRepository
 import org.danila.services.model.spotify.DatabaseExecutionContext

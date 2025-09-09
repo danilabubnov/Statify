@@ -1,4 +1,4 @@
-package org.danila.configuration.spotify
+package org.danila.configuration.api.spotify
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.Interceptor
@@ -16,10 +16,10 @@ import java.util.concurrent.TimeUnit
 
 @Configuration
 class SpotifyRetrofitConfig(
-    @Qualifier("spotifyObjectMapper") private val objectMapper: ObjectMapper,
+    @Qualifier("externalApiObjectMapper") private val objectMapper: ObjectMapper,
     @Value("\${spotify.api.base-url}") private val apiBaseUrl: String,
     @Value("\${spotify.auth.base-url}") private val authBaseUrl: String,
-    @Value("\${spotify.timeout.seconds}") private val timeoutSeconds: Int,
+    @Value("\${http.client.timeout.seconds}") private val timeoutSeconds: Int,
     private val spotifyMetricsInterceptor: Interceptor
 ) {
 
@@ -29,10 +29,10 @@ class SpotifyRetrofitConfig(
             .connectTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .readTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .writeTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
+            .addInterceptor(spotifyMetricsInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.NONE
             })
-            .addInterceptor(spotifyMetricsInterceptor)
             .build()
     }
 

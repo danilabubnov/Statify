@@ -1,6 +1,6 @@
 package org.danila.model.spotify.artist
 
-import org.danila.dto.artist.ArtistDTO
+import org.danila.dto.spotify.artist.ArtistDTO
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table

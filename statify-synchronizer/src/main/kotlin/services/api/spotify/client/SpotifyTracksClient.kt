@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import logging.logger
 import org.danila.configuration.constants.spotify.SpotifyApiConstants.MAX_TRACKS_PER_MULTI_FETCH
-import org.danila.dto.track.FullTracksResponseDTO
-import org.danila.dto.track.SavedTrackItemDTO
-import org.danila.dto.track.SavedTracksResponseDTO
-import org.danila.dto.track.TrackDTO
+import org.danila.dto.spotify.track.FullTracksResponseDTO
+import org.danila.dto.spotify.track.SavedTrackItemDTO
+import org.danila.dto.spotify.track.SavedTracksResponseDTO
+import org.danila.dto.spotify.track.TrackDTO
 import org.danila.services.api.spotify.auth.SpotifyAuthRetryHelper
 import org.danila.services.api.spotify.retry.SpotifyRateLimitRetryHelper
 import org.springframework.beans.factory.annotation.Autowired

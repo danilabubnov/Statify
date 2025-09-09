@@ -1,6 +1,6 @@
 package org.danila.services.api.spotify.auth
 
-import org.danila.dto.auth.SpotifyAuthResponseDTO
+import org.danila.dto.spotify.auth.SpotifyAuthResponseDTO
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.Header

@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Primary
 class SynchronizerJacksonConfiguration {
 
     @Primary
-    @Bean("spotifyObjectMapper")
-    fun spotifyObjectMapper(): ObjectMapper = ObjectMapper()
+    @Bean("externalApiObjectMapper")
+    fun externalApiObjectMapper(): ObjectMapper = ObjectMapper()
         .registerModule(
             KotlinModule.Builder().withReflectionCacheSize(512)
                 .configure(KotlinFeature.NullToEmptyCollection, true)

@@ -52,4 +52,15 @@ object KafkaTopics {
      */
     const val TRACK_ENRICH_DLT = "$TRACK_ENRICH_TOPIC.DLT"
 
+    /**
+     * Kafka topic for albums that have a null release group and need to be resolved
+     * via external metadata providers (e.g., MusicBrainz).
+     */
+    const val ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC = "statify.album.mb-release-group.resolve.v1"
+
+    /**
+     * Dead-letter topic for album release group resolution errors.
+     */
+    const val ALBUM_MB_RELEASE_GROUP_RESOLVE_DLT = "$ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC.DLT"
+
 }

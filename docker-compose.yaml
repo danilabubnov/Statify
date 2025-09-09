@@ -19,7 +19,7 @@ services:
       - app-network
 
   postgres-data-storage:
-    image: postgres:16-alpine
+    build: .
     environment:
       POSTGRES_USER: postgres # STATIFY_DATA_STORAGE_POSTGRES_USER
       POSTGRES_PASSWORD: Default123! # STATIFY_DATA_STORAGE_POSTGRES_PASSWORD
@@ -35,6 +35,12 @@ services:
       - postgres_data_storage_data:/var/lib/postgresql/data
     networks:
       - app-network
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_cron"
+      - "-c"
+      - "cron.database_name=statify-data-storage"
 
   kafka-init:
     image: busybox
@@ -144,7 +150,9 @@ services:
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
       SPOTIFY_API_URL: ${SPOTIFY_API_URL}
       SPOTIFY_AUTH_URL: ${SPOTIFY_AUTH_URL}
-      SPOTIFY_TIMEOUT_SECONDS: ${SPOTIFY_TIMEOUT_SECONDS}
+      HTTP_CLIENT_TIMEOUT_SECONDS: ${HTTP_CLIENT_TIMEOUT_SECONDS}
+      MUSIC_BRAINZ_API_URL: ${MUSIC_BRAINZ_API_URL}
+      MUSIC_BRAINZ_USER_AGENT: ${MUSIC_BRAINZ_USER_AGENT}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT}
