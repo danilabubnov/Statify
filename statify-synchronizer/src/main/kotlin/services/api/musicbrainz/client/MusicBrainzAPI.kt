@@ -1,6 +1,7 @@
 package org.danila.services.api.musicbrainz.client
 
-import org.danila.dto.musicbrainz.release.ReleaseSearchResponseDTO
+import org.danila.dto.musicbrainz.release.MbReleaseSearchResponseDTO
+import org.danila.dto.musicbrainz.releasegroup.MbReleaseGroupSearchResponseDTO
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -17,10 +18,18 @@ interface MusicBrainzAPI {
      *   Possible values: "json", "xml".
      */
     @GET("ws/2/release")
-    suspend fun findByBarcode(
+    suspend fun findRelease(
         @Query("query") query: String,
         @Query("fmt") fmt: String = "json",
         @Query("limit") limit: Int = 1
-    ): ReleaseSearchResponseDTO
+    ): MbReleaseSearchResponseDTO
+
+    @GET("ws/2/release-group")
+    suspend fun findReleaseGroup(
+        @Query("query") query: String,
+        @Query("fmt") fmt: String = "json",
+        @Query("limit") limit: Int = 1
+    ): MbReleaseGroupSearchResponseDTO
+
 
 }

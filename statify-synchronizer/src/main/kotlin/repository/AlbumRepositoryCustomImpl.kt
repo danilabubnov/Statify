@@ -1,8 +1,10 @@
 package org.danila.repository
 
-import org.danila.dto.musicbrainz.release.AlbumReleaseGroupMapping
+import org.danila.dto.musicbrainz.releasegroup.AlbumReleaseGroupLookupResult
 import org.danila.model.spotify.album.Album
-import org.danila.model.spotify.album.AlbumBarcodes
+import org.danila.repository.projection.album.AlbumBarcodes
+import org.danila.repository.projection.album.AlbumNameLookup
+import org.danila.repository.projection.album.ArtistName
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.stereotype.Repository
 import reactor.core.publisher.Flux
@@ -57,6 +59,12 @@ class AlbumRepositoryCustomImpl(
                 RETURNING
                     spotify_id,
                     (label IS NULL OR popularity IS NULL) AS is_simple
+            ),
+            arg_ins AS (
+                INSERT INTO album_release_groups (spotify_id) 
+                SELECT spotify_id
+                    FROM inserted
+                ON CONFLICT (spotify_id) DO NOTHING
             )
             SELECT spotify_id
                 FROM inserted
@@ -113,27 +121,50 @@ class AlbumRepositoryCustomImpl(
             .all()
     }
 
-    override fun claimPendingBatch(limit: Int): Flux<String> {
+    override fun claimPendingAlbums(limit: Int): Flux<String> {
         val sql = """
             WITH cte AS (
                 SELECT spotify_id
-                FROM albums
+                FROM album_release_groups
                 WHERE mb_release_group_status = 'PENDING'
                 ORDER BY spotify_id
                 FOR UPDATE SKIP LOCKED
-                LIMIT $limit
+                LIMIT :limit
             )
-            UPDATE albums a
+            UPDATE album_release_groups arg
             SET mb_release_group_status = 'IN_PROGRESS',
                 processing_started_at = NOW()
             FROM cte
-            WHERE a.spotify_id = cte.spotify_id
-            RETURNING a.spotify_id;
+            WHERE arg.spotify_id = cte.spotify_id
+            RETURNING arg.spotify_id AS spotify_id;
         """.trimIndent()
 
-        val spec = databaseClient.sql(sql)
+        return databaseClient.sql(sql)
+            .bind("limit", limit)
+            .map { row, _ -> row.get("spotify_id", String::class.java)!! }
+            .all()
+    }
 
-        return spec
+    override fun claimBarcodeNotFoundAlbums(limit: Int): Flux<String> {
+        val sql = """
+            WITH cte AS (
+                SELECT spotify_id
+                FROM album_release_groups
+                WHERE mb_release_group_status = 'BARCODE_NOT_FOUND'
+                ORDER BY spotify_id
+                FOR UPDATE SKIP LOCKED
+                LIMIT :limit
+            )
+            UPDATE album_release_groups arg
+            SET mb_release_group_status = 'IN_PROGRESS',
+                processing_started_at = NOW()
+            FROM cte
+            WHERE arg.spotify_id = cte.spotify_id
+            RETURNING arg.spotify_id AS spotify_id;
+        """.trimIndent()
+
+        return databaseClient.sql(sql)
+            .bind("limit", limit)
             .map { row, _ -> row.get("spotify_id", String::class.java)!! }
             .all()
     }
@@ -166,30 +197,80 @@ class AlbumRepositoryCustomImpl(
             .all()
     }
 
-    override fun persistReleaseGroupsForAlbums(albums: List<AlbumReleaseGroupMapping>): Mono<Void> {
+    override fun findAlbumsForNameLookup(albumIds: Set<String>): Flux<AlbumNameLookup> {
+        if (albumIds.isEmpty()) return Flux.empty()
+
+        val placeholders = (1..albumIds.size).joinToString(", ") { "$$it" }
+        val sql = """
+            SELECT a.spotify_id,
+                   a.name AS album_name,
+                   ar.name AS artist_name
+            FROM albums a
+            JOIN album_artists aa ON aa.album_id = a.spotify_id
+            JOIN artists ar ON ar.spotify_id = aa.artist_id
+            WHERE a.spotify_id IN ($placeholders)
+            ORDER BY a.spotify_id, ar.name
+        """.trimIndent()
+
+        var spec = databaseClient.sql(sql)
+
+        albumIds.forEachIndexed { index, id ->
+            spec = spec.bind(index, id)
+        }
+
+        data class Row(val spotifyId: String, val albumName: String, val artistName: String)
+
+        return spec
+            .map { row, _ ->
+                Row(
+                    spotifyId = row.get("spotify_id", String::class.java)!!,
+                    albumName = row.get("album_name", String::class.java)!!,
+                    artistName = row.get("artist_name", String::class.java)!!
+                )
+            }
+            .all()
+            .bufferUntilChanged { it.spotifyId }
+            .map { rows ->
+                val first = rows.first()
+                val artists = rows
+                    .map { it.artistName }
+                    .distinct()
+                    .map { ArtistName(name = it) }
+
+                AlbumNameLookup(
+                    spotifyId = first.spotifyId,
+                    name = first.albumName,
+                    artists = artists
+                )
+            }
+    }
+
+    override fun saveReleaseGroupLookupResults(albums: List<AlbumReleaseGroupLookupResult>): Mono<Void> {
         if (albums.isEmpty()) return Mono.empty()
 
         val placeholders = albums.indices.joinToString(", ") { idx ->
-            val p1 = idx * 2 + 1
-            val p2 = idx * 2 + 2
-            "($$p1, $$p2)"
+            val p1 = idx * 3 + 1
+            val p2 = idx * 3 + 2
+            val p3 = idx * 3 + 3
+            "($$p1, $$p2, $$p3)"
         }
 
         val sql = """
-            UPDATE albums a
+            UPDATE album_release_groups arg
             SET mb_release_group = d.mb_release_group,
                 mb_release_group_status = CASE 
-                                        WHEN d.mb_release_group IS NULL THEN 'NOT_FOUND' 
-                                        ELSE 'FOUND' 
-                                    END
-            FROM (VALUES $placeholders) AS d(spotify_id, mb_release_group)
-            WHERE a.spotify_id = d.spotify_id
+                    WHEN d.mb_release_group IS NULL AND d.fetch_type = 'BY_BARCODE' THEN 'BARCODE_NOT_FOUND'
+                    WHEN d.mb_release_group IS NULL AND d.fetch_type = 'BY_NAME' THEN 'NAME_NOT_FOUND'
+                    ELSE 'FOUND'
+                END
+            FROM (VALUES $placeholders) AS d(spotify_id, mb_release_group, fetch_type)
+            WHERE arg.spotify_id = d.spotify_id
         """.trimIndent()
 
         var spec = databaseClient.sql(sql)
 
         albums.forEachIndexed { index, mapping ->
-            val base = index * 2
+            val base = index * 3
 
             spec = spec
                 .bind(base + 0, mapping.spotifyId)
@@ -197,6 +278,7 @@ class AlbumRepositoryCustomImpl(
                     val rg = mapping.releaseGroupId
                     if (rg == null) s.bindNull(base + 1, String::class.java) else s.bind(base + 1, rg)
                 }
+                .bind(base + 2, mapping.lookupType.name)
         }
 
         return spec.fetch().rowsUpdated().then()

@@ -5,8 +5,10 @@ import constants.CommonDurations.FOURTEEN_DAYS_IN_MS
 import constants.CommonDurations.SEVEN_DAYS_IN_MS
 import constants.kafka.KafkaTopics.ALBUM_ENRICH_DLT
 import constants.kafka.KafkaTopics.ALBUM_ENRICH_TOPIC
-import constants.kafka.KafkaTopics.ALBUM_MB_RELEASE_GROUP_RESOLVE_DLT
-import constants.kafka.KafkaTopics.ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC
+import constants.kafka.KafkaTopics.ALBUM_RG_LOOKUP_BY_BARCODE_DLT
+import constants.kafka.KafkaTopics.ALBUM_RG_LOOKUP_BY_BARCODE_TOPIC
+import constants.kafka.KafkaTopics.ALBUM_RG_LOOKUP_BY_NAME_DLT
+import constants.kafka.KafkaTopics.ALBUM_RG_LOOKUP_BY_NAME_TOPIC
 import constants.kafka.KafkaTopics.ARTIST_ENRICH_DLT
 import constants.kafka.KafkaTopics.ARTIST_ENRICH_TOPIC
 import constants.kafka.KafkaTopics.TRACK_ENRICH_DLT
@@ -19,7 +21,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.config.TopicConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
-import org.danila.event.scheduled.albums.PendingAlbumBatchEvent
+import org.danila.event.scheduled.albums.AlbumReleaseGroupBatchEvent
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
@@ -66,25 +68,25 @@ class KafkaConfig(
     }
 
     @Bean
-    fun pendingAlbumsReceiverOptions(): ReceiverOptions<String, PendingAlbumBatchEvent> {
+    fun albumReleaseGroupBatchReceiverOptions(): ReceiverOptions<String, AlbumReleaseGroupBatchEvent> {
         val props = mutableMapOf<String, Any>(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
             ConsumerConfig.GROUP_ID_CONFIG to groupId,
             ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
             ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to JsonDeserializer::class.java,
             JsonDeserializer.TRUSTED_PACKAGES to "*",
-            JsonDeserializer.TYPE_MAPPINGS to "PendingAlbumBatchEvent:org.danila.event.scheduled.albums.PendingAlbumBatchEvent"
+            JsonDeserializer.TYPE_MAPPINGS to "AlbumReleaseGroupBatchEvent:org.danila.event.scheduled.albums.AlbumReleaseGroupBatchEvent"
         )
 
-        return ReceiverOptions.create<String, PendingAlbumBatchEvent>(props)
-            .subscription(listOf(ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC))
+        return ReceiverOptions.create<String, AlbumReleaseGroupBatchEvent>(props)
+            .subscription(listOf(ALBUM_RG_LOOKUP_BY_BARCODE_TOPIC, ALBUM_RG_LOOKUP_BY_NAME_TOPIC))
     }
 
     @Bean
     @DependsOn("kafkaAdmin")
-    fun pendingAlbumsConsumer(
-        pendingAlbumsReceiverOptions: ReceiverOptions<String, PendingAlbumBatchEvent>
-    ): ReactiveKafkaConsumerTemplate<String, PendingAlbumBatchEvent> {
+    fun albumReleaseGroupBatchConsumerTemplate(
+        pendingAlbumsReceiverOptions: ReceiverOptions<String, AlbumReleaseGroupBatchEvent>
+    ): ReactiveKafkaConsumerTemplate<String, AlbumReleaseGroupBatchEvent> {
         return ReactiveKafkaConsumerTemplate(pendingAlbumsReceiverOptions)
     }
 
@@ -129,7 +131,7 @@ class KafkaConfig(
                     EnrichAlbumEvent:org.danila.event.enrich.EnrichAlbumEvent,
                     EnrichTrackEvent:org.danila.event.enrich.EnrichTrackEvent,
                     UserSpotifyLibraryStatusUpdatedEvent:event.UserSpotifyLibraryStatusUpdatedEvent,
-                    PendingAlbumBatchEvent:org.danila.event.scheduled.albums.PendingAlbumBatchEvent
+                    AlbumReleaseGroupBatchEvent:org.danila.event.scheduled.albums.AlbumReleaseGroupBatchEvent
                 """.trimIndent()
             )
         )
@@ -177,12 +179,22 @@ class KafkaConfig(
             .replicas(1)
             .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())
             .build(),
-        TopicBuilder.name(ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC)
+        TopicBuilder.name(ALBUM_RG_LOOKUP_BY_BARCODE_TOPIC)
             .partitions(1)
             .replicas(1)
             .config(TopicConfig.RETENTION_MS_CONFIG, SEVEN_DAYS_IN_MS.toString())
             .build(),
-        TopicBuilder.name(ALBUM_MB_RELEASE_GROUP_RESOLVE_DLT)
+        TopicBuilder.name(ALBUM_RG_LOOKUP_BY_BARCODE_DLT)
+            .partitions(1)
+            .replicas(1)
+            .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())
+            .build(),
+        TopicBuilder.name(ALBUM_RG_LOOKUP_BY_NAME_TOPIC)
+            .partitions(1)
+            .replicas(1)
+            .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())
+            .build(),
+        TopicBuilder.name(ALBUM_RG_LOOKUP_BY_NAME_DLT)
             .partitions(1)
             .replicas(1)
             .config(TopicConfig.RETENTION_MS_CONFIG, FOURTEEN_DAYS_IN_MS.toString())

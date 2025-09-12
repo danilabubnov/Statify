@@ -53,14 +53,25 @@ object KafkaTopics {
     const val TRACK_ENRICH_DLT = "$TRACK_ENRICH_TOPIC.DLT"
 
     /**
-     * Kafka topic for albums that have a null release group and need to be resolved
-     * via external metadata providers (e.g., MusicBrainz).
+     * Kafka topic that carries batches of album IDs which require MusicBrainz
+     * release-group with barcode resolution.
      */
-    const val ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC = "statify.album.mb-release-group.resolve.v1"
+    const val ALBUM_RG_LOOKUP_BY_BARCODE_TOPIC = "statify.album.mb-release-group.resolve-with-barcode.v1"
 
     /**
-     * Dead-letter topic for album release group resolution errors.
+     * Dead-letter topic for failures while processing PendingAlbumBatchEvent
      */
-    const val ALBUM_MB_RELEASE_GROUP_RESOLVE_DLT = "$ALBUM_MB_RELEASE_GROUP_RESOLVE_TOPIC.DLT"
+    const val ALBUM_RG_LOOKUP_BY_BARCODE_DLT = "$ALBUM_RG_LOOKUP_BY_BARCODE_TOPIC.DLT"
+
+    /**
+     * Kafka topic that carries batches of album IDs which require MusicBrainz
+     * release-group with name resolution.
+     */
+    const val ALBUM_RG_LOOKUP_BY_NAME_TOPIC = "statify.album.mb-release-group.resolve-with-name.v1"
+
+    /**
+     * Dead-letter topic for failures while processing PendingAlbumBatchEvent
+     */
+    const val ALBUM_RG_LOOKUP_BY_NAME_DLT = "$ALBUM_RG_LOOKUP_BY_BARCODE_TOPIC.DLT"
 
 }

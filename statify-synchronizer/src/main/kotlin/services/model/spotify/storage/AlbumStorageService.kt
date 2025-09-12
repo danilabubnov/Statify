@@ -6,10 +6,11 @@ import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import org.danila.configuration.variables.SpotifyChunkSizes.MAX_PENDING_ALBUMS_FETCH_CHUNK_SIZE
 import org.danila.configuration.variables.SpotifyChunkSizes.MAX_SAVED_ALBUMS_CHUNK_SIZE
-import org.danila.dto.musicbrainz.release.AlbumReleaseGroupMapping
+import org.danila.dto.musicbrainz.releasegroup.AlbumReleaseGroupLookupResult
 import org.danila.model.spotify.album.Album
-import org.danila.model.spotify.album.AlbumBarcodes
 import org.danila.repository.AlbumRepository
+import org.danila.repository.projection.album.AlbumBarcodes
+import org.danila.repository.projection.album.AlbumNameLookup
 import org.danila.services.model.spotify.DatabaseExecutionContext
 import org.danila.util.reactive.awaitList
 import org.springframework.beans.factory.annotation.Autowired
@@ -31,10 +32,28 @@ class AlbumStorageService @Autowired constructor(
             albumRepository.findAlbumsWithBarcode(albumIds).awaitList()
         }
 
-    suspend fun claimPendingBatch(): Flow<List<String>> = flow {
+    suspend fun findAlbumsWithName(albumIds: Set<String>): List<AlbumNameLookup> =
+        databaseExecutionContext.withRead {
+            albumRepository.findAlbumsForNameLookup(albumIds).awaitList()
+        }
+
+    suspend fun claimPendingAlbums(): Flow<List<String>> = flow {
         while (true) {
             val ids = databaseExecutionContext.withWriteTransactionRetry {
-                albumRepository.claimPendingBatch(MAX_PENDING_ALBUMS_FETCH_CHUNK_SIZE)
+                albumRepository.claimPendingAlbums(MAX_PENDING_ALBUMS_FETCH_CHUNK_SIZE)
+                    .collectList()
+                    .awaitSingle()
+            }
+
+            if (ids.isEmpty()) break
+            else emit(ids)
+        }
+    }
+
+    suspend fun claimBarcodeNotFoundAlbums(): Flow<List<String>> = flow {
+        while (true) {
+            val ids = databaseExecutionContext.withWriteTransactionRetry {
+                albumRepository.claimBarcodeNotFoundAlbums(MAX_PENDING_ALBUMS_FETCH_CHUNK_SIZE)
                     .collectList()
                     .awaitSingle()
             }
@@ -54,9 +73,9 @@ class AlbumStorageService @Autowired constructor(
                 }
             }
 
-    suspend fun persistReleaseGroupForAlbums(albums: List<AlbumReleaseGroupMapping>) {
+    suspend fun persistReleaseGroupForAlbums(albums: List<AlbumReleaseGroupLookupResult>) {
         databaseExecutionContext.withWriteTransactionRetry {
-            albumRepository.persistReleaseGroupsForAlbums(albums).awaitSingleOrNull()
+            albumRepository.saveReleaseGroupLookupResults(albums).awaitSingleOrNull()
         }
     }
 
