@@ -1,4 +1,4 @@
-package org.danila.services.model
+package org.danila.services.model.track
 
 import jakarta.persistence.EntityNotFoundException
 import org.danila.model.spotify.track.Track

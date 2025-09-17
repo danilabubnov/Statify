@@ -9,11 +9,13 @@ import org.danila.mapper.graphql.toAlbumSimple
 import org.danila.mapper.graphql.toArtistDTO
 import org.danila.mapper.graphql.toArtistSimple
 import org.danila.mapper.graphql.toTrackSimple
-import org.danila.services.model.ArtistService
+import org.danila.services.model.artist.ArtistService
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import com.netflix.graphql.dgs.DgsQuery
 import com.netflix.graphql.dgs.InputArgument
+import org.danila.generated.types.ArtistPreview
+import org.danila.mapper.graphql.toArtistPreview
 
 @DgsComponent
 class ArtistGraphQLEndpoint(
@@ -24,10 +26,10 @@ class ArtistGraphQLEndpoint(
     fun topArtistsByPopularity(
         @InputArgument page: Int,
         @InputArgument size: Int
-    ): List<ArtistSimple> {
+    ): List<ArtistPreview> {
         val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "popularity"))
 
-        return artistService.findTop(pageable).map { it.toArtistSimple() }
+        return artistService.findTop(pageable).map { it.toArtistPreview() }
     }
 
     @DgsQuery

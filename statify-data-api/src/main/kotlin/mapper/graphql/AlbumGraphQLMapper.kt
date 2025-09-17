@@ -1,7 +1,9 @@
 package org.danila.mapper.graphql
 
 import org.danila.generated.types.AlbumDTO
+import org.danila.generated.types.AlbumPreview
 import org.danila.generated.types.AlbumSimple
+import org.danila.model.spotify.Image
 import org.danila.model.spotify.album.Album
 import org.danila.model.spotify.album.AlbumType
 
@@ -21,6 +23,19 @@ fun Album.toAlbumDTO() = AlbumDTO(
     popularity = popularity,
     releaseDate = releaseDate.albumReleaseDateRaw,
     label = label
+)
+
+fun Album.toAlbumPreview() = AlbumPreview(
+    id = spotifyId,
+    name = name,
+    artists = artists.map { it.toArtistSimple() },
+    covers = images.map { it.toImage() }
+)
+
+fun Image.toImage() = org.danila.generated.types.Image(
+    imageUrl = imageUrl,
+    imageWidth = imageWidth,
+    imageHeight = imageHeight
 )
 
 fun AlbumType.toGeneratedAlbumType(): org.danila.generated.types.AlbumType =

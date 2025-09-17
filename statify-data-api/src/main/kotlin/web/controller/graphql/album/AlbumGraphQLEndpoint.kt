@@ -8,9 +8,11 @@ import org.danila.mapper.graphql.toAlbumDTO
 import org.danila.mapper.graphql.toAlbumSimple
 import org.danila.mapper.graphql.toTrackSimple
 import org.danila.model.spotify.album.AlbumType
-import org.danila.services.model.AlbumService
+import org.danila.services.model.album.AlbumService
 import com.netflix.graphql.dgs.DgsQuery
 import com.netflix.graphql.dgs.InputArgument
+import org.danila.generated.types.AlbumPreview
+import org.danila.mapper.graphql.toAlbumPreview
 import java.time.Year
 
 @DgsComponent
@@ -24,7 +26,7 @@ class AlbumGraphQLEndpoint(
         @InputArgument size: Int,
         @InputArgument year: Int?,
         @InputArgument albumType: AlbumType
-    ): List<AlbumSimple> {
+    ): List<AlbumPreview> {
         if (year != null) {
             val currentYear = Year.now().value
 
@@ -33,7 +35,7 @@ class AlbumGraphQLEndpoint(
 
         return albumService
             .findTopByPopularity(page = page, pageSize = size, year = year, albumType = albumType)
-            .map { it.toAlbumSimple() }
+            .map { it.toAlbumPreview() }
     }
 
     @DgsQuery

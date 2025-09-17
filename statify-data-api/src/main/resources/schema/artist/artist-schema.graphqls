@@ -3,7 +3,7 @@ extend type Query {
     topArtistsByPopularity(
         page: Int! @Range(min: 0)
         size: Int = 50 @Range(min: 1, max: 100)
-    ): [ArtistSimple!]!
+    ): [ArtistPreview!]!
 
     topArtistsByFollowers(
         page: Int! @Range(min: 0)
@@ -22,6 +22,12 @@ extend type Query {
         id: ID! @NotBlank
     ): [TrackSimple!]!
 
+}
+
+type ArtistPreview {
+    id: ID!
+    name: String!
+    images: [Image!]!
 }
 
 type ArtistSimple {

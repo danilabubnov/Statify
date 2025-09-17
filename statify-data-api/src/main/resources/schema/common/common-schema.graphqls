@@ -1,0 +1,12 @@
+type Image {
+    imageUrl: String!
+    imageHeight: Int!
+    imageWidth: Int!
+}
+
+type PageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+}

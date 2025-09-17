@@ -1,4 +1,4 @@
-package org.danila.services.model
+package org.danila.services.model.album
 
 import jakarta.persistence.EntityNotFoundException
 import org.danila.model.spotify.album.Album
