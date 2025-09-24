@@ -5,23 +5,6 @@ extend type Query {
         size: Int = 50 @Range(min: 1, max: 100)
     ): [ArtistPreview!]!
 
-    topArtistsByFollowers(
-        page: Int! @Range(min: 0)
-        size: Int = 50 @Range(min: 1, max: 100)
-    ): [ArtistSimple!]!
-
-    artist(
-        id: ID! @NotBlank
-    ): ArtistDTO!
-
-    artistAlbums(
-        id: ID! @NotBlank
-    ): [AlbumSimple!]!
-
-    artistTopTracks(
-        id: ID! @NotBlank
-    ): [TrackSimple!]!
-
 }
 
 type ArtistPreview {
@@ -35,13 +18,4 @@ type ArtistSimple {
     name: String!
     popularity: Int
     followersTotal: Int
-}
-
-type ArtistDTO {
-    id: ID!
-    name: String!
-    popularity: Int
-    followersTotal: Int
-    topTracks: [TrackSimple!]!
-    albums: [AlbumSimple!]!
 }

@@ -6,16 +6,6 @@ extend type Query {
         year: Int @Range(min: 1900, max: 2100)
     ): [TrackPreview!]!
 
-    track(
-        id: ID! @NotBlank
-    ): TrackDTO!
-
-    searchTracks(
-        query: String! @NotBlank @Size(min: 1, max: 100)
-        page: Int! @Range(min: 0)
-        size: Int = 10 @Range(min: 1, max: 20)
-    ): [TrackSimple!]!
-
 }
 
 type TrackPreview {
@@ -23,23 +13,4 @@ type TrackPreview {
     name: String!
     artists: [ArtistSimple!]!
     covers: [Image!]!
-}
-
-type TrackSimple {
-    id: ID!
-    name: String!
-    durationMs: Int!
-    explicit: Boolean!
-    popularity: Int
-    trackNumber: Int!
-}
-
-type TrackDTO {
-    id: ID!
-    name: String!
-    durationMs: Int!
-    explicit: Boolean!
-    popularity: Int
-    trackNumber: Int!
-    albumId: ID!
 }

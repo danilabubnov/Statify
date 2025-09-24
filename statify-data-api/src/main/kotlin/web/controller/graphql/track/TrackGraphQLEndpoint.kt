@@ -3,15 +3,9 @@ package org.danila.web.controller.graphql.track
 import com.netflix.graphql.dgs.DgsComponent
 import com.netflix.graphql.dgs.DgsQuery
 import com.netflix.graphql.dgs.InputArgument
-import org.danila.generated.types.TrackDTO
 import org.danila.generated.types.TrackPreview
-import org.danila.generated.types.TrackSimple
-import org.danila.mapper.graphql.toTrackDTO
-import org.danila.mapper.graphql.toTrackPreview
-import org.danila.mapper.graphql.toTrackSimple
 import org.danila.services.model.track.TrackService
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Sort
+import java.time.Year
 
 @DgsComponent
 class TrackGraphQLEndpoint(
@@ -24,27 +18,13 @@ class TrackGraphQLEndpoint(
         @InputArgument size: Int,
         @InputArgument year: Int?,
     ): List<TrackPreview> {
-        val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "popularity"))
+        if (year != null) {
+            val currentYear = Year.now().value
 
-        return trackService.findTopByPopularity(pageable = pageable, year = year)
-            .map { it.toTrackPreview() }
-    }
+            require(year in 1900..currentYear) { "Year must be between 1900 and $currentYear" }
+        }
 
-    @DgsQuery
-    fun track(@InputArgument id: String): TrackDTO =
-        trackService.findById(id).toTrackDTO()
-
-    @DgsQuery
-    fun searchTracks(
-        @InputArgument query: String,
-        @InputArgument page: Int,
-        @InputArgument size: Int
-    ): List<TrackSimple> {
-        val sanitized = query.trim().takeIf { it.isNotEmpty() } ?: throw IllegalArgumentException("Query cannot be empty")
-        val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "popularity"))
-
-        return trackService.searchByName(query = sanitized, pageable = pageable)
-            .map { it.toTrackSimple() }
+        return trackService.findTopByPopularity(page = page, pageSize = size, year = year)
     }
 
 }

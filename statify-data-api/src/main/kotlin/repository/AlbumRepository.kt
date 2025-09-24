@@ -2,20 +2,89 @@ package org.danila.repository
 
 import org.danila.model.spotify.album.Album
 import org.danila.model.spotify.album.AlbumType
+import org.danila.repository.projection.AlbumIdProjection
+import org.danila.repository.projection.AlbumImageProjection
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 
 @Repository
 interface AlbumRepository : JpaRepository<Album, String> {
 
-    fun findByAlbumType(albumType: AlbumType, pageable: Pageable): Page<Album>
+    @Query(
+        value = """
+            WITH base AS (
+                SELECT
+                    alb.spotify_id,
+                    alb.name,
+                    alb.popularity,
+                    arg.mb_release_group,
+                    arg.mb_release_group_status
+                FROM albums alb
+                JOIN album_release_groups arg USING (spotify_id)
+                WHERE alb.album_type = :#{#albumType.name()}
+                    AND alb.popularity IS NOT NULL
+                    AND (:releaseYear IS NULL OR alb.release_year = :releaseYear)
+            ),
+            ranked AS (
+                SELECT
+                    b.*,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY
+                            CASE 
+                                WHEN mb_release_group_status = 'FOUND' THEN mb_release_group
+                                ELSE spotify_id
+                            END
+                        ORDER BY popularity DESC, spotify_id
+                    ) rn
+                FROM base b
+            )
+            SELECT
+                r.spotify_id AS spotifyId,
+                r.name as name
+            FROM ranked r
+            WHERE rn = 1
+            ORDER BY r.popularity DESC, r.spotify_id ASC
+            """,
+        countQuery = """
+            WITH base AS (
+                SELECT
+                    alb.spotify_id,              
+                    arg.mb_release_group,
+                    arg.mb_release_group_status
+                FROM albums alb
+                JOIN album_release_groups arg USING (spotify_id)
+                WHERE alb.album_type = :#{#albumType.name()}
+                    AND alb.popularity IS NOT NULL
+                    AND (:releaseYear IS NULL OR alb.release_year = :releaseYear)
+            )
+            SELECT COUNT(DISTINCT
+                CASE 
+                    WHEN mb_release_group_status = 'FOUND' THEN mb_release_group
+                    ELSE spotify_id
+                END
+            )
+            FROM base
+            """,
+        nativeQuery = true)
+    fun findTopAlbumsByPopularity(@Param("releaseYear") year: Int?, @Param("albumType") albumType: AlbumType, pageable: Pageable): Page<AlbumIdProjection>
 
-    fun findByReleaseDate_AlbumReleaseYearAndAlbumType(year: Int, albumType: AlbumType, pageable: Pageable): Page<Album>
-
-    fun findByReleaseDate_AlbumReleaseYear(year: Int): List<Album>
-
-    fun findByNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Album>
+    @Query(
+        value = """
+            SELECT ai.album_id    AS albumId,
+                   ai.image_url   AS imageUrl,
+                   ai.image_height AS imageHeight,
+                   ai.image_width  AS imageWidth,
+                   ai.image_order  AS imageOrder
+            FROM album_images ai
+            WHERE ai.album_id IN (:albumIds)
+            ORDER BY ai.album_id, ai.image_order
+        """,
+        nativeQuery = true
+    )
+    fun findImagesForAlbumIds(@Param("albumIds") albumIds: Collection<String>): List<AlbumImageProjection>
 
 }
