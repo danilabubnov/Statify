@@ -14,5 +14,5 @@
     modelValue: { type: String, required: false },
     type: { type: String, required: false, default: 'text' },
   });
-  defineEmits(['update:modelValue']);
+  defineEmits<{ (e: 'update:modelValue', value: string): void }>();
 </script>

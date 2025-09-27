@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'tailwind-scrollbar-hide/v4';
 @import './variables.css';
 @plugin "daisyui";
 
@@ -8,7 +9,7 @@
   prefersdark: true;
   color-scheme: 'light';
   --color-base-100: oklch(21% 0.006 285.885);
-  --color-base-200: var(--color-background);
+  --color-base-200: oklch(18.22% 0.00002 271.152);
   --color-base-300: oklch(21% 0.006 285.885);
   --color-base-content: oklch(100% 0 0);
   --color-primary: oklch(82% 0.21 140);
@@ -37,6 +38,12 @@
   --noise: 0;
 }
 
+@theme {
+  --color-surface: oklch(0.2393 0 0);
+  --color-primary: oklch(0.6004 0.1599 145.09);
+  --color-secondary: oklch(0.7697 0.2124 148.67);
+}
+
 html,
 body,
 #app {
@@ -44,7 +51,7 @@ body,
   width: 100%;
   margin: 0;
   padding: 0;
-  background-color: var(--color-background);
+  background-color: black;
   scrollbar-gutter: auto !important;
 }
 
@@ -54,4 +61,8 @@ body,
 
 .input:hover { 
   @apply duration-350 ease-out
+}
+
+#app a[href^="/"]:not([href^="//"]):not([target]):not([download]) {
+  cursor: default !important;
 }

@@ -1,15 +1,22 @@
 <template>
-  <button
-    class="btn btn-lg btn-outline rounded-full border-contrast hover:border-white btn-hoverable"
-    @click="$emit('click')"
+  <BaseButton
+    variant="oauth"
+    size="lg"
+    shape="pill"
+    class="border-contrast hover:border-white text-white"
     :disabled="disabled"
+    @click="$emit('click', $event)"
   >
-    <slot name="icon" />
-    <div class="btn-text text-white">Continue with {{ service }}</div>
-  </button>
+    <template #icon-left>
+      <slot name="icon" />
+    </template>
+    Continue with {{ service }}
+  </BaseButton>
 </template>
 
 <script setup lang="ts">
+  import BaseButton from './BaseButton.vue';
+
   defineProps<{ service: string; disabled?: boolean }>();
-  defineEmits(['click']);
+  defineEmits<{ (e: 'click', ev: MouseEvent): void }>();
 </script>

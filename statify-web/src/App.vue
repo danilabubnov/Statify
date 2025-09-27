@@ -1,12 +1,13 @@
 <template>
-  <div class="transition-wrapper">
+  <div class="transition-wrapper h-full flex flex-col">
     <Transition name="fade">
       <TheLoadingScreen v-if="loading" @animation-end="toggleLoading" />
-      <div v-else>
+      <div v-else class="flex flex-col h-full">
         <NavBar @open-form="toggleForm" />
         <Transition name="modal-fade">
           <TheAuthForm v-if="formIsVisible" @close-modal="toggleForm" />
         </Transition>
+        <TheMainContent />
       </div>
     </Transition>
   </div>
@@ -16,9 +17,18 @@
   import { onMounted, ref, watch } from 'vue';
   import NavBar from './components/TheNavBar.vue';
   import TheAuthForm from './components/form/TheAuthForm.vue';
+  import TheMainContent from './components/TheMainContent.vue';
   import { storeToRefs } from 'pinia';
   import TheLoadingScreen from './components/TheLoadingScreen.vue';
   import { authStore } from './store/auth/auth';
+  import { albumStore } from './store/albums/albums';
+  import { trackStore } from './store/tracks/tracks';
+  import { artistStore } from './store/artists/artists';
+
+  authStore().init();
+  albumStore().init();
+  trackStore().init();
+  artistStore().init();
 
   const formIsVisible = ref(false);
   const loading = ref(true);
@@ -81,7 +91,9 @@
 
   .modal-fade-enter-active,
   .modal-fade-leave-active {
-    transition: opacity 0.4s ease, transform 0.4s ease;
+    transition:
+      opacity 0.4s ease,
+      transform 0.4s ease;
   }
 
   .modal-fade-enter-from,

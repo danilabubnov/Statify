@@ -225,7 +225,8 @@
   }
 
   .custom-shadow {
-    box-shadow: 0 0 40px 0px color-mix(in srgb, var(--color-secondary) 50%, transparent),
+    box-shadow:
+      0 0 40px 0px color-mix(in srgb, var(--color-secondary) 50%, transparent),
       0 0 10px 0px color-mix(in srgb, var(--color-secondary) 10%, transparent);
   }
 

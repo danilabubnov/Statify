@@ -1,15 +1,11 @@
 <template>
-  <button class="btn btn-outline btn-lg btn-hoverable rounded-3xl hover:rounded-lg hover:border-current" @click="$emit('click')">
-    <span>{{ text }}</span>
-  </button>
+  <BaseButton variant="outline" size="lg" shape="pill" :text="text" @click="$emit('click', $event)" />
 </template>
 
 <script setup lang="ts">
-  defineProps<{
-    text: string;
-  }>();
-
-  defineEmits(['click']);
+  import BaseButton from './BaseButton.vue';
+  defineProps<{ text: string }>();
+  defineEmits<{ (e: 'click', ev: MouseEvent): void }>();
 </script>
 
 <style scoped></style>

@@ -1,12 +1,10 @@
 <template>
-  <div>
-    <button class="font-bold underline hover:text-secondary" @click="$emit('click')">{{ text }}</button>
-  </div>
+  <BaseButton variant="link" size="md" shape="none" :text="text" @click="$emit('click', $event)" />
 </template>
 
 <script setup lang="ts">
-  defineProps({ text: { type: String, required: true } });
-  defineEmits(['click']);
-</script>
+  import BaseButton from './BaseButton.vue';
 
-<style scoped></style>
+  defineProps<{ text: string }>();
+  defineEmits<{ (e: 'click', ev: MouseEvent): void }>();
+</script>

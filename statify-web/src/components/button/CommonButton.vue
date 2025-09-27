@@ -1,14 +1,10 @@
 <template>
-  <button
-    class="btn btn-lg btn-secondary btn-hoverable rounded-full"
-    @click="$emit('click')"
-    :disabled="disabled"
-  >
-    <span>{{ text }}</span>
-  </button>
+  <BaseButton type="submit" variant="secondary" size="lg" shape="pill" :text="text" :disabled="disabled" @click="$emit('click', $event)" />
 </template>
 
 <script setup lang="ts">
-defineProps<{ text: string; disabled?: boolean }>();
-defineEmits(["click"]);
+  import BaseButton from './BaseButton.vue';
+
+  defineProps<{ text: string; disabled?: boolean }>();
+  defineEmits<{ (e: 'click', ev: MouseEvent): void }>();
 </script>

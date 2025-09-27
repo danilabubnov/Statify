@@ -1,9 +1,3 @@
 :root { 
-  --color-primary: oklch(0.6004 0.1599 145.09);
-  --color-secondary: oklch(0.7697 0.2124 148.67);
-  --color-background: oklch(0.1822 0 0);
-  --color-border-primary: oklch(0.986 0.031 120.757);
-  --color-surface: oklch(0.302 0.056 229.695);
-  --color-text-primary: oklch(1 0 0);
-  --color-text-secondary: oklch(0 0 0 / 0%);
+
 }

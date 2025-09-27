@@ -1,7 +1,7 @@
 <template>
-  <nav class="navbar">
+  <nav class="navbar bg-black">
     <div class="navbar-start ml-6">
-      <img :src="logo" alt="Statify Logo" class="h-10" />
+      <!-- <img :src="logo" alt="Statify Logo" class="h-10" /> -->
     </div>
     <div class="navbar-end mr-6">
       <AnimatedButton v-if="!accessToken" @click="$emit('open-form')" text="Get Started" class="h-10" />
