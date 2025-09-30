@@ -10,3 +10,10 @@ type PageInfo {
     startCursor: String
     endCursor: String
 }
+
+type OffsetPageInfo {
+    page: Int!
+    size: Int!
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+}

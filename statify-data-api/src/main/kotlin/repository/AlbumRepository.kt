@@ -74,6 +74,32 @@ interface AlbumRepository : JpaRepository<Album, String> {
 
     @Query(
         value = """
+        WITH base AS (
+            SELECT
+                alb.spotify_id,
+                arg.mb_release_group,
+                arg.mb_release_group_status
+            FROM albums alb
+            JOIN album_release_groups arg USING (spotify_id)
+            WHERE alb.album_type = :#{#albumType.name()}
+              AND alb.popularity IS NOT NULL
+              AND (:releaseYear IS NULL OR alb.release_year = :releaseYear)
+        )
+        SELECT
+            COUNT(DISTINCT
+                CASE
+                    WHEN mb_release_group_status = 'FOUND' THEN mb_release_group
+                    ELSE spotify_id
+                END
+            )::int
+        FROM base
+        """,
+        nativeQuery = true
+    )
+    fun countTopAlbumsByPopularity(@Param("releaseYear") year: Int?, @Param("albumType") albumType: AlbumType): Long
+
+    @Query(
+        value = """
             SELECT ai.album_id    AS albumId,
                    ai.image_url   AS imageUrl,
                    ai.image_height AS imageHeight,

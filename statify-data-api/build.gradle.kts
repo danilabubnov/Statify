@@ -21,6 +21,8 @@ dependencies {
     implementation(libs.graphql.dgs.spring.graphql.starter)
     implementation(libs.graphql.dgs.extended.validation)
 
+    implementation(libs.graphql.java.extended.scalars)
+
     implementation(libs.postgresql)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgres)

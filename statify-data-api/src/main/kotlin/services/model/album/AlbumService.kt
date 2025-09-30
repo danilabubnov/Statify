@@ -25,4 +25,12 @@ class AlbumService(
         return topAlbumIdsByPopularity.map { AlbumPreview(id = it.getSpotifyId(), name = it.getName(), artists = emptyList(), covers = emptyList()) }
     }
 
+    @Transactional(readOnly = true)
+    fun countTopByPopularity(
+        year: Int?,
+        albumType: AlbumType
+    ): Long {
+        return albumRepository.countTopAlbumsByPopularity(year = year, albumType = albumType)
+    }
+
 }

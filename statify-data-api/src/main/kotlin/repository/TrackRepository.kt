@@ -2,7 +2,6 @@ package org.danila.repository
 
 import org.danila.model.spotify.track.Track
 import org.danila.repository.projection.TrackIdProjection
-import org.danila.repository.projection.ArtistImageRow
 import org.danila.repository.projection.TrackImageProjection
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -24,6 +23,17 @@ interface TrackRepository : JpaRepository<Track, String> {
         ORDER BY t.popularity DESC, t.spotifyId ASC
     """)
     fun findTopTracksByPopularity(@Param("releaseYear") year: Int?, pageable: Pageable): Page<TrackIdProjection>
+
+    @Query(
+        """
+            SELECT 
+                COUNT(t)
+            FROM Track t
+            WHERE (:releaseYear IS NULL OR t.album.releaseDate.albumReleaseYear = :releaseYear)
+                AND t.popularity IS NOT NULL
+    """
+    )
+    fun countTopTracksByPopularity(@Param("releaseYear") year: Int?): Long
 
     @Query(
         value = """

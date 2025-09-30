@@ -3,3 +3,5 @@ schema {
 }
 
 type Query
+
+scalar Long

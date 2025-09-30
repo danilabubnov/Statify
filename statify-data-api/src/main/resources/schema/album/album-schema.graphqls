@@ -2,11 +2,17 @@ extend type Query {
 
     topAlbumsByPopularity(
         page: Int! @Range(min: 0)
-        size: Int = 25 @Range(min: 1, max: 50)
+        size: Int = 25 @Range(min: 1, max: 52)
         year: Int @Range(min: 1900, max: 2100)
         albumType: AlbumType = ALBUM
-    ): [AlbumPreview!]!
+    ): AlbumPreviewPage!
 
+}
+
+type AlbumPreviewPage {
+    items: [AlbumPreview!]!
+    pageInfo: OffsetPageInfo
+    totalCount: Long
 }
 
 enum AlbumType {

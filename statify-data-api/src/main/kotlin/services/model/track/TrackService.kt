@@ -23,4 +23,9 @@ class TrackService(
         return topTrackIdsByPopularity.map { TrackPreview(id = it.getSpotifyId(), name = it.getName(), artists = emptyList(), covers = emptyList()) }
     }
 
+    @Transactional(readOnly = true)
+    fun countTopByPopularity(year: Int?): Long {
+        return trackRepository.countTopTracksByPopularity(year)
+    }
+
 }

@@ -3,8 +3,14 @@ extend type Query {
     topArtistsByPopularity(
         page: Int! @Range(min: 0)
         size: Int = 50 @Range(min: 1, max: 100)
-    ): [ArtistPreview!]!
+    ): ArtistPreviewPage!
 
+}
+
+type ArtistPreviewPage {
+    items: [ArtistPreview!]!
+    pageInfo: OffsetPageInfo
+    totalCount: Long
 }
 
 type ArtistPreview {

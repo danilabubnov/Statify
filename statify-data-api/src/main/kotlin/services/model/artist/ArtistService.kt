@@ -22,4 +22,9 @@ class ArtistService(
         return topArtistIdsByPopularity.map { artist -> ArtistPreview(id = artist.spotifyId, name = artist.name, images = emptyList()) }
     }
 
+    @Transactional(readOnly = true)
+    fun countTopByPopularity(): Long {
+        return artistRepository.count()
+    }
+
 }
