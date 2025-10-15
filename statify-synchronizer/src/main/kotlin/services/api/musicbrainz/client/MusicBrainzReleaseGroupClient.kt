@@ -3,6 +3,7 @@ package org.danila.services.api.musicbrainz.client
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import logging.logger
+import org.danila.dto.musicbrainz.AlbumGlobalLookupResult
 import org.danila.dto.musicbrainz.releasegroup.AlbumReleaseGroupLookupResult
 import org.danila.event.scheduled.albums.LookupType
 import org.danila.repository.projection.album.AlbumBarcodes
@@ -62,7 +63,7 @@ class MusicBrainzReleaseGroupClient @Autowired constructor(
         )
     }
 
-    suspend fun resolveByName(albums: List<AlbumNameLookup>): List<AlbumReleaseGroupLookupResult> {
+    suspend fun resolveByName(albums: List<AlbumNameLookup>): List<AlbumGlobalLookupResult> {
         logger.debug { "MusicBrainz resolve by name: start, albums=${albums.size}" }
 
         val releaseGroupAlbums = albums.map { album ->
@@ -74,26 +75,26 @@ class MusicBrainzReleaseGroupClient @Autowired constructor(
         return releaseGroupAlbums
     }
 
-    suspend fun fetchByName(album: AlbumNameLookup): AlbumReleaseGroupLookupResult {
-        val query = """releasegroup:"${album.name}" ${album.artists.joinToString(" OR ") { """artist:"$it"""" }}"""
+    suspend fun fetchByName(album: AlbumNameLookup): AlbumGlobalLookupResult {
+        val query = album.name + " " + album.artists.joinToString(" ") { it.name }
 
         val response = withContext(Dispatchers.IO) {
             logger.debug { "Executing HTTP request fetchByName with album=$album" }
             musicBrainzRateLimitHelper.withMusicBrainzRateLimit {
-                musicBrainzAPI.findReleaseGroup(query = query)
+                musicBrainzAPI.findRelease(query = query, limit = 20)
             }
         }
 
-        val releaseGroupId = response.releaseGroups.firstOrNull()?.id
-
         logger.debug {
-            "MB lookup album=${album.spotifyId}: used=$query, found=${releaseGroupId != null}"
+            "MB lookup album=${album.spotifyId}: used=$query, matches count=${response.releaseList.count()}"
         }
 
-        return AlbumReleaseGroupLookupResult(
+        return AlbumGlobalLookupResult(
             spotifyId = album.spotifyId,
-            releaseGroupId = releaseGroupId,
-            lookupType = LookupType.BY_NAME
+            name = album.name,
+            artists = album.artists,
+            lookupType = LookupType.BY_NAME,
+            lookupResult = response
         )
     }
 

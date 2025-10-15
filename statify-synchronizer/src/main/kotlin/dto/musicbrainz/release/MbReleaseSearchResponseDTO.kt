@@ -1,7 +1,6 @@
 package org.danila.dto.musicbrainz.release
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.danila.dto.musicbrainz.releasegroup.MbReleaseGroupDTO
 
 data class MbReleaseSearchResponseDTO(
 
@@ -12,8 +11,33 @@ data class MbReleaseSearchResponseDTO(
 
 data class MbReleaseDTO(
 
+    @JsonProperty("title")
+    val title: String,
+
+    @JsonProperty("disambiguation")
+    val disambiguation: String?,
+
     @JsonProperty("release-group")
-    val releaseGroup: MbReleaseGroupDTO
+    val releaseGroup: MbReleaseGroupDTO,
+
+    @JsonProperty("artist-credit")
+    val artists: List<MbArtistCreditDTO>
 
 )
 
+data class MbReleaseGroupDTO(
+
+    @JsonProperty("id")
+    val id: String,
+
+    @JsonProperty("title")
+    val title: String? = null
+
+)
+
+data class MbArtistCreditDTO(
+
+    @JsonProperty("name")
+    val name: String
+
+)
