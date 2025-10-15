@@ -1,10 +1,12 @@
 package org.danila.services.model.track
 
-import org.danila.generated.types.TrackPreview
 import org.danila.repository.TrackRepository
+import org.danila.repository.projection.TrackIdProjection
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Slice
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 
 @Service
 class TrackService(
@@ -12,20 +14,14 @@ class TrackService(
 ) {
 
     @Transactional(readOnly = true)
-    fun findTopByPopularity(
-        page: Int,
-        pageSize: Int,
-        year: Int?
-    ): List<TrackPreview> {
+    fun findTopByPopularity(page: Int, pageSize: Int, from: LocalDate?, to: LocalDate?): Slice<TrackIdProjection> {
         val pageable = PageRequest.of(page, pageSize)
-        val topTrackIdsByPopularity = trackRepository.findTopTracksByPopularity(year = year, pageable = pageable).content
-
-        return topTrackIdsByPopularity.map { TrackPreview(id = it.getSpotifyId(), name = it.getName(), artists = emptyList(), covers = emptyList()) }
+        return trackRepository.findTopTracksByPopularity(from = from, to = to, pageable = pageable)
     }
 
     @Transactional(readOnly = true)
-    fun countTopByPopularity(year: Int?): Long {
-        return trackRepository.countTopTracksByPopularity(year)
+    fun countTopByPopularity(from: LocalDate?, to: LocalDate?): Long {
+        return trackRepository.countTopTracksByPopularity(from = from, to = to)
     }
 
 }

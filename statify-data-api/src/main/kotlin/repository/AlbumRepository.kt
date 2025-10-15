@@ -4,12 +4,13 @@ import org.danila.model.spotify.album.Album
 import org.danila.model.spotify.album.AlbumType
 import org.danila.repository.projection.AlbumIdProjection
 import org.danila.repository.projection.AlbumImageProjection
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Slice
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import java.time.LocalDate
 
 @Repository
 interface AlbumRepository : JpaRepository<Album, String> {
@@ -27,14 +28,15 @@ interface AlbumRepository : JpaRepository<Album, String> {
                 JOIN album_release_groups arg USING (spotify_id)
                 WHERE alb.album_type = :#{#albumType.name()}
                     AND alb.popularity IS NOT NULL
-                    AND (:releaseYear IS NULL OR alb.release_year = :releaseYear)
+                    AND (CAST(:from AS DATE) IS NULL OR alb.release_date_raw >= CAST(:from AS TEXT))
+                    AND (CAST(:to AS DATE) IS NULL OR alb.release_date_raw <= CAST(:to AS TEXT))
             ),
             ranked AS (
                 SELECT
                     b.*,
                     ROW_NUMBER() OVER (
                         PARTITION BY
-                            CASE 
+                            CASE
                                 WHEN mb_release_group_status = 'FOUND' THEN mb_release_group
                                 ELSE spotify_id
                             END
@@ -49,28 +51,13 @@ interface AlbumRepository : JpaRepository<Album, String> {
             WHERE rn = 1
             ORDER BY r.popularity DESC, r.spotify_id ASC
             """,
-        countQuery = """
-            WITH base AS (
-                SELECT
-                    alb.spotify_id,              
-                    arg.mb_release_group,
-                    arg.mb_release_group_status
-                FROM albums alb
-                JOIN album_release_groups arg USING (spotify_id)
-                WHERE alb.album_type = :#{#albumType.name()}
-                    AND alb.popularity IS NOT NULL
-                    AND (:releaseYear IS NULL OR alb.release_year = :releaseYear)
-            )
-            SELECT COUNT(DISTINCT
-                CASE 
-                    WHEN mb_release_group_status = 'FOUND' THEN mb_release_group
-                    ELSE spotify_id
-                END
-            )
-            FROM base
-            """,
         nativeQuery = true)
-    fun findTopAlbumsByPopularity(@Param("releaseYear") year: Int?, @Param("albumType") albumType: AlbumType, pageable: Pageable): Page<AlbumIdProjection>
+    fun findTopAlbumsByPopularity(
+        @Param("from") from: LocalDate?,
+        @Param("to") to: LocalDate?,
+        @Param("albumType") albumType: AlbumType,
+        pageable: Pageable
+    ): Slice<AlbumIdProjection>
 
     @Query(
         value = """
@@ -83,7 +70,8 @@ interface AlbumRepository : JpaRepository<Album, String> {
             JOIN album_release_groups arg USING (spotify_id)
             WHERE alb.album_type = :#{#albumType.name()}
               AND alb.popularity IS NOT NULL
-              AND (:releaseYear IS NULL OR alb.release_year = :releaseYear)
+              AND (CAST(:from AS DATE) IS NULL OR alb.release_date_raw >= CAST(:from AS TEXT))
+              AND (CAST(:to AS DATE) IS NULL OR alb.release_date_raw <= CAST(:to AS TEXT))
         )
         SELECT
             COUNT(DISTINCT
@@ -96,7 +84,11 @@ interface AlbumRepository : JpaRepository<Album, String> {
         """,
         nativeQuery = true
     )
-    fun countTopAlbumsByPopularity(@Param("releaseYear") year: Int?, @Param("albumType") albumType: AlbumType): Long
+    fun countTopAlbumsByPopularity(
+        @Param("from") from: LocalDate?,
+        @Param("to") to: LocalDate?,
+        @Param("albumType") albumType: AlbumType
+    ): Long
 
     @Query(
         value = """

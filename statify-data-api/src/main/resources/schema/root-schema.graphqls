@@ -5,3 +5,4 @@ schema {
 type Query
 
 scalar Long
+scalar Date

@@ -3,37 +3,53 @@ package org.danila.repository
 import org.danila.model.spotify.track.Track
 import org.danila.repository.projection.TrackIdProjection
 import org.danila.repository.projection.TrackImageProjection
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Slice
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import java.time.LocalDate
 
 @Repository
 interface TrackRepository : JpaRepository<Track, String> {
 
-    @Query("""
-        SELECT 
-            t.spotifyId AS spotifyId,
-            t.name      AS name
-        FROM Track t
-        WHERE (:releaseYear IS NULL OR t.album.releaseDate.albumReleaseYear = :releaseYear)
-            AND t.popularity is not null
-        ORDER BY t.popularity DESC, t.spotifyId ASC
-    """)
-    fun findTopTracksByPopularity(@Param("releaseYear") year: Int?, pageable: Pageable): Page<TrackIdProjection>
+    @Query(
+        value = """
+            SELECT
+                t.spotify_id AS spotifyId,
+                t.name       AS name
+            FROM tracks t
+            JOIN albums a ON a.spotify_id = t.album_id
+            WHERE (CAST(:from AS DATE) IS NULL OR a.release_date_raw >= CAST(:from AS TEXT))
+                AND (CAST(:to AS DATE) IS NULL OR a.release_date_raw <= CAST(:to AS TEXT))
+                AND t.popularity IS NOT NULL
+            ORDER BY t.popularity DESC, t.spotify_id ASC
+        """,
+        nativeQuery = true
+    )
+    fun findTopTracksByPopularity(
+        @Param("from") from: LocalDate?,
+        @Param("to") to: LocalDate?,
+        pageable: Pageable
+    ): Slice<TrackIdProjection>
 
     @Query(
-        """
-            SELECT 
-                COUNT(t)
-            FROM Track t
-            WHERE (:releaseYear IS NULL OR t.album.releaseDate.albumReleaseYear = :releaseYear)
+        value = """
+            SELECT
+                COUNT(t.spotify_id)
+            FROM tracks t
+            JOIN albums a ON a.spotify_id = t.album_id
+            WHERE (CAST(:from AS DATE) IS NULL OR a.release_date_raw >= CAST(:from AS TEXT))
+                AND (CAST(:to AS DATE) IS NULL OR a.release_date_raw <= CAST(:to AS TEXT))
                 AND t.popularity IS NOT NULL
-    """
+        """,
+        nativeQuery = true
     )
-    fun countTopTracksByPopularity(@Param("releaseYear") year: Int?): Long
+    fun countTopTracksByPopularity(
+        @Param("from") from: LocalDate?,
+        @Param("to") to: LocalDate?
+    ): Long
 
     @Query(
         value = """

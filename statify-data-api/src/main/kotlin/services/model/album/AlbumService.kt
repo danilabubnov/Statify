@@ -1,11 +1,13 @@
 package org.danila.services.model.album
 
-import org.danila.generated.types.AlbumPreview
 import org.danila.model.spotify.album.AlbumType
 import org.danila.repository.AlbumRepository
+import org.danila.repository.projection.AlbumIdProjection
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Slice
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 
 @Service
 class AlbumService(
@@ -16,21 +18,21 @@ class AlbumService(
     fun findTopByPopularity(
         page: Int,
         pageSize: Int,
-        year: Int?,
+        from: LocalDate?,
+        to: LocalDate?,
         albumType: AlbumType
-    ): List<AlbumPreview> {
+    ): Slice<AlbumIdProjection> {
         val pageable = PageRequest.of(page, pageSize)
-        val topAlbumIdsByPopularity = albumRepository.findTopAlbumsByPopularity(year = year, albumType = albumType, pageable = pageable).content
-
-        return topAlbumIdsByPopularity.map { AlbumPreview(id = it.getSpotifyId(), name = it.getName(), artists = emptyList(), covers = emptyList()) }
+        return albumRepository.findTopAlbumsByPopularity(from = from, to = to, albumType = albumType, pageable = pageable)
     }
 
     @Transactional(readOnly = true)
     fun countTopByPopularity(
-        year: Int?,
+        from: LocalDate?,
+        to: LocalDate?,
         albumType: AlbumType
     ): Long {
-        return albumRepository.countTopAlbumsByPopularity(year = year, albumType = albumType)
+        return albumRepository.countTopAlbumsByPopularity(from = from, to = to, albumType = albumType)
     }
 
 }

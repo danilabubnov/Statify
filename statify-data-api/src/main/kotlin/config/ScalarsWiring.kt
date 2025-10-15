@@ -7,7 +7,11 @@ import graphql.schema.idl.RuntimeWiring
 
 @DgsComponent
 class ScalarsWiring {
+
     @DgsRuntimeWiring
-    fun addLongScalar(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
-        builder.scalar(ExtendedScalars.GraphQLLong)
+    fun addScalars(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
+        builder
+            .scalar(ExtendedScalars.GraphQLLong)
+            .scalar(ExtendedScalars.Date)
+
 }
