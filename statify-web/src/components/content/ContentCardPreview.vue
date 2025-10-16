@@ -1,27 +1,35 @@
 <template>
   <button
     type="button"
-    class="group/card block bg-base-200 hover:bg-surface hover:rounded-sm transition-colors duration-200"
-    :class="props.fluid ? 'max-w-none h-full' : 'w-48 max-w-56'"
+    class="group/card uxcard hover:uxcardhover focus-visible:uxfocus"
+    :class="props.fluid ? 'w-full' : 'w-48 max-w-56'"
   >
-    <div class="flex flex-col gap-2 p-2">
-      <div class="overflow-hidden shrink-0" :class="[props.round ? 'rounded-full' : 'rounded-lg']">
-        <div class="aspect-square">
+    <div class="uxcardbody">
+      <div class="uxcardmedia" :class="[props.round ? 'rounded-full' : 'rounded-lg']">
+        <div class="relative w-full bg-base-300" style="padding-bottom: 100%;">
           <img
             :src="imageUrl"
             :alt="item.name"
-            class="w-full h-full object-cover object-center transition duration-200 scale-100 group-hover/card:scale-[1.02]"
-            loading="lazy"
+            class="uxcardimg group-hover/card:uximgzoom absolute inset-0"
             decoding="async"
+            loading="lazy"
+            width="300"
+            height="300"
           />
         </div>
       </div>
 
-      <div class="flex flex-col mb-2">
-        <span class="text-left text-base font-medium leading-snug line-clamp-2 hover:underline" :title="item.name">
+      <div class="flex flex-col h-[4.5rem]">
+        <span
+          class="line-clamp-2 text-left text-[length:var(--fs-card-title)] leading-snug font-normal hover:underline xl:font-medium"
+          :title="item.name"
+        >
           {{ item.name }}
         </span>
-        <span v-if="title.length" class="text-left text-sm font-normal text-base-content/65 line-clamp-2">
+        <span
+          v-if="title.length"
+          class="text-base-content/70 line-clamp-2 text-left text-[length:var(--fs-card-meta)] font-normal tracking-[0.01em]"
+        >
           <template v-for="(artist, i) in title" :key="artist">
             <span class="hover:underline">{{ artist.name }}</span>
             <span v-if="i < title.length - 1">, </span>

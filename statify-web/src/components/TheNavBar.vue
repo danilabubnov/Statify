@@ -1,5 +1,5 @@
 <template>
-  <nav class="navbar bg-black">
+  <nav class="navbar bg-black outline-1 outline-base-200">
     <div class="navbar-start ml-6">
       <!-- <img :src="logo" alt="Statify Logo" class="h-10" /> -->
     </div>
@@ -10,7 +10,6 @@
 </template>
 
 <script setup lang="ts">
-  import logo from '../assets/statify-logo.png';
   import { authStore } from '../store/auth/auth';
   import AnimatedButton from './button/AnimatedButton.vue';
   import { storeToRefs } from 'pinia';

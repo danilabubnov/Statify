@@ -1,0 +1,128 @@
+/* === Cards === */
+
+@utility uxcard {
+  @apply bg-base-200 block transition-colors duration-200;
+}
+
+@utility uxcardhover {
+  @apply rounded-sm;
+  background-color: var(--color-surface);
+}
+
+@utility uxcardbody {
+  @apply flex h-full flex-col gap-2 p-2;
+}
+
+@utility uxcardmedia {
+  @apply shrink-0 overflow-hidden rounded-lg;
+}
+
+@utility uxcardimg {
+  @apply h-full w-full scale-100 object-cover object-center duration-200;
+  transition-property: transform;
+}
+
+@utility uximgzoom {
+  transform: scale(1.02);
+}
+
+/* === Section headings === */
+
+@utility usectiontitle {
+  @apply leading-[1.1] font-semibold tracking-normal;
+  font-size: var(--fs-section-title, clamp(22px, calc(16px + 1.667vw), 40px));
+}
+
+@variant md {
+  .usectiontitle {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@utility usectionsub {
+  @apply font-normal tracking-[0.005em];
+  font-size: var(--fs-section-sub, clamp(13px, calc(12px + 0.278vw), 16px));
+}
+
+/* === Tracks grid === */
+
+@utility ugridtracks {
+  @apply bg-base-200 mt-2 grid gap-2;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  align-content: start;
+}
+
+@variant md {
+  .ugridtracks {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+@variant lg {
+  .ugridtracks {
+    @apply rounded-lg p-4;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  }
+}
+
+@variant 2xl {
+  .ugridtracks {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+/* === Tabs === */
+
+@utility utogglegroup {
+  @apply bg-base-200 grid rounded-2xl overflow-hidden;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@utility utogglebtn {
+  @apply flex w-full min-w-0 items-center justify-center rounded-none first:rounded-l-2xl last:rounded-r-2xl px-4 py-3 transition-colors duration-200;
+}
+
+@utility utoggleactive {
+  @apply font-medium;
+  background-color: oklch(1 0 0);
+  color: oklch(0 0 0);
+}
+
+@utility utogglehover {
+  background-color: oklch(0.252 0 0);
+  color: white;
+}
+
+@utility utoggleidletext {
+  color: oklch(0.7137 0.0192 261.32);
+}
+
+/* === Pagination === */
+
+@utility upaginationindicator {
+  @apply pointer-events-none absolute top-1 left-1 h-[43px] rounded-xl;
+  background: oklch(1 0 0) !important;
+  z-index: 0;
+  min-width: 40px !important;
+  transition: transform 220ms cubic-bezier(.2,.7,.2,1), width 220ms cubic-bezier(.2,.7,.2,1);
+}
+
+@utility upaginationinput {
+  @apply relative z-10 flex h-[35px] w-[40px] items-center justify-center rounded-xl bg-transparent text-center text-sm sm:h-[43px] sm:w-[50px] md:text-base;
+}
+
+/* === Text colors === */
+
+@utility utextwhite {
+  color: oklch(1 0 0);
+}
+
+@utility utextblack {
+  color: oklch(0 0 0);
+}
+
+/* === Performance === */
+
+@utility ucontentvisibility {
+  content-visibility: auto;
+}

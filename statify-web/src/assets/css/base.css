@@ -1,0 +1,26 @@
+html {
+  @apply scrollbar-hide h-full overflow-y-auto;
+  font-size: 100%;
+}
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: black;
+  scrollbar-gutter: auto !important;
+  font-family: 'Outfit', sans-serif;
+}
+
+.btn-hoverable {
+  @apply transform-gpu transition-all duration-300 ease-out will-change-[transform] [backface-visibility:hidden] hover:scale-95;
+}
+.input:hover {
+  @apply duration-350 ease-out;
+}
+#app a[href^="/"]:not([href^="//"]):not([target]):not([download])
+{
+  cursor: default !important;
+}

@@ -1,18 +1,18 @@
 <template>
   <main class="flex-1 bg-base-200 rounded-xl m-2 p-4">
-    <SectionRow title="Popular Albums and Singles" :to="{ name: 'albums-popular' }" :items="topAlbums" :itemKey="(a) => a.id">
+    <SectionRow title="Popular Albums and Singles" :to="{ name: 'albums-popular' }" :items="currentAlbums" :itemKey="(a) => a.id">
       <template #default="{ item }">
         <ContentCardPreview :item="item" />
       </template>
     </SectionRow>
 
-    <SectionRow title="Popular Tracks" :to="{ name: 'tracks-popular' }" :items="topTracks" :itemKey="(a) => a.id">
+    <SectionRow title="Popular Tracks" :to="{ name: 'tracks-popular' }" :items="currentTracks" :itemKey="(a) => a.id">
       <template #default="{ item }">
         <ContentCardPreview :item="item" />
       </template>
     </SectionRow>
 
-    <SectionRow title="Popular Artists" :to="{ name: 'artists-popular' }" :items="topArtists" :itemKey="(a) => a.id">
+    <SectionRow title="Popular Artists" :to="{ name: 'tracks-popular' }" :items="currentArtists" :itemKey="(a) => a.id">
       <template #default="{ item }">
         <ContentCardPreview :item="item" round />
       </template>
@@ -28,9 +28,9 @@
   import { artistStore } from '../../store/artists/artists';
   import { storeToRefs } from 'pinia';
 
-  const { topAlbums } = storeToRefs(albumStore());
-  const { topTracks } = storeToRefs(trackStore());
-  const { topArtists } = storeToRefs(artistStore());
+  const { currentAlbums } = storeToRefs(albumStore());
+  const { currentTracks } = storeToRefs(trackStore());
+  const { currentArtists } = storeToRefs(artistStore());
 </script>
 
 <style scoped></style>

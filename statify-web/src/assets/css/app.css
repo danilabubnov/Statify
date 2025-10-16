@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "tailwind-scrollbar-hide/v4";
+
+@plugin "daisyui";
+
+@import "./tokens.css";
+@import "./theme.light.css";
+
+@import "./base.css";
+@import "./utilities.css";

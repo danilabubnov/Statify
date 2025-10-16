@@ -1,5 +1,15 @@
 import { gql } from 'graphql-tag';
 
+export const OffsetPageInfoFields = gql`
+  fragment OffsetPageInfoFields on OffsetPageInfo {
+    page
+    size
+    hasNextPage
+    hasPreviousPage
+  }
+`;
+
+/* ========== ALBUMS ========== */
 export const TopAlbumsByPopularity = gql`
   fragment AlbumPreviewFields on AlbumPreview {
     id
@@ -15,13 +25,27 @@ export const TopAlbumsByPopularity = gql`
     }
   }
 
-  query TopAlbumsByPopularity($page: Int!, $size: Int, $year: Int, $albumType: AlbumType) {
-    topAlbumsByPopularity(page: $page, size: $size, year: $year, albumType: $albumType) {
-      ...AlbumPreviewFields
+  query TopAlbumsByPopularity(
+    $page: Int!
+    $size: Int
+    $from: Date
+    $to: Date
+    $albumType: AlbumType
+    $withTotal: Boolean = false
+  ) {
+    topAlbumsByPopularity(page: $page, size: $size, from: $from, to: $to, albumType: $albumType) {
+      items {
+        ...AlbumPreviewFields
+      }
+      pageInfo {
+        ...OffsetPageInfoFields
+      }
+      totalCount @include(if: $withTotal)
     }
   }
 `;
 
+/* ========== TRACKS ========== */
 export const TopTracksByPopularity = gql`
   fragment TrackPreviewFields on TrackPreview {
     id
@@ -37,13 +61,26 @@ export const TopTracksByPopularity = gql`
     }
   }
 
-  query TopTracksByPopularity($page: Int!, $size: Int, $year: Int) {
-    topTracksByPopularity(page: $page, size: $size, year: $year) {
-      ...TrackPreviewFields
+  query TopTracksByPopularity(
+    $page: Int!
+    $size: Int
+    $from: Date
+    $to: Date
+    $withTotal: Boolean = false
+  ) {
+    topTracksByPopularity(page: $page, size: $size, from: $from, to: $to) {
+      items {
+        ...TrackPreviewFields
+      }
+      pageInfo {
+        ...OffsetPageInfoFields
+      }
+      totalCount @include(if: $withTotal)
     }
   }
 `;
 
+/* ========== ARTISTS ========== */
 export const TopArtistsByPopularity = gql`
   fragment ArtistPreviewFields on ArtistPreview {
     id
@@ -55,9 +92,19 @@ export const TopArtistsByPopularity = gql`
     }
   }
 
-  query TopArtistsByPopularity($page: Int!, $size: Int) {
+  query TopArtistsByPopularity(
+    $page: Int!
+    $size: Int
+    $withTotal: Boolean = false
+  ) {
     topArtistsByPopularity(page: $page, size: $size) {
-      ...ArtistPreviewFields
+      items {
+        ...ArtistPreviewFields
+      }
+      pageInfo {
+        ...OffsetPageInfoFields
+      }
+      totalCount @include(if: $withTotal)
     }
   }
 `;

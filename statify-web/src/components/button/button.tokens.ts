@@ -1,4 +1,4 @@
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'link' | 'oauth' | 'carousel-arrow';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'link' | 'oauth' | 'carousel-arrow' | 'toggle';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon-sm';
 export type ButtonShape = 'none' | 'rounded' | 'pill';
 
@@ -15,6 +15,7 @@ export const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   link: 'font-bold underline hover:text-secondary bg-transparent rounded-none px-0',
   oauth: 'btn btn-hoverable btn-outline border-contrast hover:border-white',
   'carousel-arrow': 'flex items-center justify-center bg-base-100',
+  toggle: 'btn'
 };
 
 export const SIZE_CLASSES: Record<ButtonSize, string> = {

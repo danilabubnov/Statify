@@ -71,7 +71,6 @@ export const authStore = defineStore('auth', {
       }
     },
 
-    // todo: what if fetchCurrentUser will produce an error?
     async refresh(): Promise<string | null> {
       this.loading = true;
       this.error = null;

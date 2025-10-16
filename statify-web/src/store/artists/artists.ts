@@ -1,49 +1,156 @@
 import { defineStore } from 'pinia';
-import type { TopArtistsByPopularityQuery, TopArtistsByPopularityQueryVariables } from '../../graphql/generated/graphql';
+import { ref, computed } from 'vue';
 import { apolloClient } from '../../api/apollo';
 import { TOP_ARTISTS_QUERY } from '../../graphql/queries';
+import type {
+  ArtistPreview,
+  OffsetPageInfo,
+  TopArtistsByPopularityQuery,
+  TopArtistsByPopularityQueryVariables,
+} from '../../graphql/generated/graphql';
+import { DEFAULT_SIZE } from '../../constants/pagination';
+import { useAbortController } from '../../composables/useAbortController';
 
-type TopArtists = TopArtistsByPopularityQuery['topArtistsByPopularity'];
-type TopArtistItem = TopArtists[number];
+export const artistStore = defineStore('artists', () => {
+  const loading = ref(false);
+  const error = ref<string | null>(null);
 
-export const artistStore = defineStore('artists', {
-  state: () => ({
-    loading: false,
-    error: null as string | null,
-    topArtists: [] as TopArtistItem[],
-  }),
+  const topArtists = ref<Record<number, ArtistPreview[]>>({});
+  const pagesInfo = ref<Record<number, OffsetPageInfo>>({});
+  const totalCount = ref<number | null>(null);
 
-  actions: {
-    async init() {
-      await this.fetchTopArtists({ page: 0 });
-    },
+  const currentPage = ref(0);
+  const currentSize = ref<number>(DEFAULT_SIZE.ARTISTS);
 
-    async fetchTopArtists(payload: { page: number; size?: number }) {
-      this.loading = true;
-      this.error = null;
+  const { createController, isCurrentController, clearController } = useAbortController();
 
-      try {
-        const variables: TopArtistsByPopularityQueryVariables = {
-          page: payload.page,
-          size: payload.size ?? 25,
-        };
+  const currentArtists = computed(() => topArtists.value[currentPage.value] ?? []);
+  const pageInfo = computed(() => pagesInfo.value[currentPage.value] ?? null);
+  const page = computed(() => pageInfo.value?.page ?? 0);
+  const size = computed(() => pageInfo.value?.size ?? DEFAULT_SIZE.ARTISTS);
+  const hasNext = computed(() => !!pageInfo.value?.hasNextPage);
+  const hasPrev = computed(() => !!pageInfo.value?.hasPreviousPage);
+  const activeTimeRangeFilter = computed(() => 'all-time' as const);
+  const pageCount = computed(() => {
+    if (!totalCount.value || !currentSize.value) return 0;
+    return Math.ceil(totalCount.value / currentSize.value);
+  });
 
-        const { data } = await apolloClient.query({
-          query: TOP_ARTISTS_QUERY,
-          variables,
-        });
+  const fetchTopArtists = async (payload: { page: number; size?: number; withTotal?: boolean }) => {
+    const controller = createController();
+    const signal = controller.signal;
 
-        if (data?.topArtistsByPopularity) {
-          this.topArtists = data.topArtistsByPopularity;
-        } else {
-          this.topArtists = [];
-        }
-      } catch (err: any) {
-        console.error('Failed to fetch artists:', err);
-        this.error = err.message || 'Unknown error';
-      } finally {
-        this.loading = false;
+    loading.value = true;
+    error.value = null;
+
+    const _page = payload.page;
+    const _size = payload.size ?? size.value ?? DEFAULT_SIZE.ARTISTS;
+    const withTotal = payload.withTotal ?? false;
+
+    try {
+      const variables: TopArtistsByPopularityQueryVariables = {
+        page: _page,
+        size: _size,
+        withTotal,
+      };
+
+      const { data } = await apolloClient.query<TopArtistsByPopularityQuery, TopArtistsByPopularityQueryVariables>({
+        query: TOP_ARTISTS_QUERY,
+        variables,
+        context: {
+          fetchOptions: {
+            signal,
+          },
+        },
+      });
+
+      if (!isCurrentController(controller)) {
+        return;
       }
-    },
-  },
+
+      const pageData = data?.topArtistsByPopularity;
+      const items = pageData?.items ?? [];
+
+      topArtists.value[_page] = items;
+      pagesInfo.value[_page] =
+        pageData?.pageInfo ??
+        ({
+          page: _page,
+          size: _size,
+          hasNextPage: items.length >= _size,
+          hasPreviousPage: _page > 0,
+        } as OffsetPageInfo);
+
+      if (withTotal) totalCount.value = pageData?.totalCount ?? null;
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.debug('Request was aborted');
+        return;
+      }
+
+      if (!isCurrentController(controller)) {
+        return;
+      }
+
+      console.error('Failed to fetch artists:', err);
+      error.value = err.message || 'Unknown error';
+    } finally {
+      if (isCurrentController(controller)) {
+        loading.value = false;
+        clearController(controller);
+      }
+    }
+  };
+
+  const nextPage = async () => {
+    if (!hasNext.value) return;
+
+    currentPage.value = page.value + 1;
+    loading.value = true;
+
+    await fetchTopArtists({ page: currentPage.value, size: size.value });
+  };
+
+  const prevPage = async () => {
+    if (!hasPrev.value) return;
+
+    currentPage.value = page.value - 1;
+    loading.value = true;
+
+    await fetchTopArtists({ page: currentPage.value, size: size.value });
+  };
+
+  const followPage = async (p: number) => {
+    currentPage.value = p - 1;
+    loading.value = true;
+
+    await fetchTopArtists({ page: p - 1, size: size.value });
+  };
+
+  const init = async () => {
+    await fetchTopArtists({ page: 0, withTotal: true });
+  };
+
+  return {
+    loading,
+    error,
+    topArtists,
+    pagesInfo,
+    totalCount,
+    currentPage,
+    currentSize,
+    currentArtists,
+    pageInfo,
+    page,
+    size,
+    hasNext,
+    hasPrev,
+    activeTimeRangeFilter,
+    pageCount,
+    init,
+    fetchTopArtists,
+    nextPage,
+    prevPage,
+    followPage,
+  };
 });

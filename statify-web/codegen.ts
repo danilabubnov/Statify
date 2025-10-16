@@ -10,11 +10,7 @@ const config: CodegenConfig = {
 
   generates: {
     'src/graphql/generated/graphql.ts': {
-      plugins: [
-        'typescript',
-        'typescript-operations',
-        'typed-document-node',
-      ],
+      plugins: ['typescript', 'typescript-operations', 'typed-document-node'],
       config: {
         gqlTagName: 'gql',
 
@@ -24,7 +20,7 @@ const config: CodegenConfig = {
         dedupeFragments: true,
 
         defaultScalarType: 'unknown',
-        scalars: { ID: 'string' },
+        scalars: { ID: 'string', Long: 'number' },
       },
     },
   },
