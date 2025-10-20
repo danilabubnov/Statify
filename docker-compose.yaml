@@ -3,8 +3,8 @@ services:
   postgres-core:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: postgres # STATIFY_CORE_POSTGRES_USER
-      POSTGRES_PASSWORD: Default123! # STATIFY_CORE_POSTGRES_PASSWORD
+      POSTGRES_USER: ${STATIFY_CORE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${STATIFY_CORE_POSTGRES_PASSWORD}
       POSTGRES_DB: statify-core
     ports:
       - "5432:5432"
@@ -21,8 +21,8 @@ services:
   postgres-data-storage:
     build: .
     environment:
-      POSTGRES_USER: postgres # STATIFY_DATA_STORAGE_POSTGRES_USER
-      POSTGRES_PASSWORD: Default123! # STATIFY_DATA_STORAGE_POSTGRES_PASSWORD
+      POSTGRES_USER: ${STATIFY_DATA_STORAGE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${STATIFY_DATA_STORAGE_POSTGRES_PASSWORD}
       POSTGRES_DB: statify-data-storage
     ports:
       - "5433:5432"
@@ -51,7 +51,7 @@ services:
       - app-network
 
   kafka:
-    image: bitnami/kafka:3.7
+    image: bitnamilegacy/kafka:3.7
     environment:
       KAFKA_CFG_NODE_ID: 1
       KAFKA_CFG_PROCESS_ROLES: broker,controller
@@ -190,6 +190,18 @@ services:
 #      interval: 30s
 #      timeout: 10s
 #      retries: 3
+    networks:
+      - app-network
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile.docker
+    depends_on:
+      - statify-core
+      - statify-data-api
+    ports:
+      - "80:80"
     networks:
       - app-network
 

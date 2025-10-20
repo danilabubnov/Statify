@@ -9,6 +9,12 @@ plugins {
     alias(libs.plugins.dgs.codegen)
 }
 
+configurations.all {
+    resolutionStrategy {
+        force(libs.java.dataloader.get().toString())
+    }
+}
+
 dependencies {
     implementation(platform(libs.spring.boot.dependencies))
     implementation(platform(libs.graphql.dgs.platform.dependencies))

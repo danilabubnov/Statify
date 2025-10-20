@@ -33,6 +33,7 @@ kotlinx-coroutines     = "1.9.0"
 netflix-dgs            = "10.1.2"
 
 graphql-java           = "24.0"
+java-dataloader        = "3.3.0"
 
 [plugins]
 kotlin-jvm     = { id = "org.jetbrains.kotlin.jvm",            version.ref = "kotlin" }
@@ -117,6 +118,10 @@ graphql-dgs-extended-validation    = { group = "com.netflix.graphql.dgs", name =
 # --- GraphQL Scalars
 
 graphql-java-extended-scalars = { group = "com.graphql-java", name = "graphql-java-extended-scalars", version.ref = "graphql-java" }
+
+# --- GraphQL DataLoader
+
+java-dataloader = { group = "com.graphql-java", name = "java-dataloader", version.ref = "java-dataloader" }
 
 # --- Tests
 assertk        = { group = "com.willowtreeapps.assertk", name = "assertk-jvm",    version.ref = "assertk" }
