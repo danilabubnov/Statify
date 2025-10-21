@@ -12,7 +12,9 @@ class WebConfig : WebMvcConfigurer {
             .allowedOrigins(
                 "https://studio.apollographql.com",
                 "http://localhost:8081",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                "https://localhost",
+                "http://localhost"
             )
             .allowedMethods("GET", "POST", "PUT", "DELETE")
             .allowCredentials(true)
