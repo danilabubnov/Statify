@@ -63,11 +63,13 @@ class OAuth2SuccessHandler(
         val spotifyId = spotifyUser.name
         val refreshToken = authorizedClient.refreshToken?.tokenValue ?: error("Refresh token not set")
         val spotifyInfo = spotifyInfoService.findBySpotifyIdOrNull(spotifyId) ?: error("Unknown spotifyId")
+        val displayName = spotifyUser.attributes["display_name"] as? String
 
         spotifyInfoService.update(
             spotifyInfo.copy(
                 user = user,
-                refreshToken = refreshToken
+                refreshToken = refreshToken,
+                displayName = displayName
             )
         )
 

@@ -15,11 +15,12 @@ class SpotifyInfoService @Autowired constructor(
     fun findBySpotifyIdOrNull(spotifyId: String): SpotifyInfo? = spotifyInfoRepository.findBySpotifyId(spotifyId)
 
     @Transactional
-    fun create(spotifyId: String, email: String, user: User?): SpotifyInfo {
+    fun create(spotifyId: String, email: String, user: User?, displayName: String? = null): SpotifyInfo {
         return spotifyInfoRepository.save(
             SpotifyInfo(
                 spotifyId = spotifyId,
                 email = email,
+                displayName = displayName,
                 user = user,
                 refreshToken = null,
             )

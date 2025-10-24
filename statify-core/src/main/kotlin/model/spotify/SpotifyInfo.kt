@@ -18,6 +18,9 @@ data class SpotifyInfo(
     @Column(name = "email")
     var email: String,
 
+    @Column(name = "display_name")
+    var displayName: String? = null,
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     var user: User? = null,

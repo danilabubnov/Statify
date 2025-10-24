@@ -23,13 +23,19 @@ class SpotifyOAuth2UserService(
         val attributes = oAuth2User.attributes
         val spotifyId = attributes["id"] as? String ?: error("SpotifyId not found")
         val email = attributes["email"] as? String ?: error("Email not found")
+        val displayName = attributes["display_name"] as? String
 
         val spotifyInfo = spotifyInfoService.findBySpotifyIdOrNull(spotifyId)
 
         if (spotifyInfo != null && spotifyInfo.user != null) error("Spotify account already linked")
 
         return SpotifyOAuth2User(
-            spotifyInfo = spotifyInfo ?: spotifyInfoService.create(spotifyId = spotifyId, email = email, user = null),
+            spotifyInfo = spotifyInfo ?: spotifyInfoService.create(
+                spotifyId = spotifyId,
+                email = email,
+                user = null,
+                displayName = displayName
+            ),
             oauth2Attributes = attributes
         )
     }
