@@ -155,7 +155,7 @@ services:
       MUSIC_BRAINZ_USER_AGENT: ${MUSIC_BRAINZ_USER_AGENT}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_HOST: redis
-      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PORT: 6379
     depends_on:
       postgres-data-storage:
         condition: service_healthy
