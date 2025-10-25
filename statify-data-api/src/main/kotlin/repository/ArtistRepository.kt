@@ -28,7 +28,9 @@ interface ArtistRepository : JpaRepository<Artist, String> {
     """)
     fun findArtistsByAlbumIds(@Param("albumIds") ids: Collection<String>): List<AlbumArtistRow>
 
-    fun findAllByOrderByPopularityDesc(pageable: Pageable): Page<Artist>
+    fun findAllByPopularityIsNotNullOrderByPopularityDesc(pageable: Pageable): Page<Artist>
+
+    fun countByPopularityIsNotNull(): Long
 
     @Query(
         value = """

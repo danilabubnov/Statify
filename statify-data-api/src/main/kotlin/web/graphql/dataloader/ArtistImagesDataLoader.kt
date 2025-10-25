@@ -28,7 +28,7 @@ class ArtistImagesDataLoader(
 
         val rows = artistRepository.findImagesForArtistIds(keys)
 
-        rows.groupBy { it.getArtistId() }
+        val imagesMap = rows.groupBy { it.getArtistId() }
             .mapValues { (_, artistImages) ->
                 artistImages.sortedBy { it.getImageOrder() }.map { artistImage ->
                     Image(
@@ -38,6 +38,11 @@ class ArtistImagesDataLoader(
                     )
                 }
             }
+
+        // Return empty list for artists without images to satisfy non-null GraphQL schema
+        keys.associateWith { artistId ->
+            imagesMap[artistId] ?: emptyList()
+        }
     }
 
 }

@@ -7,7 +7,7 @@ import org.danila.model.spotify.artist.Artist
 fun Artist.toArtistPreview() = ArtistPreview(
     id = spotifyId,
     name = name,
-    images = images.map { it.toImage() }
+    images = emptyList() // Images are loaded via ArtistImagesDataLoader
 )
 
 fun Artist.toArtistSimple() = ArtistSimple(

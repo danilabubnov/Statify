@@ -17,14 +17,14 @@ class ArtistService(
         pageSize: Int,
     ): List<ArtistPreview> {
         val pageable = PageRequest.of(page, pageSize)
-        val topArtistIdsByPopularity = artistRepository.findAllByOrderByPopularityDesc(pageable).content
+        val topArtistIdsByPopularity = artistRepository.findAllByPopularityIsNotNullOrderByPopularityDesc(pageable).content
 
         return topArtistIdsByPopularity.map { artist -> ArtistPreview(id = artist.spotifyId, name = artist.name, images = emptyList()) }
     }
 
     @Transactional(readOnly = true)
     fun countTopByPopularity(): Long {
-        return artistRepository.count()
+        return artistRepository.countByPopularityIsNotNull()
     }
 
 }
