@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
+import type { Router } from 'vue-router';
 import { apolloClient } from '../../api/apollo';
 import { TOP_ALBUMS_QUERY } from '../../graphql/queries';
 import type {
@@ -27,6 +28,9 @@ export const albumStore = defineStore('albums', () => {
   const currentSize = ref<number>(DEFAULT_SIZE.ALBUMS);
   const timeRangeFilter = ref<TimeRange>('all-time');
   const albumType = ref<AlbumType>('ALBUM');
+  const isInitialLoad = ref(true);
+
+  const router = shallowRef<Router | undefined>(undefined);
 
   const { dateRange } = useDateRangeFilter(timeRangeFilter);
   const { createController, isCurrentController, clearController } = useAbortController();
@@ -151,7 +155,13 @@ export const albumStore = defineStore('albums', () => {
     fetchData: fetchTopAlbums,
     prefetchData,
     pageCount,
+    router,
+    isInitialLoad,
   });
+
+  const setRouter = (r: Router) => {
+    router.value = r;
+  };
 
   const init = async () => {
     await fetchTopAlbums({ withTotal: true });
@@ -167,6 +177,7 @@ export const albumStore = defineStore('albums', () => {
     currentSize,
     timeRangeFilter,
     albumType,
+    isInitialLoad,
     currentAlbums,
     pageInfo,
     pageCount,
@@ -178,5 +189,6 @@ export const albumStore = defineStore('albums', () => {
     prevPage,
     followPage,
     prefetchPage,
+    setRouter,
   };
 });

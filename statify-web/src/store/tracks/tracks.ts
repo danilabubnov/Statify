@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
+import type { Router } from 'vue-router';
 import { apolloClient } from '../../api/apollo';
 import { TOP_TRACKS_QUERY } from '../../graphql/queries';
 import type {
@@ -25,6 +26,9 @@ export const trackStore = defineStore('tracks', () => {
   const currentPage = ref(0);
   const currentSize = ref<number>(DEFAULT_SIZE.TRACKS);
   const timeRangeFilter = ref<TimeRange>('all-time');
+  const isInitialLoad = ref(true);
+
+  const router = shallowRef<Router | undefined>(undefined);
 
   const { dateRange } = useDateRangeFilter(timeRangeFilter);
   const { createController, isCurrentController, clearController } = useAbortController();
@@ -131,7 +135,13 @@ export const trackStore = defineStore('tracks', () => {
     fetchData: fetchTopTracks,
     prefetchData,
     pageCount,
+    router,
+    isInitialLoad,
   });
+
+  const setRouter = (r: Router) => {
+    router.value = r;
+  };
 
   const init = async () => {
     await fetchTopTracks({ withTotal: true });
@@ -146,6 +156,7 @@ export const trackStore = defineStore('tracks', () => {
     currentPage,
     currentSize,
     timeRangeFilter,
+    isInitialLoad,
     currentTracks,
     pageInfo,
     pageCount,
@@ -157,5 +168,6 @@ export const trackStore = defineStore('tracks', () => {
     prevPage,
     followPage,
     prefetchPage,
+    setRouter,
   };
 });

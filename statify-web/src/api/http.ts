@@ -20,10 +20,6 @@ coreApi.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     config.headers = headers;
   }
 
-  if (import.meta.env.DEV) {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-  }
-
   return config;
 });
 

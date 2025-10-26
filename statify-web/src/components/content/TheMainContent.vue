@@ -21,6 +21,7 @@
 </template>
 
 <script setup lang="ts">
+  import { onMounted } from 'vue';
   import SectionRow from './SectionRow.vue';
   import ContentCardPreview from './ContentCardPreview.vue';
   import { albumStore } from '../../store/albums/albums';
@@ -28,9 +29,25 @@
   import { artistStore } from '../../store/artists/artists';
   import { storeToRefs } from 'pinia';
 
-  const { currentAlbums } = storeToRefs(albumStore());
-  const { currentTracks } = storeToRefs(trackStore());
-  const { currentArtists } = storeToRefs(artistStore());
+  const albums = albumStore();
+  const tracks = trackStore();
+  const artists = artistStore();
+
+  const { currentAlbums } = storeToRefs(albums);
+  const { currentTracks } = storeToRefs(tracks);
+  const { currentArtists } = storeToRefs(artists);
+
+  onMounted(async () => {
+    tracks.currentPage = 0;
+    albums.currentPage = 0;
+    artists.currentPage = 0;
+
+    await Promise.all([
+      tracks.fetchTopTracks({ page: 0, withTotal: false }),
+      albums.fetchTopAlbums({ page: 0, withTotal: false }),
+      artists.fetchTopArtists({ page: 0, withTotal: false })
+    ]);
+  });
 </script>
 
 <style scoped></style>

@@ -47,6 +47,7 @@ export const useContentStore = (type: ContentType): ContentStoreReturn => {
     }
 
     store.currentPage = DEFAULT_PAGE;
+    store.isInitialLoad = true;
 
     if (type === 'tracks') {
       await tracks.fetchTopTracks({ page: DEFAULT_PAGE });

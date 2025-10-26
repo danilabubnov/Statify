@@ -34,7 +34,7 @@
 <script setup lang="ts">
   import { computed, ref, watch, onMounted } from 'vue';
   import SwitchTabs from '../SwitchTabs.vue';
-  import { useRoute } from 'vue-router';
+  import { useRoute, useRouter } from 'vue-router';
   import ContentCardPreview from './ContentCardPreview.vue';
   import ContentCardSkeleton from './ContentCardSkeleton.vue';
   import PaginationBar from '../pagination/PaginationBar.vue';
@@ -43,6 +43,7 @@
   import type { TimeRange } from '../../types/filters';
 
   const route = useRoute();
+  const router = useRouter();
   const type = route.meta.type as 'tracks' | 'albums';
 
   const timeRange = ref<TimeRange>('all-time');
@@ -76,7 +77,24 @@
 
   watch(() => store.currentPage, scrollToContent);
 
-  onMounted(() => {
+  onMounted(async () => {
+    store.setRouter(router);
+
     timeRange.value = store.activeTimeRangeFilter;
+
+    const pageParam = route.query.page;
+    if (pageParam && typeof pageParam === 'string') {
+      const pageNumber = parseInt(pageParam, 10);
+      if (!isNaN(pageNumber) && pageNumber > 0) {
+        store.isInitialLoad = false;
+        store.currentPage = pageNumber - 1;
+
+        if (type === 'tracks' && 'fetchTopTracks' in store) {
+          await store.fetchTopTracks({ page: pageNumber - 1 });
+        } else if (type === 'albums' && 'fetchTopAlbums' in store) {
+          await store.fetchTopAlbums({ page: pageNumber - 1 });
+        }
+      }
+    }
   });
 </script>

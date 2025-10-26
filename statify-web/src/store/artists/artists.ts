@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, shallowRef } from 'vue';
+import type { Router } from 'vue-router';
 import { apolloClient } from '../../api/apollo';
 import { TOP_ARTISTS_QUERY } from '../../graphql/queries';
 import type {
@@ -21,8 +22,30 @@ export const artistStore = defineStore('artists', () => {
 
   const currentPage = ref(0);
   const currentSize = ref<number>(DEFAULT_SIZE.ARTISTS);
+  const isInitialLoad = ref(true);
+
+  const router = shallowRef<Router | undefined>(undefined);
 
   const { createController, isCurrentController, clearController } = useAbortController();
+
+  const updateURLQuery = (page: number) => {
+    if (!router.value) return;
+
+    if (isInitialLoad.value && page === 0) {
+      return;
+    }
+
+    const currentQuery = router.value.currentRoute.value.query;
+    const query = page === 0
+      ? Object.fromEntries(Object.entries(currentQuery).filter(([key]) => key !== 'page'))
+      : { ...currentQuery, page: String(page + 1) };
+
+    router.value.replace({ query });
+
+    if (isInitialLoad.value) {
+      isInitialLoad.value = false;
+    }
+  };
 
   const currentArtists = computed(() => topArtists.value[currentPage.value] ?? []);
   const pageInfo = computed(() => pagesInfo.value[currentPage.value] ?? null);
@@ -108,6 +131,8 @@ export const artistStore = defineStore('artists', () => {
     currentPage.value = page.value + 1;
     loading.value = true;
 
+    updateURLQuery(currentPage.value);
+
     await fetchTopArtists({ page: currentPage.value, size: size.value });
   };
 
@@ -117,6 +142,8 @@ export const artistStore = defineStore('artists', () => {
     currentPage.value = page.value - 1;
     loading.value = true;
 
+    updateURLQuery(currentPage.value);
+
     await fetchTopArtists({ page: currentPage.value, size: size.value });
   };
 
@@ -124,7 +151,13 @@ export const artistStore = defineStore('artists', () => {
     currentPage.value = p - 1;
     loading.value = true;
 
+    updateURLQuery(currentPage.value);
+
     await fetchTopArtists({ page: p - 1, size: size.value });
+  };
+
+  const setRouter = (r: Router) => {
+    router.value = r;
   };
 
   const init = async () => {
@@ -139,6 +172,7 @@ export const artistStore = defineStore('artists', () => {
     totalCount,
     currentPage,
     currentSize,
+    isInitialLoad,
     currentArtists,
     pageInfo,
     page,
@@ -152,5 +186,6 @@ export const artistStore = defineStore('artists', () => {
     nextPage,
     prevPage,
     followPage,
+    setRouter,
   };
 });

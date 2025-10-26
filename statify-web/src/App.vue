@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-  import { onMounted, ref, watch } from 'vue';
+  import { ref, watch } from 'vue';
   import NavBar from './components/TheNavBar.vue';
   import TheAuthForm from './components/form/TheAuthForm.vue';
   import { storeToRefs } from 'pinia';
@@ -47,12 +47,6 @@
   watch(accessToken, (newToken, oldToken) => {
     if (!oldToken && newToken && formIsVisible.value) {
       toggleForm();
-    }
-  });
-
-  onMounted(() => {
-    if (import.meta.env.DEV) {
-      authStore().logout();
     }
   });
 </script>
