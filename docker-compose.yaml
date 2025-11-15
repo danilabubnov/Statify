@@ -182,6 +182,7 @@ services:
       POSTGRES_PASSWORD: ${STATIFY_DATA_STORAGE_POSTGRES_PASSWORD}
       SERVER_PORT: ${STATIFY_DATA_API_PORT}
       SERVER_URL: ${STATIFY_DATA_API_URL}
+      JWT_ACCESS_SECRET_KEY: ${JWT_ACCESS_SECRET_KEY}
     #    depends_on:
     #      postgres-data-storage:
     #        condition: service_healthy

@@ -6,6 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.stereotype.Service
 import utils.trimToNull
+import java.util.*
 
 @Service
 class UserDetailsServiceImpl(
@@ -16,6 +17,11 @@ class UserDetailsServiceImpl(
         user = userRepository.findByEmail(
             username?.trimToNull() ?: error("Email is null")
         ) ?: throw EmailNotFoundException()
+    )
+
+    fun loadUserById(userId: UUID): UserDetails = UserDetailsImpl(
+        user = userRepository.findById(userId)
+            .orElseThrow { error("User not found with id: $userId") }
     )
 
 }

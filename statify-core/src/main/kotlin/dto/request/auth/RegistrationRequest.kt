@@ -24,7 +24,8 @@ data class RegistrationRequest(
 ) {
 
     fun normalize(): RegistrationRequest = copy(
-        email = email.trim()
+        email = email.trim(),
+        password = password.trim()
     )
 
 }

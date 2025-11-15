@@ -23,6 +23,7 @@ dependencies {
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.spring.boot.starter.security)
 
     implementation(libs.graphql.dgs.spring.graphql.starter)
     implementation(libs.graphql.dgs.extended.validation)
@@ -33,10 +34,15 @@ dependencies {
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgres)
 
+    implementation(libs.jjwt.api)
+    runtimeOnly(libs.jjwt.impl)
+    runtimeOnly(libs.jjwt.jackson)
+
     testImplementation(platform(libs.spring.boot.dependencies))
     testImplementation(libs.spring.boot.starter.test) {
         exclude("org.junit.vintage", "junit-vintage-engine")
     }
+    testImplementation(libs.spring.security.test)
 }
 
 project(":statify-data-api") {

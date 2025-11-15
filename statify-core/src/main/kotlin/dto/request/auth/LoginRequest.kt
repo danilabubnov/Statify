@@ -17,6 +17,9 @@ data class LoginRequest(
 
 ) {
 
-    fun normalize(): LoginRequest = copy(email = email.trim().lowercase())
+    fun normalize(): LoginRequest = copy(
+        email = email.trim().lowercase(),
+        password = password.trim()
+    )
 
 }

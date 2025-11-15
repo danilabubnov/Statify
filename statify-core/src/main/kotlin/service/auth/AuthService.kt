@@ -27,8 +27,8 @@ class AuthService(
             password = request.password
         )
 
-        val accessToken = jwtUtils.generateToken(username = createdUser.email, type = TokenType.ACCESS)
-        val refreshToken = jwtUtils.generateToken(username = createdUser.email, type = TokenType.REFRESH)
+        val accessToken = jwtUtils.generateToken(userId = createdUser.id, type = TokenType.ACCESS)
+        val refreshToken = jwtUtils.generateToken(userId = createdUser.id, type = TokenType.REFRESH)
 
         return RegisterResult(accessToken = accessToken, refreshToken = refreshToken, user = AuthResponse(id = createdUser.id, email = createdUser.email))
     }
@@ -41,10 +41,10 @@ class AuthService(
         SecurityContextHolder.getContext().authentication = authentication
 
         val userDetails = authentication.principal as UserDetailsImpl
-        val username = userDetails.username ?: error("Username must not be blank")
+        val userId = userDetails.user.id
 
-        val accessToken = jwtUtils.generateToken(username = username, type = TokenType.ACCESS)
-        val refreshToken = jwtUtils.generateToken(username = username, type = TokenType.REFRESH)
+        val accessToken = jwtUtils.generateToken(userId = userId, type = TokenType.ACCESS)
+        val refreshToken = jwtUtils.generateToken(userId = userId, type = TokenType.REFRESH)
 
         return LoginResult(accessToken = accessToken, refreshToken = refreshToken, user = AuthResponse(id = userDetails.user.id, email = userDetails.user.email))
     }
@@ -52,8 +52,8 @@ class AuthService(
     fun refreshAccessToken(refreshToken: String): String {
         if (!jwtUtils.validateToken(token = refreshToken, type = TokenType.REFRESH)) throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token")
 
-        val username = jwtUtils.getUsernameFromToken(token = refreshToken, type = TokenType.REFRESH)
-        val newAccessToken = jwtUtils.generateToken(username = username, type = TokenType.ACCESS)
+        val userId = jwtUtils.getUserIdFromToken(token = refreshToken, type = TokenType.REFRESH)
+        val newAccessToken = jwtUtils.generateToken(userId = userId, type = TokenType.ACCESS)
 
         return newAccessToken
     }

@@ -32,8 +32,8 @@ class JwtUtils(
         TokenType.REFRESH to refreshExpirationMs
     )
 
-    fun generateToken(username: String, type: TokenType): String =
-        generateToken(username, expirations[type]!!, keys[type]!!)
+    fun generateToken(userId: UUID, type: TokenType): String =
+        generateToken(userId, expirations[type]!!, keys[type]!!)
 
     fun validateToken(token: String, type: TokenType): Boolean =
         try {
@@ -43,18 +43,20 @@ class JwtUtils(
             false
         }
 
-    fun getUsernameFromToken(token: String, type: TokenType): String =
-        verifyJwt(keys[type]!!)
-            .parseSignedClaims(token)
-            .payload
-            .subject
+    fun getUserIdFromToken(token: String, type: TokenType): UUID =
+        UUID.fromString(
+            verifyJwt(keys[type]!!)
+                .parseSignedClaims(token)
+                .payload
+                .subject
+        )
 
-    private fun generateToken(username: String, expiration: Long, key: SecretKey): String {
+    private fun generateToken(userId: UUID, expiration: Long, key: SecretKey): String {
         val now = Date()
         val expiryDate = Date(now.time + expiration)
 
         return Jwts.builder()
-            .subject(username)
+            .subject(userId.toString())
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(key)

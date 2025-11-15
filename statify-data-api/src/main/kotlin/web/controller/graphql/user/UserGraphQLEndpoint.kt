@@ -2,9 +2,13 @@ package org.danila.web.controller.graphql.user
 
 import com.netflix.graphql.dgs.DgsComponent
 import org.danila.generated.types.*
+import org.danila.security.jwt.JwtUserPrincipal
 import org.danila.services.model.user.UserService
 import com.netflix.graphql.dgs.DgsQuery
 import com.netflix.graphql.dgs.InputArgument
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.server.ResponseStatusException
+import org.springframework.http.HttpStatus
 import java.util.*
 
 @DgsComponent
@@ -13,11 +17,11 @@ class UserGraphQLEndpoint(
 ) {
 
     @DgsQuery
-    fun getFavoriteTracks(
-        @InputArgument userId: UUID,
+    fun getMyFavoriteTracks(
         @InputArgument size: Int,
         @InputArgument after: String?
     ): FavTrackConnection {
+        val userId = getCurrentUserId()
         val (tracks, pageInfoDto) = userService.getFavoriteTracks(userId = userId, size = size, after = after)
 
         return FavTrackConnection(
@@ -46,11 +50,11 @@ class UserGraphQLEndpoint(
     }
 
     @DgsQuery
-    fun getFavoriteAlbums(
-        @InputArgument userId: UUID,
+    fun getMyFavoriteAlbums(
         @InputArgument size: Int,
         @InputArgument after: String?
     ): FavAlbumConnection {
+        val userId = getCurrentUserId()
         val (albums, pageInfoDto) = userService.getFavoriteAlbums(userId = userId, size = size, after = after)
 
         return FavAlbumConnection(
@@ -76,6 +80,18 @@ class UserGraphQLEndpoint(
                 endCursor = pageInfoDto.endCursor
             )
         )
+    }
+
+    private fun getCurrentUserId(): UUID {
+        val authentication = SecurityContextHolder.getContext().authentication
+            ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated")
+
+        val principal = authentication.principal
+        if (principal !is JwtUserPrincipal) {
+            throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid authentication token")
+        }
+
+        return principal.userId
     }
 
 }
