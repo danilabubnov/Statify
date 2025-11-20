@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref, watch, onMounted } from 'vue';
+  import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
   import SwitchTabs from '../SwitchTabs.vue';
   import { useRoute, useRouter } from 'vue-router';
   import ContentCardPreview from './ContentCardPreview.vue';
@@ -46,12 +46,32 @@
   const router = useRouter();
   const type = route.meta.type as 'tracks' | 'albums';
 
-  const timeRange = ref<TimeRange>('all-time');
   const scrollAnchor = ref<HTMLDivElement | null>(null);
 
   const { store, items, currentSize, resetAndFetch, rollback } = useContentStore(type);
 
   const pageTitle = computed(() => CONTENT_TITLES[type]);
+
+  const timeRange = computed<TimeRange>({
+    get: () => store.activeTimeRangeFilter,
+    set: async (newRange) => {
+      const oldRange = store.activeTimeRangeFilter;
+
+      const { range, ...restQuery } = route.query;
+      const query = newRange === 'all-time'
+        ? restQuery
+        : { ...restQuery, range: newRange };
+      router.replace({ query });
+
+      try {
+        await resetAndFetch(newRange);
+        scrollToContent();
+      } catch (error) {
+        console.error(`Failed to fetch ${type} with new filter:`, error);
+        rollback(oldRange);
+      }
+    }
+  });
 
   const scrollToContent = () => {
     scrollAnchor.value?.scrollIntoView({
@@ -60,27 +80,23 @@
     });
   };
 
-  watch(
-    timeRange,
-    async (newRange, oldRange) => {
-      try {
-        await resetAndFetch(newRange);
-        scrollToContent();
-      } catch (error) {
-        console.error(`Failed to fetch ${type} with new filter:`, error);
-        rollback(oldRange);
-        timeRange.value = oldRange;
-      }
-    },
-    { deep: false }
-  );
+  const isValidTimeRange = (value: any): value is TimeRange => {
+    return value === 'month' || value === 'year' || value === 'all-time';
+  };
 
   watch(() => store.currentPage, scrollToContent);
 
   onMounted(async () => {
     store.setRouter(router);
 
-    timeRange.value = store.activeTimeRangeFilter;
+    const rangeParam = route.query.range;
+    const initialRange = typeof rangeParam === 'string' && isValidTimeRange(rangeParam)
+      ? rangeParam
+      : 'all-time';
+
+    if ('timeRangeFilter' in store) {
+      store.timeRangeFilter = initialRange;
+    }
 
     const pageParam = route.query.page;
     if (pageParam && typeof pageParam === 'string') {
@@ -95,6 +111,12 @@
           await store.fetchTopAlbums({ page: pageNumber - 1 });
         }
       }
+    }
+  });
+
+  onBeforeUnmount(() => {
+    if ('timeRangeFilter' in store) {
+      store.timeRangeFilter = 'all-time';
     }
   });
 </script>
