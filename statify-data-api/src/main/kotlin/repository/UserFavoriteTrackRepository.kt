@@ -25,4 +25,6 @@ interface UserFavoriteTrackRepository : JpaRepository<UserFavoriteTrack, UserFav
         pageable: Pageable
     ): Slice<UserFavoriteTrack>
 
+    fun countByIdUserId(userId: UUID): Long
+
 }

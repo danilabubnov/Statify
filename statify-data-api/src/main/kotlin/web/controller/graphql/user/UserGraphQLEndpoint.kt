@@ -1,6 +1,7 @@
 package org.danila.web.controller.graphql.user
 
 import com.netflix.graphql.dgs.DgsComponent
+import com.netflix.graphql.dgs.DgsDataFetchingEnvironment
 import org.danila.generated.types.*
 import org.danila.security.jwt.JwtUserPrincipal
 import org.danila.services.model.user.UserService
@@ -19,33 +20,36 @@ class UserGraphQLEndpoint(
     @DgsQuery
     fun getMyFavoriteTracks(
         @InputArgument size: Int,
-        @InputArgument after: String?
+        @InputArgument offset: Int,
+        dfe: DgsDataFetchingEnvironment
     ): FavTrackConnection {
         val userId = getCurrentUserId()
-        val (tracks, pageInfoDto) = userService.getFavoriteTracks(userId = userId, size = size, after = after)
+        val needTotal = dfe.selectionSet.contains("totalCount")
+        val result = userService.getFavoriteTracks(
+            userId = userId,
+            size = size,
+            offset = offset,
+            includeTotalCount = needTotal
+        )
 
         return FavTrackConnection(
-            edges = tracks.map { dto ->
-                FavTrackEdge(
-                    node = FavTrack(
-                        id = dto.id,
-                        durationMs = dto.durationMs,
-                        explicit = dto.explicit,
-                        name = dto.name,
-                        popularity = dto.popularity,
-                        trackNumber = dto.trackNumber,
-                        albumId = dto.albumId,
-                        addedAt = dto.addedAt
-                    ),
-                    cursor = dto.cursor
+            items = result.tracks.map { dto ->
+                FavTrack(
+                    id = dto.id,
+                    durationMs = dto.durationMs,
+                    explicit = dto.explicit,
+                    name = dto.name,
+                    addedAt = dto.addedAt,
+                    artists = emptyList(),
+                    covers = emptyList(),
+                    album = FavTrackAlbum(
+                        id = dto.albumId,
+                        name = dto.albumName
+                    )
                 )
             },
-            pageInfo = PageInfo(
-                hasNextPage = pageInfoDto.hasNextPage,
-                hasPreviousPage = pageInfoDto.hasPreviousPage,
-                startCursor = pageInfoDto.startCursor,
-                endCursor = pageInfoDto.endCursor
-            )
+            totalCount = if (needTotal) result.totalCount else null,
+            hasMore = result.hasMore
         )
     }
 

@@ -5,9 +5,8 @@ data class FavTrackDto(
     val durationMs: Int,
     val explicit: Boolean,
     val name: String,
-    val popularity: Int?,
-    val trackNumber: Int,
     val albumId: String,
+    val albumName: String,
     val addedAt: String,
     val cursor: String
 )

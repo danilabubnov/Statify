@@ -1,13 +1,11 @@
 extend type Query {
 
-    getFavoriteTracks(
-        userId: ID!, @NotBlank
-        size: Int = 10, @Range(min: 1, max: 20)
-        after: ID
+    getMyFavoriteTracks(
+        size: Int = 20, @Range(min: 1, max: 100)
+        offset: Int = 0, @Range(min: 0)
     ): FavTrackConnection!
 
-    getFavoriteAlbums(
-        userId: ID!, @NotBlank
+    getMyFavoriteAlbums(
         size: Int = 10, @Range(min: 1, max: 20)
         after: ID
     ): FavAlbumConnection!
@@ -19,10 +17,15 @@ type FavTrack {
     durationMs: Int!
     explicit: Boolean!
     name: String!
-    popularity: Int
-    trackNumber: Int!
-    albumId: ID!
     addedAt: String!
+    artists: [ArtistSimple!]!
+    covers: [Image!]!
+    album: FavTrackAlbum!
+}
+
+type FavTrackAlbum {
+    id: ID!
+    name: String!
 }
 
 type FavAlbum {
@@ -37,13 +40,9 @@ type FavAlbum {
 }
 
 type FavTrackConnection {
-    edges: [FavTrackEdge!]!
-    pageInfo: PageInfo!
-}
-
-type FavTrackEdge {
-    node: FavTrack!
-    cursor: ID!
+    items: [FavTrack!]!
+    totalCount: Int
+    hasMore: Boolean!
 }
 
 type FavAlbumConnection {

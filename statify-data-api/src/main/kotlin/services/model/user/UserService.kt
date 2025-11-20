@@ -5,7 +5,6 @@ import org.danila.dto.FavTrackDto
 import org.danila.dto.PageInfoDto
 import org.danila.model.spotify.album.UserFavoriteAlbumId
 import org.danila.model.spotify.album.UserFavoriteAlbum
-import org.danila.model.spotify.track.UserFavoriteTrackId
 import org.danila.repository.UserFavoriteAlbumRepository
 import org.danila.repository.UserFavoriteTrackRepository
 import org.springframework.beans.factory.annotation.Autowired
@@ -15,6 +14,12 @@ import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
+
+data class FavTrackConnectionResult(
+    val tracks: List<FavTrackDto>,
+    val totalCount: Int,
+    val hasMore: Boolean
+)
 
 @Service
 class UserService @Autowired constructor(
@@ -26,52 +31,41 @@ class UserService @Autowired constructor(
     fun getFavoriteTracks(
         userId: UUID,
         size: Int,
-        after: String?
-    ): Pair<List<FavTrackDto>, PageInfoDto> {
+        offset: Int,
+        includeTotalCount: Boolean = false
+    ): FavTrackConnectionResult {
         val pageable = PageRequest.of(
-            0,
+            offset / size,
             size,
             Sort.by(Sort.Order.desc("addedAt"), Sort.Order.desc("id.trackId"))
         )
 
-        val slice = if (after == null)
-            userFavoriteTrackRepository.findByIdUserId(userId = userId, pageable = pageable)
-        else {
-            val last = userFavoriteTrackRepository
-                .findById(UserFavoriteTrackId(userId = userId, trackId = after))
-                .orElseThrow { IllegalArgumentException("Favorite track not found for cursor=$after") }
+        val page = userFavoriteTrackRepository.findByIdUserId(userId = userId, pageable = pageable)
 
-            userFavoriteTrackRepository.findByIdUserIdAndAddedAtLessThanOrAddedAtEqualsAndIdTrackIdLessThan(
-                userId = userId,
-                addedAt = last.addedAt,
-                sameAddedAt = last.addedAt,
-                trackId = last.id.trackId,
-                pageable = pageable
-            )
-        }
-
-        val dtos = slice.content.map { entity ->
+        val dtos = page.content.map { entity ->
             FavTrackDto(
                 id          = entity.id.trackId,
                 durationMs  = entity.track.durationMs,
                 explicit    = entity.track.explicit,
                 name        = entity.track.name,
-                popularity  = entity.track.popularity,
-                trackNumber = entity.track.trackNumber,
                 albumId     = entity.track.album.spotifyId,
+                albumName   = entity.track.album.name,
                 addedAt     = entity.addedAt.toString(),
                 cursor      = entity.id.trackId
             )
         }
 
-        val pageInfo = PageInfoDto(
-            hasNextPage     = slice.hasNext(),
-            hasPreviousPage = after != null,
-            startCursor     = dtos.firstOrNull()?.cursor,
-            endCursor       = dtos.lastOrNull()?.cursor
-        )
+        val totalCount = if (includeTotalCount) {
+            userFavoriteTrackRepository.countByIdUserId(userId).toInt()
+        } else {
+            0
+        }
 
-        return dtos to pageInfo
+        return FavTrackConnectionResult(
+            tracks = dtos,
+            totalCount = totalCount,
+            hasMore = page.hasNext()
+        )
     }
 
     @Transactional(readOnly = true)
