@@ -71,9 +71,9 @@ class AuthController @Autowired constructor(
     private fun createCookie(value: String, maxAgeSec: Long) =
         ResponseCookie.from("refreshToken", value)
             .httpOnly(true)
-            .secure(false)        // prod: true
+            .secure(true)
             .path("/api/auth/refresh")
-            .sameSite("Lax")      // prod: Lax/Strict
+            .sameSite("None")
             .maxAge(maxAgeSec)
             .build()
 
