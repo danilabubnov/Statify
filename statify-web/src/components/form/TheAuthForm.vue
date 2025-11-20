@@ -109,7 +109,6 @@
   const confirmPassword = ref('');
 
   const store = authStore();
-
   const pending = ref(false);
   const submitAttempted = ref(false);
   const emailTouched = ref(false);
@@ -169,18 +168,18 @@
       const emailTrimmed = email.value.trim();
 
       if (isRegisterMode.value) {
-        await store.register({
+        await store.registerWithoutStateUpdate({
           email: emailTrimmed,
           password: password.value,
         });
       } else {
-        await store.login({
+        await store.loginWithoutStateUpdate({
           email: emailTrimmed,
           password: password.value,
         });
       }
 
-      emit('close-modal');
+      window.location.reload();
     } catch (e: any) {
       submitError.value = mapErrorMessage(e);
     } finally {

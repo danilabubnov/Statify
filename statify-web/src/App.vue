@@ -3,11 +3,11 @@
     <Transition name="fade">
       <TheLoadingScreen v-if="loading" @animation-end="toggleLoading" />
       <div v-else class="flex flex-col h-full">
-        <NavBar @open-form="toggleForm" />
+        <NavBar @open-form="toggleForm" @logout="handleLogout" />
         <Transition name="modal-fade">
           <TheAuthForm v-if="formIsVisible" @close-modal="toggleForm" />
         </Transition>
-        
+
         <router-view ref="container"/>
       </div>
     </Transition>
@@ -15,10 +15,9 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, watch } from 'vue';
+  import { ref } from 'vue';
   import NavBar from './components/TheNavBar.vue';
   import TheAuthForm from './components/form/TheAuthForm.vue';
-  import { storeToRefs } from 'pinia';
   import TheLoadingScreen from './components/TheLoadingScreen.vue';
   import { authStore } from './store/auth/auth';
   import { albumStore } from './store/albums/albums';
@@ -26,7 +25,6 @@
   import { artistStore } from './store/artists/artists';
 
   const container = ref<HTMLElement | null>(null);
-
   authStore().init();
   albumStore().init();
   trackStore().init();
@@ -34,7 +32,6 @@
 
   const formIsVisible = ref(false);
   const loading = ref(true);
-  const { accessToken } = storeToRefs(authStore());
 
   function toggleForm() {
     formIsVisible.value = !formIsVisible.value;
@@ -44,11 +41,15 @@
     loading.value = !loading.value;
   }
 
-  watch(accessToken, (newToken, oldToken) => {
-    if (!oldToken && newToken && formIsVisible.value) {
-      toggleForm();
+  async function handleLogout() {
+    try {
+      await authStore().logoutWithoutStateUpdate();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      window.location.href = '/';
     }
-  });
+  }
 </script>
 
 <style scoped>

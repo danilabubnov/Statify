@@ -120,5 +120,18 @@ export const authStore = defineStore('auth', {
       this.accessToken = null;
       this.currentUser = null;
     },
+
+    // Methods that only call API without updating state (for cases when page will reload immediately)
+    async loginWithoutStateUpdate(payload: { email: string; password: string }): Promise<void> {
+      await coreApi.post<LoginResponse>('/api/auth/login', payload);
+    },
+
+    async registerWithoutStateUpdate(payload: { email: string; password: string }): Promise<void> {
+      await coreApi.post<RegisterResponse>('/api/auth/register', payload);
+    },
+
+    async logoutWithoutStateUpdate(): Promise<void> {
+      await coreApi.post<void>('/api/auth/logout');
+    },
   },
 });
