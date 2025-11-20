@@ -11,7 +11,7 @@ body,
   padding: 0;
   background-color: black;
   scrollbar-gutter: auto !important;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'Outfit', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .btn-hoverable {

@@ -4,7 +4,8 @@ import type { CodegenConfig } from '@graphql-codegen/cli';
 const api = process.env.VITE_STATIFY_DATA_API_URL;
 
 const config: CodegenConfig = {
-  schema: ['../statify-data-api/src/main/resources/**/*.graphqls', ...(api ? [{ [`${api.replace(/\/+$/, '')}/graphql`]: {} } as any] : [])],
+  // schema: ['../statify-data-api/src/main/resources/**/*.graphqls', ...(api ? [{ [`${api.replace(/\/+$/, '')}/graphql`]: {} } as any] : [])],
+   schema: ['../statify-data-api/src/main/resources/**/*.graphqls'],
 
   documents: ['src/**/*.{ts,tsx,vue,gql,graphql}'],
 

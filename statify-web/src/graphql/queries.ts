@@ -109,6 +109,41 @@ export const TopArtistsByPopularity = gql`
   }
 `;
 
+/* ========== FAVORITE TRACKS ========== */
+export const GetMyFavoriteTracks = gql`
+  fragment FavTrackFields on FavTrack {
+    id
+    name
+    durationMs
+    explicit
+    addedAt
+    artists {
+      id
+      name
+    }
+    covers {
+      imageUrl
+      imageHeight
+      imageWidth
+    }
+    album {
+      id
+      name
+    }
+  }
+
+  query GetMyFavoriteTracks($size: Int, $offset: Int, $withTotal: Boolean = false) {
+    getMyFavoriteTracks(size: $size, offset: $offset) {
+      items {
+        ...FavTrackFields
+      }
+      totalCount @include(if: $withTotal)
+      hasMore
+    }
+  }
+`;
+
 export { TopAlbumsByPopularityDocument as TOP_ALBUMS_QUERY } from './generated/graphql';
 export { TopTracksByPopularityDocument as TOP_TRACKS_QUERY } from './generated/graphql';
 export { TopArtistsByPopularityDocument as TOP_ARTISTS_QUERY } from './generated/graphql';
+export { GetMyFavoriteTracksDocument as GET_MY_FAVORITE_TRACKS_QUERY } from './generated/graphql';
