@@ -30,7 +30,7 @@ class AuthService(
         val accessToken = jwtUtils.generateToken(userId = createdUser.id, type = TokenType.ACCESS)
         val refreshToken = jwtUtils.generateToken(userId = createdUser.id, type = TokenType.REFRESH)
 
-        return RegisterResult(accessToken = accessToken, refreshToken = refreshToken, user = AuthResponse(id = createdUser.id, email = createdUser.email))
+        return RegisterResult(accessToken = accessToken, refreshToken = refreshToken, user = AuthResponse.fromUser(createdUser))
     }
 
     fun login(request: LoginRequest): LoginResult {
@@ -46,7 +46,7 @@ class AuthService(
         val accessToken = jwtUtils.generateToken(userId = userId, type = TokenType.ACCESS)
         val refreshToken = jwtUtils.generateToken(userId = userId, type = TokenType.REFRESH)
 
-        return LoginResult(accessToken = accessToken, refreshToken = refreshToken, user = AuthResponse(id = userDetails.user.id, email = userDetails.user.email))
+        return LoginResult(accessToken = accessToken, refreshToken = refreshToken, user = AuthResponse.fromUser(userDetails.user))
     }
 
     fun refreshAccessToken(refreshToken: String): String {

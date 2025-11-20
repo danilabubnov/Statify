@@ -16,8 +16,8 @@
               {{ LABELS.FAVORITE_TRACKS }}
             </h1>
             <div class="flex flex-row items-center gap-1 header-info">
-              <span class="hidden lg:inline font-bold text-base-content">данила</span>
-              <span class="hidden lg:inline text-base-content/70">•</span>
+              <span v-if="displayName" class="hidden lg:inline font-bold text-base-content">{{ displayName }}</span>
+              <span v-if="displayName" class="hidden lg:inline text-base-content/70">•</span>
               <span class="text-base-content/70">{{ tracks.length }} tracks</span>
             </div>
           </div>
@@ -115,6 +115,7 @@
   import { storeToRefs } from 'pinia';
   import { useMediaQuery } from '@vueuse/core';
   import { favTrackStore } from '../../../store/tracks/favorite-tracks';
+  import { authStore } from '../../../store/auth/auth';
   import VerticalScrollbar from '../../ui/VerticalScrollbar.vue';
   import VirtualList from '../../ui/VirtualList.vue';
   import TrackRowSkeleton from './TrackRowSkeleton.vue';
@@ -129,6 +130,9 @@
 
   const store = favTrackStore();
   const { currentTracks: tracks } = storeToRefs(store);
+
+  const auth = authStore();
+  const displayName = computed(() => auth.currentUser?.displayName);
 
   const scrollState = reactive<{
     scrollTop: number;
