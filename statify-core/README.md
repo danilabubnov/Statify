@@ -1,98 +1,289 @@
-# Statify-core
+# statify-core
 
-**Statify-core** is a Kotlin-based microservice built with Spring Boot. It provides user registration, JWT authentication, and OAuth2 integration with Spotify.
+Authentication and authorization service for the Statify platform. Handles user registration, login, JWT token management, and Spotify OAuth2 integration.
 
-## 🔧 Technologies Used
+## Overview
 
-- Kotlin
-- Spring Boot
-- PostgreSQL
-- Kafka
-- OAuth2 (Spotify)
-- Docker & Docker Compose
+statify-core is the authentication gateway for Statify. It manages:
+- User registration and login with email/password
+- JWT-based authentication (access + refresh tokens)
+- Spotify OAuth2 linking for existing users
+- Secure token storage in HTTP-only cookies
+- Publishing authentication events to Kafka for downstream services
 
-## 🚀 Getting Started
+## Technology Stack
 
-## 🔒 Security
+- **Kotlin** + **Spring Boot 3**
+- **Spring Security** - Authentication and authorization
+- **Spring Data JPA** + **PostgreSQL** - User data persistence
+- **Spring Kafka** - Event publishing
+- **JWT (jjwt)** - Token generation and validation
+- **AES Encryption** - Sensitive data encryption (Spotify tokens)
 
-- All protected endpoints require a valid JWT token passed in the `Authorization` header:
-
-- JWT tokens are issued after a successful login via the `/login` endpoint.
-
-- A refresh token is issued in a secure HttpOnly cookie.
-    - Path is limited to /api/auth/refresh.
-    - Can be used to obtain a new access token without re-login.
-
-- Logout (/api/auth/logout) clears the refresh token cookie.
-
-- Spotify OAuth2 linking (/api/oauth/link/spotify) is only available to authenticated users.
-
-- Sensitive configuration values (e.g., secrets, keys, credentials) are injected via environment variables and should never be hardcoded.
-
-### Authentication Flow
-
-1. Register
+## Architecture
 
 ```
-POST /api/auth/register
+Client → statify-core
+           ├─ Authentication (JWT)
+           ├─ User Management (PostgreSQL)
+           ├─ Spotify OAuth2 Flow
+           └─ Event Publishing (Kafka) → statify-synchronizer
 ```
 
-Creates a new user.
+## API Endpoints
 
-2. Login
+### Authentication
 
-```
-POST /api/auth/login
-```
+#### `POST /api/auth/register`
+Register a new user account.
 
-Response body contains an access token.
-Response headers contain an HttpOnly cookie with the refresh token.
-
-3. Refresh Access Token
-
-```
-POST /api/auth/refresh
-```
-
-Uses the refresh token from the HttpOnly cookie.
-Responds with a new access token.
-
-4. Logout
-
-```
-POST /api/auth/logout
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePassword123!",
+  "displayName": "John Doe"
+}
 ```
 
-Clears the refresh token cookie.
+**Response:**
+- **201 Created** - User registered successfully
+- Returns `accessToken` and user data
+- Sets HTTP-only `refreshToken` cookie
 
-### Link Spotify Account
+---
 
-Initiates the OAuth2 authorization flow with Spotify for the authenticated user.
+#### `POST /api/auth/login`
+Authenticate existing user.
 
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePassword123!"
+}
 ```
-POST /api/oauth/link/spotify
-Authorization: Bearer <access-token>
+
+**Response:**
+- **200 OK** - Login successful
+- Returns `accessToken` and user data
+- Sets HTTP-only `refreshToken` cookie
+
+---
+
+#### `POST /api/auth/refresh`
+Refresh an expired access token.
+
+**Request:**
+- Requires `refreshToken` cookie (automatically sent by browser)
+
+**Response:**
+```json
+{
+  "accessToken": "new_access_token_here"
+}
 ```
 
-Behavior:
+---
 
-    Responds with a 302 Found redirect
+#### `GET /api/auth/me`
+Get authenticated user information.
 
-    The Location header contains the Spotify authorization URL
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
 
-    After successful authorization, statify-core emits a Kafka event to trigger statify-synchronizer for full user library sync
+**Response:**
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "displayName": "John Doe",
+  "spotifyLinked": true
+}
+```
 
-Example response headers:
-HTTP/1.1 302 Found
-Location: https://accounts.spotify.com/authorize?client_id=...
+---
 
-### Run with Docker Compose
+#### `POST /api/auth/logout`
+Logout the current user.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+- **204 No Content** - Clears `refreshToken` cookie
+
+---
+
+### OAuth2
+
+#### `POST /api/oauth/link/spotify`
+Initiate Spotify OAuth2 linking for authenticated user.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+- **303 See Other** - Redirects to Spotify authorization page
+- After approval, redirects back to `{SERVER_URL}/login/oauth2/code/spotify`
+
+**Flow:**
+1. User calls this endpoint → Redirected to Spotify login
+2. User approves → Spotify redirects to statify-core callback
+3. statify-core exchanges code for tokens
+4. Encrypted Spotify tokens stored in database
+5. Event published to Kafka: `UserSpotifyConnectedEvent`
+6. statify-synchronizer consumes event and starts data sync
+
+---
+
+## Configuration
+
+See `.env.example` for all required environment variables.
+
+### Key Configuration
+
+**Database:**
+- Uses PostgreSQL for user and OAuth2 state storage
+- JPA with Hibernate for ORM
+- Schema managed via migrations or `ddl-auto=none` in production
+
+**JWT:**
+- Access tokens expire in 15 minutes (configurable)
+- Refresh tokens expire in 7 days (configurable)
+- Stored in HTTP-only cookies for security
+
+**Encryption:**
+- Spotify access/refresh tokens encrypted at rest using AES
+- Requires `ENCRYPTION_PASSWORD` and `ENCRYPTION_SALT`
+
+**Kafka:**
+- Publishes events: `UserSpotifyConnectedEvent`
+- Consumed by statify-synchronizer to trigger data sync
+
+---
+
+## Running Locally
+
+### Prerequisites
+- JDK 21
+- PostgreSQL 16
+- Kafka (or use root `docker-compose.local.yaml`)
+
+### Steps
+
+1. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your values
+   ```
+
+2. **Start dependencies**
+   ```bash
+   # From root directory
+   docker-compose -f docker-compose.local.yaml up -d postgres-core kafka
+   ```
+
+3. **Run the service**
+   ```bash
+   ./gradlew bootRun --args='--spring.profiles.active=local'
+   ```
+
+4. **Verify**
+   ```bash
+   curl http://localhost:8080/actuator/health
+   ```
+
+---
+
+## Database Schema
+
+**Users Table:**
+- `id` (UUID, PK)
+- `email` (unique, not null)
+- `password` (bcrypt hashed)
+- `display_name`
+- `spotify_access_token` (AES encrypted)
+- `spotify_refresh_token` (AES encrypted)
+- `spotify_linked` (boolean)
+
+**OAuth2 Link State Table:**
+- Temporary storage for OAuth2 state parameter
+- Prevents CSRF attacks during OAuth flow
+
+---
+
+## Security Features
+
+- **Password Hashing:** BCrypt with configurable strength
+- **JWT Signing:** HMAC-SHA256 with secret keys
+- **Token Encryption:** Spotify tokens encrypted with AES-256
+- **HTTP-only Cookies:** Refresh tokens not accessible via JavaScript
+- **CSRF Protection:** OAuth2 state parameter validation
+- **Secure Cookies:** `Secure` and `SameSite=None` attributes for HTTPS
+
+---
+
+## Event Publishing
+
+### `UserSpotifyConnectedEvent`
+
+Published when a user successfully links their Spotify account.
+
+**Kafka Topic:** `user-spotify-connected`
+
+**Event Payload:**
+```json
+{
+  "userId": "uuid",
+  "spotifyAccessToken": "encrypted_token",
+  "spotifyRefreshToken": "encrypted_token"
+}
+```
+
+Consumed by statify-synchronizer to initiate library synchronization.
+
+---
+
+## Error Handling
+
+- **400 Bad Request** - Invalid input (validation errors)
+- **401 Unauthorized** - Missing or invalid access token
+- **409 Conflict** - User already exists (registration)
+- **500 Internal Server Error** - Unexpected errors
+
+All errors return consistent JSON structure:
+```json
+{
+  "status": 400,
+  "message": "Validation failed",
+  "timestamp": "2025-11-20T12:00:00Z"
+}
+```
+
+---
+
+## Health Checks
+
+- **Endpoint:** `/actuator/health`
+- **Probes:** Liveness and readiness probes enabled
+- **Dependencies:** Checks database and Kafka connectivity
+
+---
+
+## Build
 
 ```bash
-git clone https://github.com/danilabubnov/Statify.git
-cd statify-core
-cp .env.example .env  # Fill in your environment variables
-docker-compose up --build
+./gradlew build
 ```
 
-📄 API documentation is available at: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+Docker image:
+```bash
+docker build -t statify-core .
+```
