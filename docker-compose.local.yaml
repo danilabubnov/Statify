@@ -54,7 +54,7 @@ services:
       - app-network
 
   kafka:
-    image: bitnamilegacy/kafka:3.7
+    image: soldevelo/kafka:3.7
     container_name: statify-kafka-local
     environment:
       KAFKA_CFG_NODE_ID: 1
